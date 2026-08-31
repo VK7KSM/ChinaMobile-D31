@@ -4,11 +4,11 @@
 
 ## What this project is
 
-This project turns the China Mobile D31, a carrier-customized Star-net SVP3390 video desk phone, into a practical home communications terminal. The firmware keeps the excellent stock phone interface and adds Telegram, Firefox, Thunderbird, Zello, VLC, and Material Files. It also removes obsolete carrier software and reduces the network exposure of the original Android 6 build.
+This is an ad-free international firmware package for the China Mobile D31. It comes with Telegram, Firefox, the Thunderbird email client, and Zello. The package also hardens the phone's Android 6 system against the malware, viruses, and remote attacks that can exploit an old Android release.
 
-The idea is simple: family members, especially children and older people, should be able to make SIP audio and video calls without needing a smartphone. The D31 already has an 8-inch display, a proper handset, speakerphone, physical keys, and a capable H.264/VP8 SIP client. Once connected to a PBX, it feels much more like a household appliance than a general-purpose tablet.
+I developed this custom system to turn a retired high-end business phone into a communications terminal for the home. It gives children and older family members a simple way to communicate without handing them a smartphone. A desk phone is a communications device in its purest form, and the D31 is especially well suited to the job: it has a high-quality 8-inch display, native IP telephony and video calling, and becomes a proper enterprise-grade internal phone once a SIP line is configured. It is much simpler and more convenient than arranging every video call through WeChat. For a mobile companion, I also customized another piece of electronic waste, the [China Mobile D22 public-network radio](https://github.com/VK7KSM/ChinaMobile-D22), for children and older family members to carry when they go out.
 
-For a matching portable terminal, see my customized [China Mobile D22 project](https://github.com/VK7KSM/ChinaMobile-D22). I paid RMB 220 for a new-old-stock D31 and RMB 80 for a lightly used D22. They have turned out to be remarkably enjoyable pieces of retired enterprise hardware.
+I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 for just RMB 80. The whole family has had a great time with them.
 
 ## Hardware
 
@@ -52,7 +52,7 @@ For a matching portable terminal, see my customized [China Mobile D22 project](h
 
 ### Removed software
 
-- Xuexi Qiangguo and WPS Office.
+- **The worst junk of the lot:** Xuexi Qiangguo and WPS Office.
 - The obsolete stock browser, i-jetty service, HTML Viewer, and music player.
 - Bluetooth MIDI, AOSP Quick Search Box, the old Exchange service, and the preinstalled Baidu location service.
 - The AOSP/MediaTek calendar application, calendar provider, and calendar importer.
@@ -104,48 +104,28 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 
 ## Flashing procedure
 
-> This remains a candidate release. The project has only one reference D31, so a complete destructive Recovery flash has not yet been validated on a second unit. Do not skip the per-device rescue procedure during the first deployment.
-
-1. Extract `D31_SVP3390_Windows_Flash_Tool_v1.3.1.zip` to a short path containing only English characters. Keep the directory structure intact.
+1. Extract `D31_SVP3390_Windows_Flash_Tool_v1.3.1.zip` into a directory whose path contains only English characters. Keep the directory structure intact.
 2. Run `D31-Flash-Tool-v1.3.1.exe`.
-3. Choose Select package for a firmware ZIP already on the PC, or choose Download from GitHub.
-4. Wait for the complete 1.26 GB package length and embedded SHA-256 check. Device detection remains disabled if validation fails.
-5. Enter the D31's wired IPv4 address and select Detect D31. The utility connects to ADB on port 5555.
-6. Run the read-only preflight. It validates the package, device, build, partition layout, Recovery, free space, and required tools without writing a partition or rebooting the phone.
-7. Select Create per-device rescue set. The utility reads the original `system`, `boot`, and critical identity/calibration partitions from this D31 and verifies the copies on both the phone and PC. The resulting rescue set belongs only to this device.
-8. Copy the complete directory named `复制到TF卡或U盘的整个目录` to the FAT32 card or drive. Keep the directory named `禁止公开的本机私有备份` on the PC; never upload it or use it with another D31.
-9. While Android still works, insert the rescue media, enter the stock Recovery, and run `D31_RESCUE_TEST.zip`. Continue only if the display reports `D31 rescue media test completed: PASS`. TEST checks the media, device binding, partitions, Recovery, system image, and boot image without writing or erasing anything.
-10. Select Reboot system now. Back in Windows, acknowledge that TEST passed and confirm data erasure. The Flash button is enabled only after both confirmations.
-11. Start the flash. The backend verifies that the rescue directory still belongs to the connected D31, uploads and checks the firmware, then reboots into Recovery automatically.
-12. Once flashing starts, do not remove power, press keys, close the utility, or allow the PC to sleep or shut down. The first boot rebuilds `userdata` and the ART cache, so it may take considerably longer than a normal boot.
-
-### Prove Recovery access before flashing
-
-Physical key handling and Recovery behavior may differ between production batches. There is not yet one boot-key combination verified across every D31. Before the first flash, perform the following checks while Android is still healthy:
-
-1. Open PowerShell in the utility directory and run:
-
-   ```powershell
-   .\tools\adb.exe -P 5038 -s <WIRED-D31-IP>:5555 reboot recovery
-   ```
-
-2. Confirm that stock Recovery starts and exposes either Apply update from SD card or a working USB OTG media entry.
-3. Identify the physical keys used for navigation, confirmation, and return, then run `D31_RESCUE_TEST.zip`.
-4. You must also prove that this particular unit can enter Recovery without a working Android system. If you cannot enter Recovery independently, the media is not yet a complete unbrick path and you should not proceed with the flash.
+3. Select Choose firmware package to use a ZIP already downloaded to the PC, or select Download from GitHub.
+4. Wait for the 1.26 GB firmware package to pass both the fixed-length check and the built-in SHA-256 check. Device detection remains locked if validation fails.
+5. Enter the D31's wired IP address and select Detect D31. The utility connects to the D31's ADB service on port 5555.
+6. Select Read-only check. This checks the firmware package, device, partitions, Recovery entry point, available space, and dependencies to make sure the phone is ready to flash.
+7. Once the read-only check has passed in full, tick the data-wipe confirmation and select Start flashing. The utility first creates a rescue package specifically for the connected D31, which can be used if the flash fails and leaves the phone unable to boot.
+8. The D31 restarts automatically after flashing begins. Do not disconnect its power, press its physical keys, close the flashing utility, or allow the PC to sleep or shut down before the process finishes. On the first boot, Android rebuilds `userdata` and performs ART optimization, so the phone may run much more slowly than usual. This is normal.
 
 ## Recovering from a failed flash
 
 This procedure covers a soft brick: Android no longer boots, repeatedly resets at the logo, or fails before reaching the launcher, while the stock Recovery still works. The Windows utility never writes the `recovery` partition, so a failed system/boot installation should normally leave Recovery intact.
 
-1. Stop retrying the main firmware. Never use a rescue set created by another D31.
-2. Connect stable power and insert the FAT32 card or USB drive whose TEST package passed before flashing.
-3. Enter stock Recovery using the physical method verified on this exact phone before the flash.
-4. For a TF card, choose Apply update from SD card. For a USB drive, choose the USB OTG media entry that was proven during the pre-flash test.
-5. Open the per-device rescue directory and select `D31_RESCUE_UPDATE.zip`.
-6. UPDATE verifies Recovery, the device binding, partition sizes, and the full system and boot payloads before any partition is written. A mismatch stops the operation safely.
-7. Do not remove power after writing begins. The installer restores the original pre-flash `system` and `boot`, then reads both partitions back and verifies their SHA-256 values.
+1. Stop retrying the main firmware. Never use a rescue package created for another D31.
+2. On the PC, find the rescue package that the flashing utility created automatically for this D31. Copy the complete directory named `复制到TF卡或U盘的整个目录`, including all of its files, to a FAT32-formatted TF card or USB drive.
+3. Connect the D31 to stable power, insert the TF card or USB drive, and enter the stock Recovery.
+4. For a TF card, select Apply update from SD card. For a USB drive, select the USB OTG media entry shown by Recovery.
+5. Open the rescue directory for this D31 and select `D31_RESCUE_UPDATE.zip`.
+6. The rescue installer checks the device, partition sizes, and the lengths and SHA-256 values of `system` and `boot` before writing anything. If any check fails, it stops without writing a partition.
+7. Do not remove power after recovery begins. The installer writes back the original pre-flash `system` and `boot` from this D31, then reads both partitions back and verifies them in full.
 8. When the screen reports `D31 emergency restore completed`, select Reboot system now.
-9. If Recovery reports `ERROR 22`, the original system and boot images have already been restored and verified, but automatic `userdata` erasure failed. Return to the main Recovery menu, run Wipe data/factory reset, and reboot.
+9. If Recovery reports `ERROR 22`, the original `system` and `boot` images have already been restored and verified, but automatic `userdata` erasure failed. Return to the Recovery main menu, run Wipe data/factory reset, and reboot.
 10. The first recovered boot rebuilds application data and the ART cache. Give it time; do not power-cycle the phone merely because the boot logo remains visible longer than usual.
 
 If stock Recovery itself cannot be entered, card-based recovery cannot run. That is a Recovery, preloader, or hardware-level failure and requires the private backups from this phone, a matching MediaTek low-level firmware set, and BootROM tooling. This Windows package does not currently provide that path. Never write `nvram`, `nvdata`, `proinfo`, or calibration partitions taken from a different D31.
