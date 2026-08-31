@@ -76,12 +76,25 @@ Android 6在完全息屏时会把第一次非电源按键只用于唤醒，通�
 ## 当前状态
 
 - 固件版本：`v1.0.2-candidate.1`
-- Windows工具：`v1.2.1`
+- Windows工具：`v1.3.1`
 - 发布性质：预发布候选版
-- 已完成：源文件哈希、ZIP结构与CRC、Recovery整文件签名、载荷、安装器、`boot.img`和`system.img.gz`离线回验；设备侧安装器只读`--self-test`；Windows工具离线构建和正常/错误刷机包校验。
+- 已完成：源文件哈希、ZIP结构与CRC、Recovery整文件签名、载荷、安装器、`boot.img`和`system.img.gz`离线回验；设备侧安装器只读`--self-test`；Windows工具离线构建和正常/错误刷机包校验；每台目标机独立生成急救包的GUI与后端强制门；只读TEST和卡刷恢复入口的签名、结构及静态代码检查。
 - 尚未完成：项目目前只有一台D31母机，未在第二台同构建设备上执行真实Recovery刷写。因此不能把本候选版视为已经完成量产验收的固件。
 
 不要在唯一设备、构建不一致的设备或没有独立备份与救援路径的设备上试刷。
+
+## 每台D31的本机急救包
+
+v1.3.1不再把普通分区备份当作完整救援路径，也不提供基于母机的通用恢复镜像。每台目标D31第一次刷机前，工具必须从该机只读创建本机专用急救包：
+
+- 完整保存该机刷机前的`system`和`boot`，逐端核对长度与SHA-256；
+- 私下保存`nvram`、`nvdata`、`protect1`、`protect2`、`proinfo`、`recovery`、`secro`、`seccfg`和`frp`；
+- 生成可复制到FAT32 TF卡或U盘的`D31_RESCUE_TEST.zip`、`D31_RESCUE_UPDATE.zip`、载荷、绑定清单和校验清单；
+- TEST入口只读校验签名、介质、分区布局、Recovery、`proinfo`及全部载荷，不包含恢复写回代码；
+- UPDATE入口只在全部检查通过后恢复原机`system`和`boot`，并清除不兼容的`userdata`；
+- GUI要求用户在正式刷机前用实体键进入原厂Recovery并实际运行TEST看到PASS，PowerShell后端还会再次核对急救包与当前设备绑定。
+
+不同批次可能采用不同元件、Recovery、签名或分区布局。本机急救包只能用于创建它的原机；若当前固件不支持目标批次，工具会拒绝刷入，而不是跳过检查。
 
 ## 下载
 
@@ -89,7 +102,7 @@ Android 6在完全息屏时会把第一次非电源按键只用于唤醒，通�
 
 普通用户应下载：
 
-- [`D31_SVP3390_Windows_Flash_Tool_v1.2.1.zip`](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.2-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.2.1.zip)：推荐的完整Windows工具包，包含EXE、ADB、后端脚本、说明和首次引导APK，不包含1.26GB固件。
+- [`D31_SVP3390_Windows_Flash_Tool_v1.3.1.zip`](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.2-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.3.1.zip)：推荐的完整Windows工具包，包含EXE、ADB、急救包生成器、两个签名急救入口、刷机后端、说明和首次引导APK，不包含1.26GB固件。
 - [`D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip`](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.2-candidate.1/D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip)：独立签名Recovery刷机包。也可在工具中点击“从GitHub下载”。
 
 Cloudflare R2镜像（浏览器直接下载）：
@@ -101,16 +114,16 @@ Cloudflare R2镜像（浏览器直接下载）：
 
 仅更新现有完整工具包时可下载：
 
-- [`D31-Flash-Tool-v1.2.1.exe`](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.2-candidate.1/D31-Flash-Tool-v1.2.1.exe)：单独EXE，必须放回完整工具包根目录，不能脱离脚本和`tools`目录独立工作。
+- [`D31-Flash-Tool-v1.3.1.exe`](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.2-candidate.1/D31-Flash-Tool-v1.3.1.exe)：单独EXE，必须与v1.3.1完整工具包中的脚本、`rescue`和`tools`目录配套使用，不能替换进旧工具目录。
 
-旧资产`D31刷机工具.exe`、v1.1和v1.2工具已被v1.2.1取代，不应继续使用。刷机工具C#源码目前暂未公开；仓库提供文档、校验值和厂商资料。
+旧资产`D31刷机工具.exe`、v1.1、v1.2和v1.2.1工具已被v1.3.1取代，不应继续使用。刷机工具C#源码目前暂未公开；仓库提供文档、校验值和厂商资料。
 
 ## SHA-256
 
 ```text
 E580BF615E57DBCC565FB140667315760815211353ED7303D073F4A92FA3E585  D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip
-C93B17FDD1F41E8CEE481050159A4219A37A99870A5F631DC22B0F57E426299C  D31_SVP3390_Windows_Flash_Tool_v1.2.1.zip
-BE568CC13B55F4EAF1EEAE12BA80CC2AAC9AC32CE0C2C834B3BCDA15F78AA5D6  D31-Flash-Tool-v1.2.1.exe
+0734AF4EB39E95CE1771BE653998723C4BB7A513C10D605951FE0C184AE76F5A  D31_SVP3390_Windows_Flash_Tool_v1.3.1.zip
+07038F09994820E7A6EF5411AEAFB55334AE3EC4ABA1770F33D7139807E9EA40  D31-Flash-Tool-v1.3.1.exe
 ```
 
 完整文件长度和说明书哈希见[`SHA256SUMS.txt`](SHA256SUMS.txt)。
@@ -142,16 +155,17 @@ D31的两个USB-A口目前只证明为主机口，本流程不依赖USB数据线
 
 ## Windows图形工具标准流程
 
-1. 解压`D31_SVP3390_Windows_Flash_Tool_v1.2.1.zip`，保持目录结构不变。
-2. 双击`D31-Flash-Tool-v1.2.1.exe`。
+1. 解压`D31_SVP3390_Windows_Flash_Tool_v1.3.1.zip`，保持目录结构不变。
+2. 双击`D31-Flash-Tool-v1.3.1.exe`。
 3. 点击“选择刷机包”选择已下载的官方ZIP，或点击“从GitHub下载”。工具不会在启动时自动搜索固件或自动联网。
 4. 等待1.26GB文件的固定长度和内置SHA-256全部通过。校验失败时设备检测保持锁定。
 5. 填写D31有线IPv4并点击“检测D31”。工具会连接`IP:5555`并拒绝Wi-Fi地址、错误构建和非root ADB。
 6. 点击“只读检查”。该步骤检查包、设备、分区、Recovery入口、空间和依赖，不写分区、不重启。
-7. 只有只读检查完整通过后，清空数据确认框和“开始刷机”才会启用。
-8. 首次真实刷写只能在同构建备用D31上进行。勾选确认框，点击“开始刷机”，阅读二次确认后再继续。
-9. 工具依次执行本机校验、设备检查、分区检查、目标机独立备份、上传ZIP、设备端校验、触发Recovery和首次启动验证。
-10. Recovery触发后禁止断电、关闭窗口或让电脑休眠。首次启动会重建`userdata`并进行ART优化，可能明显变慢。
+7. 点击“创建本机急救包”，等待完整原始`system`、`boot`和私有分区完成双端校验。
+8. 把卡刷目录复制到FAT32介质，亲自用实体键进入目标机Recovery，运行`D31_RESCUE_TEST.zip`并确认屏幕显示PASS。
+9. 回到Android后勾选TEST和数据清除确认。两个条件全部满足后，“开始刷机”才会启用。
+10. 后端再次核对本机急救包与当前设备绑定，再执行签名包上传、设备端校验、Recovery触发和首次启动验证。
+11. Recovery触发后禁止断电、关闭窗口或让电脑休眠。首次启动会重建`userdata`并进行ART优化，可能明显变慢。
 
 ## 数据和设备身份边界
 
