@@ -72,18 +72,18 @@
 
 ### GitHub
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.3.1.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.2-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.3.1.zip)：完整Windows工具包，包含图形程序、ADB、急救包生成器、Recovery急救入口、说明和首次引导APK，不包含1.26GB固件。
+- [D31_SVP3390_Windows_Flash_Tool_v1.3.3.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.2-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.3.3.zip)：完整Windows工具包，包含图形程序、ADB、可选备份功能、Recovery急救入口、说明和首次引导APK，不包含1.26GB固件。
 - [D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.2-candidate.1/D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip)：1.26GB独立签名Recovery刷机包，也可以直接在刷机工具中点击“从GitHub下载”。
 
 ### Cloudflare R2镜像
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.3.1.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.3.1.zip)
+- [D31_SVP3390_Windows_Flash_Tool_v1.3.3.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.3.3.zip)
 - [D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip)
 
 ### SHA-256
 
 ```text
-0734AF4EB39E95CE1771BE653998723C4BB7A513C10D605951FE0C184AE76F5A  D31_SVP3390_Windows_Flash_Tool_v1.3.1.zip
+0F0DBEE2A7AA9C2B9E503E2FDE65E5B67A686274B0D44D14683C192C99B797E7  D31_SVP3390_Windows_Flash_Tool_v1.3.3.zip
 E580BF615E57DBCC565FB140667315760815211353ED7303D073F4A92FA3E585  D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip
 ```
 
@@ -92,33 +92,32 @@ E580BF615E57DBCC565FB140667315760815211353ED7303D073F4A92FA3E585  D31_SVP3390_Fa
 D31的两个USB-A口目前只证明是主机口，不能当作USB设备接口连接电脑，所以本工具使用网络ADB。Wi-Fi链路容易在刷机中途断开，正式刷机必须关闭D31的Wi-Fi、插好网线，并使用Windows 10或更高版本的电脑。
 
 1. 先完整测试原厂系统。确认开机、屏幕、触摸、摄像头、Wi-Fi、有线网络、手柄、免提和SIP电话都没有硬件故障。
-2. 准备一个16GB或更大的U盘或TF卡，用于保存这台D31自己的急救恢复包。介质格式必须是FAT32。
-3. 输入默认密码`10086`进入原厂高级设置，配置网络并打开有线连接。
-4. 摘下听筒或点击屏幕上的“拨号”，输入`*#223#*`并按绿色拨出键，可进入Android原生桌面；输入`*#233#*`并按绿色拨出键，可直接打开Android系统设置。
-5. 如果没有“开发者选项”，进入“关于设备”，连续点击“版本号”7次，然后打开“USB调试”。这里打开的是Android调试总开关，实际ADB数据仍走网络。
-6. 在Android“安全”设置中打开“未知来源”，再打开蓝牙并与Windows电脑配对。
-7. 在Windows中运行`fsquirt`，或者右键点击任务栏蓝牙图标选择“发送文件”，把工具包中`首次引导工具/D31-wireless-adb-v1.0.apk`发送给D31。
-8. 让D31停留在通过`*#223#*`打开的Android原生桌面，从顶部通知栏接受蓝牙文件。传输完成后点击收到的APK，用Android原生安装器安装。
-9. 安装完成后立即点击“打开”，再点击“开启无线ADB（端口5555）”。应用名称虽然叫“无线ADB”，同一个端口也可以通过有线网络访问。
-10. 从路由器后台或D31高级设置中查到D31的有线IPv4地址并记下来。
+2. 输入默认密码`10086`进入原厂高级设置，配置网络并打开有线连接。
+3. 摘下听筒或点击屏幕上的“拨号”，输入`*#223#*`并按绿色拨出键，可进入Android原生桌面；输入`*#233#*`并按绿色拨出键，可直接打开Android系统设置。
+4. 如果没有“开发者选项”，进入“关于设备”，连续点击“版本号”7次，然后打开“USB调试”。这里打开的是Android调试总开关，实际ADB数据仍走网络。
+5. 在Android“安全”设置中打开“未知来源”，再打开蓝牙并与Windows电脑配对。
+6. 在Windows中运行`fsquirt`，或者右键点击任务栏蓝牙图标选择“发送文件”，把工具包中`首次引导工具/D31-wireless-adb-v1.0.apk`发送给D31。
+7. 让D31停留在通过`*#223#*`打开的Android原生桌面，从顶部通知栏接受蓝牙文件。传输完成后点击收到的APK，用Android原生安装器安装。
+8. 安装完成后立即点击“打开”，再点击“开启无线ADB（端口5555）”。应用名称虽然叫“无线ADB”，同一个端口也可以通过有线网络访问。
+9. 从路由器后台或D31高级设置中查到D31的有线IPv4地址并记下来。
 
 ## 正式刷机流程
 
-1. 在英文目录中解压`D31_SVP3390_Windows_Flash_Tool_v1.3.1.zip`，保持目录结构不变。
-2. 双击`D31-Flash-Tool-v1.3.1.exe`。
+1. 在英文目录中解压`D31_SVP3390_Windows_Flash_Tool_v1.3.3.zip`，保持目录结构不变。
+2. 双击`D31-Flash-Tool-v1.3.3.exe`。
 3. 点击“选择刷机包”选择已经下载的官方ZIP，或点击“从GitHub下载”。
 4. 等待1.26GB固件的固定长度和内置SHA-256全部通过。校验失败时，设备检测会保持锁定。
 5. 填写D31的有线IP地址并点击“检测D31”。工具会连接D31的ADB端口5555。
 6. 点击“只读检查”。该步骤检查刷机包、设备、分区、Recovery入口、空间和依赖，确保可以刷机。
-7. 只有只读检查完整通过并勾选清空数据确认框后，点击“开始刷机”启动刷机进程。工具会先为当前D31创建本机急救恢复包，用于刷机失败变砖后恢复。
-8. 刷机开始后，D31会自动重启。此时绝对不要将D31断电、乱按实体键或关闭刷机窗口，在刷机完成前不要碰D31，也绝对不能让电脑休眠或关机。刷机结束后，D31首次启动时会重建`userdata`并进行ART优化，可能明显变慢，这是正常现象。
+7. “刷机前自动备份原系统到电脑硬盘”默认勾选，但可以取消。勾选时，工具会先把当前D31的原系统保存到电脑的`D31备份`目录，然后自动继续刷机；取消时，工具提示风险后允许直接刷机。正常刷机不需要插U盘或TF卡。
+8. 勾选清空数据确认框，点击“开始刷机”。D31会自动重启。此时绝对不要将D31断电、乱按实体键或关闭刷机窗口，在刷机完成前不要碰D31，也绝对不能让电脑休眠或关机。刷机结束后，D31首次启动时会重建`userdata`并进行ART优化，可能明显变慢，这是正常现象。
 
 ## 刷机失败变砖抢救教程
 
 本教程适用于刷机后Android无法启动、反复停留在开机画面或进入桌面前重启，但原厂Recovery仍然可以进入的情况。本工具不写`recovery`分区，因此正常的system/boot刷写失败不应破坏Recovery。
 
-1. 不要反复重刷，也不要使用另一台D31的急救包。
-2. 在电脑上找到刷机工具自动为这台D31生成的本机急救包，把其中名为`复制到TF卡或U盘的整个目录`的目录及全部文件原样复制到FAT32格式的TF卡或U盘。
+1. 先确认刷机时是否保留了默认备份选项。如果当时取消了备份，电脑中没有本机急救包，不能使用本教程。不要使用另一台D31的急救包。
+2. 在电脑的`D31备份`中找到这台D31的急救包，把其中名为`需要抢救时复制到TF卡或U盘`的目录及全部文件原样复制到FAT32格式的TF卡或U盘。
 3. 给D31接上稳定电源并插入TF卡或U盘，然后进入原厂Recovery。
 4. TF卡选择`Apply update from SD card`；U盘选择Recovery中显示的USB OTG介质入口。
 5. 进入本机急救目录，选择`D31_RESCUE_UPDATE.zip`。
