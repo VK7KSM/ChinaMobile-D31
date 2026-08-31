@@ -23,6 +23,13 @@
 - [`D31_SVP3390_Windows_Flash_Tool_v1.2.1.zip`](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.2-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.2.1.zip)：推荐的完整Windows工具包，包含EXE、ADB、后端脚本、说明和首次引导APK，不包含1.26GB固件。
 - [`D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip`](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.2-candidate.1/D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip)：独立签名Recovery刷机包。也可在工具中点击“从GitHub下载”。
 
+Cloudflare R2镜像（浏览器直接下载）：
+
+- [`D31_SVP3390_Windows_Flash_Tool_v1.2.1.zip`](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.2.1.zip)：完整Windows工具包R2镜像。
+- [`D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip`](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip)：完整Recovery刷机包R2镜像，支持断点续传。
+
+图形工具中的“从GitHub下载”按钮仍使用GitHub Release；需要使用R2镜像时，请通过上面的链接手动下载后，在工具中点击“选择刷机包”。无论使用哪个来源，均须核对下方SHA-256。
+
 仅更新现有完整工具包时可下载：
 
 - [`D31-Flash-Tool-v1.2.1.exe`](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.2-candidate.1/D31-Flash-Tool-v1.2.1.exe)：单独EXE，必须放回完整工具包根目录，不能脱离脚本和`tools`目录独立工作。
@@ -119,6 +126,13 @@ Normal users should download:
 
 - [`D31_SVP3390_Windows_Flash_Tool_v1.2.1.zip`](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.2-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.2.1.zip): the recommended complete Windows bundle. It includes the GUI, ADB, backend scripts, documentation and bootstrap APKs, but not the 1.26 GB firmware.
 - [`D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip`](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.2-candidate.1/D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip): the separate signed Recovery package. The GUI can also download it from GitHub.
+
+Cloudflare R2镜像（浏览器直接下载）：
+
+- [`D31_SVP3390_Windows_Flash_Tool_v1.2.1.zip`](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.2.1.zip)：完整Windows工具包R2镜像。
+- [`D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip`](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip)：完整Recovery刷机包R2镜像，支持断点续传。
+
+图形工具中的“从GitHub下载”按钮仍使用GitHub Release；需要使用R2镜像时，请通过上面的链接手动下载后，在工具中点击“选择刷机包”。无论使用哪个来源，均须核对下方SHA-256。
 
 For updating an existing complete tool directory only:
 
