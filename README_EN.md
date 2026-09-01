@@ -47,6 +47,7 @@ I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 fo
 - The defunct Video Conference and Voice Conference tiles now open Firefox and Telegram.
 - The application page contains Firefox, VLC, Zello, Telegram, Calculator, D31 Wireless ADB, Settings, and Material Files. Pressing `#` eleven times opens the application-page configuration menu.
 - The stock analogue clock no longer assumes China Standard Time and now follows the Android time zone.
+- The stock SIP client no longer forces TLS 1.0. It can negotiate TLS 1.2 with current SIP servers, and the fix has been verified with a successful TLS registration and a real incoming call.
 - The system image includes the IPv4/IPv6 inbound firewall and boot scripts validated on the reference device.
 - Live wallpapers, screen-saver assets, MediaTek engineering tools, logging utilities, and factory diagnostics are retained.
 
@@ -72,19 +73,19 @@ I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 fo
 
 ### GitHub
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.3.3.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.2-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.3.3.zip): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, and bootstrap APKs. The 1.26 GB firmware is downloaded separately.
-- [D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.2-candidate.1/D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip): the signed Recovery firmware package. The Windows utility can download it directly from GitHub.
+- [D31_SVP3390_Windows_Flash_Tool_v1.3.4.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.3-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.3.4.zip): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, and bootstrap APKs. The 1.26 GB firmware is downloaded separately.
+- [D31_SVP3390_Factory_Flash_v1.0.3_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.3-candidate.1/D31_SVP3390_Factory_Flash_v1.0.3_testkey.zip): the signed Recovery firmware package. The Windows utility can download it directly from GitHub.
 
 ### Cloudflare R2 mirror
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.3.3.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.3.3.zip)
-- [D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip)
+- [D31_SVP3390_Windows_Flash_Tool_v1.3.4.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.3.4.zip)
+- [D31_SVP3390_Factory_Flash_v1.0.3_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.0.3_testkey.zip)
 
 ### SHA-256
 
 ```text
-0F0DBEE2A7AA9C2B9E503E2FDE65E5B67A686274B0D44D14683C192C99B797E7  D31_SVP3390_Windows_Flash_Tool_v1.3.3.zip
-E580BF615E57DBCC565FB140667315760815211353ED7303D073F4A92FA3E585  D31_SVP3390_Factory_Flash_v1.0.2_testkey.zip
+515A4715B063F8EBA2E6EFA95FC5D87195CAE6237801747D951CF23A6A2DDC43  D31_SVP3390_Windows_Flash_Tool_v1.3.4.zip
+F0ECC3F56BF1A332F72378AB6E2EF96C68E1E366DB9B5C18169BD00006FED09B  D31_SVP3390_Factory_Flash_v1.0.3_testkey.zip
 ```
 
 ## Preparing a factory D31
@@ -103,8 +104,8 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 
 ## Flashing procedure
 
-1. Extract `D31_SVP3390_Windows_Flash_Tool_v1.3.3.zip` into a directory whose path contains only English characters. Keep the directory structure intact.
-2. Run `D31-Flash-Tool-v1.3.3.exe`.
+1. Extract `D31_SVP3390_Windows_Flash_Tool_v1.3.4.zip` into a directory whose path contains only English characters. Keep the directory structure intact.
+2. Run `D31-Flash-Tool-v1.3.4.exe`.
 3. Select Choose firmware package to use a ZIP already downloaded to the PC, or select Download from GitHub.
 4. Wait for the 1.26 GB firmware package to pass both the fixed-length check and the built-in SHA-256 check. Device detection remains locked if validation fails.
 5. Enter the D31's wired IP address and select Detect D31. The utility connects to the D31's ADB service on port 5555.
