@@ -42,12 +42,12 @@ I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 fo
 - The stock Nexui phone launcher, SIP audio/video client, dialer, incoming-call screen, contacts, blacklist, call recording, gallery, Chinese keyboard, calculator, Android Settings, and System WebView remain available.
 - The original four-account SIP implementation, H.264/VP8 video, handset, speakerphone, HDMI, Ethernet, Wi-Fi, Bluetooth, and USB host support are preserved.
 - Firefox 142.0, VLC 3.7.1, Zello 5.30.1, Telegram 12.10.1, Thunderbird 22.0, and Material Files 1.7.4 are preinstalled without user accounts.
-- D31 Wireless ADB 1.10.6 and D31 Zello Guard 0.2.7 are included with their boot integration.
+- D31 Wireless ADB 1.10.9 and D31 Zello Guard 0.2.7 are included with their boot integration.
 - Zello stays online in the background. Direct and channel voice messages wake the display and bring Zello forward; after roughly five minutes without interaction, the phone returns to the stock launcher.
-- The defunct Video Conference and Voice Conference tiles now open Firefox and Telegram.
+- The defunct Video Conference and Voice Conference tiles now open Firefox and Telegram. The boot patch also stops conference processes started before the patched package is mounted, preventing those tiles from falling back to the original conference screens.
 - The application page contains Firefox, VLC, Zello, Telegram, Calculator, D31 Wireless ADB, Settings, and Material Files. Pressing `#` eleven times opens the application-page configuration menu.
 - The stock analogue clock no longer assumes China Standard Time and now follows the Android time zone.
-- The stock SIP client no longer forces TLS 1.0. It can negotiate TLS 1.2 with current SIP servers, and the fix has been verified with a successful TLS registration and a real incoming call.
+- The stock SIP client no longer forces TLS 1.0. It can negotiate TLS 1.2 with current SIP servers, and stale TLS sessions are cleared after a network change so SIP registration can recover. The fix has been verified with a successful TLS registration and a real incoming call.
 - The system image includes the IPv4/IPv6 inbound firewall and boot scripts validated on the reference device.
 - Live wallpapers, screen-saver assets, MediaTek engineering tools, logging utilities, and factory diagnostics are retained.
 
@@ -73,19 +73,19 @@ I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 fo
 
 ### GitHub
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.3.4.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.3-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.3.4.zip): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, and bootstrap APKs. The 1.26 GB firmware is downloaded separately.
-- [D31_SVP3390_Factory_Flash_v1.0.3_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.3-candidate.1/D31_SVP3390_Factory_Flash_v1.0.3_testkey.zip): the signed Recovery firmware package. The Windows utility can download it directly from GitHub.
+- [D31_SVP3390_Windows_Flash_Tool_v1.3.5.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.4-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.3.5.zip): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, and bootstrap APKs. The 1.26 GB firmware is downloaded separately.
+- [D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.4-candidate.1/D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip): the signed Recovery firmware package. The Windows utility can download it directly from GitHub.
 
 ### Cloudflare R2 mirror
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.3.4.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.3.4.zip)
-- [D31_SVP3390_Factory_Flash_v1.0.3_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.0.3_testkey.zip)
+- [D31_SVP3390_Windows_Flash_Tool_v1.3.5.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.3.5.zip)
+- [D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip)
 
 ### SHA-256
 
 ```text
-515A4715B063F8EBA2E6EFA95FC5D87195CAE6237801747D951CF23A6A2DDC43  D31_SVP3390_Windows_Flash_Tool_v1.3.4.zip
-F0ECC3F56BF1A332F72378AB6E2EF96C68E1E366DB9B5C18169BD00006FED09B  D31_SVP3390_Factory_Flash_v1.0.3_testkey.zip
+5886135ECA557FBF0FA0A4A45C1C0A339A14658FF5615EBB34F5E8D0D4F57D2F  D31_SVP3390_Windows_Flash_Tool_v1.3.5.zip
+3BDFB0B9D1A8D18872B4F0C6DD78FAA7408B4866DDC94C48C34A927A75CD2606  D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip
 ```
 
 ## Preparing a factory D31
@@ -104,8 +104,8 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 
 ## Flashing procedure
 
-1. Extract `D31_SVP3390_Windows_Flash_Tool_v1.3.4.zip` into a directory whose path contains only English characters. Keep the directory structure intact.
-2. Run `D31-Flash-Tool-v1.3.4.exe`.
+1. Extract `D31_SVP3390_Windows_Flash_Tool_v1.3.5.zip` into a directory whose path contains only English characters. Keep the directory structure intact.
+2. Run `D31-Flash-Tool-v1.3.5.exe`.
 3. Select Choose firmware package to use a ZIP already downloaded to the PC, or select Download from GitHub.
 4. Wait for the 1.26 GB firmware package to pass both the fixed-length check and the built-in SHA-256 check. Device detection remains locked if validation fails.
 5. Enter the D31's wired IP address and select Detect D31. The utility connects to the D31's ADB service on port 5555.
