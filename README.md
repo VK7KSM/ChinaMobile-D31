@@ -73,18 +73,18 @@
 
 ### GitHub
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.3.6.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.4-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.3.6.zip)：完整Windows工具包，包含图形程序、ADB、可选备份功能、Recovery急救入口、说明和首次引导APK，不包含1.26GB固件。v1.3.6修复Windows PowerShell 5.1读取中文脚本时的解析错误，并支持中文用户名和中文目录。
+- [D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.4-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip)：完整Windows工具包，包含图形程序、ADB、可选备份功能、Recovery急救入口、说明和首次引导APK，不包含1.26GB固件。v1.3.8支持中文用户名和中文目录，并修复D31 Android 6原生`df`及精简BusyBox引起的存储空间和文件长度检查失败。
 - [D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.4-candidate.1/D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip)：1.26GB独立签名Recovery刷机包，也可以直接在刷机工具中点击“从GitHub下载”。
 
 ### Cloudflare R2镜像
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.3.6.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.3.6.zip)
+- [D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip)
 - [D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip)
 
 ### SHA-256
 
 ```text
-C5919AF3EA7741E67D6E4E2F06170C9ED77498CFC170B5807ECBCA98E133BA88  D31_SVP3390_Windows_Flash_Tool_v1.3.6.zip
+4D8D6D25FBECD508439832FF256419EEBABB5FFBD5140E860E4F3314952C91D3  D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip
 3BDFB0B9D1A8D18872B4F0C6DD78FAA7408B4866DDC94C48C34A927A75CD2606  D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip
 ```
 
@@ -104,8 +104,8 @@ D31的两个USB-A口目前只证明是主机口，不能当作USB设备接口连
 
 ## 正式刷机流程
 
-1. 解压`D31_SVP3390_Windows_Flash_Tool_v1.3.6.zip`，保持目录结构不变。该版本支持中文用户名和中文目录。
-2. 双击`D31-Flash-Tool-v1.3.6.exe`。
+1. 解压`D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip`，保持目录结构不变。该版本支持中文用户名和中文目录。
+2. 双击`D31-Flash-Tool-v1.3.8.exe`。
 3. 点击“选择刷机包”选择已经下载的官方ZIP，或点击“从GitHub下载”。
 4. 等待1.26GB固件的固定长度和内置SHA-256全部通过。校验失败时，设备检测会保持锁定。
 5. 填写D31的有线IP地址并点击“检测D31”。工具会连接D31的ADB端口5555。

@@ -73,18 +73,18 @@ I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 fo
 
 ### GitHub
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.3.6.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.4-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.3.6.zip): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, and bootstrap APKs. The 1.26 GB firmware is downloaded separately. Version 1.3.6 fixes Windows PowerShell 5.1 script decoding failures and supports Windows user names and extraction paths containing Chinese characters.
+- [D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.4-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, and bootstrap APKs. The 1.26 GB firmware is downloaded separately. Version 1.3.8 supports Windows user names and extraction paths containing Chinese characters, and fixes storage and file-size checks for the D31's Android 6 toolbox and reduced BusyBox build.
 - [D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.4-candidate.1/D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip): the signed Recovery firmware package. The Windows utility can download it directly from GitHub.
 
 ### Cloudflare R2 mirror
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.3.6.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.3.6.zip)
+- [D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip)
 - [D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip)
 
 ### SHA-256
 
 ```text
-C5919AF3EA7741E67D6E4E2F06170C9ED77498CFC170B5807ECBCA98E133BA88  D31_SVP3390_Windows_Flash_Tool_v1.3.6.zip
+4D8D6D25FBECD508439832FF256419EEBABB5FFBD5140E860E4F3314952C91D3  D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip
 3BDFB0B9D1A8D18872B4F0C6DD78FAA7408B4866DDC94C48C34A927A75CD2606  D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip
 ```
 
@@ -104,8 +104,8 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 
 ## Flashing procedure
 
-1. Extract `D31_SVP3390_Windows_Flash_Tool_v1.3.6.zip` and keep the directory structure intact. This release supports Windows user names and extraction paths containing Chinese characters.
-2. Run `D31-Flash-Tool-v1.3.6.exe`.
+1. Extract `D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip` and keep the directory structure intact. This release supports Windows user names and extraction paths containing Chinese characters.
+2. Run `D31-Flash-Tool-v1.3.8.exe`.
 3. Select Choose firmware package to use a ZIP already downloaded to the PC, or select Download from GitHub.
 4. Wait for the 1.26 GB firmware package to pass both the fixed-length check and the built-in SHA-256 check. Device detection remains locked if validation fails.
 5. Enter the D31's wired IP address and select Detect D31. The utility connects to the D31's ADB service on port 5555.
