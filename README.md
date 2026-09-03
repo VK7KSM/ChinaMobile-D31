@@ -42,13 +42,13 @@
 - 保留原厂Nexui专业电话桌面、SIP音视频客户端、拨号、来电、通话、通信录、黑名单、录音、图库、中文拼音输入法、计算器、Android设置和系统WebView。
 - 保留最多4个SIP账号、H.264/VP8视频通话、手柄、免提、HDMI、双网口、Wi-Fi、蓝牙和USB Host能力。
 - 预装Firefox 142.0、VLC 3.7.1、Zello 5.30.1、Telegram 12.10.1、Thunderbird 22.0和质感文件1.7.4。
-- 预装D31无线ADB 1.10.9和D31 Zello守护0.2.7，并带有开机绑定脚本。
+- 预装D31无线ADB 1.10.10和D31 Zello守护0.2.7，并带有开机绑定脚本。
 - Zello保持后台在线，收到私聊或频道语音时唤醒屏幕并立即切到前台；无操作约5分钟后返回原厂桌面。
 - 原厂桌面的“视频会议”和“语音会议”入口分别替换为Firefox和Telegram；开机补丁会清理挂载前启动的旧会议进程，避免点击后重新进入原厂会议界面。
 - 原厂桌面应用页整理为Firefox、VLC、Zello、Telegram、计算器、D31无线ADB、设置和质感文件。在D31实体按键上连续按11次`#`键，可以打开应用页配置菜单。
 - 修复原厂模拟时钟写死东八区的问题，使模拟时钟和数字时间都跟随Android系统时区。
 - 修复原厂SIP客户端固定使用TLS 1.0的问题，使其可以与现代SIP服务器协商TLS 1.2；网络变化后会清理失效TLS连接并恢复SIP注册，已经完成分机TLS注册和真实来电响铃验收。
-- `system`镜像包含已在母机运行验收的IPv4/IPv6入站防火墙和相关开机脚本。
+- 刷机包包含已在母机运行验收的IPv4/IPv6动态入站防火墙、ADB 5555开机恢复、8765状态探针和相关开机脚本。
 - 保留动态壁纸、屏保素材、MTK工程工具、日志工具和工厂测试工具。
 
 ### 移除的原厂预装和无用组件
@@ -73,19 +73,19 @@
 
 ### GitHub
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.4-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip)：完整Windows工具包，包含图形程序、ADB、可选备份功能、Recovery急救入口、说明和首次引导APK，不包含1.26GB固件。v1.3.8支持中文用户名和中文目录，并修复D31 Android 6原生`df`及精简BusyBox引起的存储空间和文件长度检查失败。
-- [D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.0.4-candidate.1/D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip)：1.26GB独立签名Recovery刷机包，也可以直接在刷机工具中点击“从GitHub下载”。
+- [D31_SVP3390_Windows_Flash_Tool_v1.4.0.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.1.0-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.4.0.zip)：完整Windows工具包，包含图形程序、ADB、可选备份功能、Recovery急救入口、说明和首次引导APK，不包含1.26GB固件。v1.4.0支持中文用户名和中文目录，固定使用D31专用ADB服务器端口5041，并会在启动时清理该端口的旧服务和旧设备连接。
+- [D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.1.0-candidate.1/D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip)：1.26GB独立签名Recovery刷机包，也可以直接在刷机工具中点击“从GitHub下载”。v1.1.0使用母机完整system只读副本制作，18个无用组件已经从镜像中物理删除，不再依赖刷机后的临场卸载。
 
 ### Cloudflare R2镜像
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip)
-- [D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip)
+- [D31_SVP3390_Windows_Flash_Tool_v1.4.0.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.4.0.zip)
+- [D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip)
 
 ### SHA-256
 
 ```text
-4D8D6D25FBECD508439832FF256419EEBABB5FFBD5140E860E4F3314952C91D3  D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip
-3BDFB0B9D1A8D18872B4F0C6DD78FAA7408B4866DDC94C48C34A927A75CD2606  D31_SVP3390_Factory_Flash_v1.0.4_testkey.zip
+F58B7EDD6F807AF21B1EB2010DE63E85F7CCFD7EC66BB23EF4E24BC6329288B6  D31_SVP3390_Windows_Flash_Tool_v1.4.0.zip
+6C4A109250EDB29257CDB64A0E3BA1E0F6C0C64E67574516C8276716F6D75841  D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip
 ```
 
 ## 刷机前提：启用ADB
@@ -104,8 +104,8 @@ D31的两个USB-A口目前只证明是主机口，不能当作USB设备接口连
 
 ## 正式刷机流程
 
-1. 解压`D31_SVP3390_Windows_Flash_Tool_v1.3.8.zip`，保持目录结构不变。该版本支持中文用户名和中文目录。
-2. 双击`D31-Flash-Tool-v1.3.8.exe`。
+1. 解压`D31_SVP3390_Windows_Flash_Tool_v1.4.0.zip`，保持目录结构不变。该版本支持中文用户名和中文目录。
+2. 双击`D31-Flash-Tool-v1.4.0.exe`。
 3. 点击“选择刷机包”选择已经下载的官方ZIP，或点击“从GitHub下载”。
 4. 等待1.26GB固件的固定长度和内置SHA-256全部通过。校验失败时，设备检测会保持锁定。
 5. 填写D31的有线IP地址并点击“检测D31”。工具会连接D31的ADB端口5555。
