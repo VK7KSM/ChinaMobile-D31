@@ -73,18 +73,18 @@
 
 ### GitHub
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.4.2.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.1.0-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.4.2.zip)：完整Windows工具包，包含图形程序、ADB、可选备份功能、Recovery急救入口、说明、首次引导APK和aria2 1.37.0高速下载组件，不包含1.26GB固件。v1.4.2支持中文用户名和中文目录，提供“GitHub高速下载”和“Cloudflare高速下载”两个按钮，实时显示连接数、速度、进度和预计剩余时间，并支持断点续传。GitHub公开下载不需要账号或Token；工具不读取电脑上的aria2配置，多连接被源站限制时会自动改用单连接兼容模式。工具固定使用D31专用ADB服务器端口5041，并会在启动时清理该端口的旧服务和旧设备连接。
+- [D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.1.0-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip)：完整Windows工具包，包含图形程序、ADB、可选备份功能、Recovery急救入口、说明、首次引导APK和aria2 1.37.0高速下载组件，不包含1.26GB固件。v1.4.3采用“星网锐捷 SVP3390（中国移动云视讯 D31）刷机与备份工具”标题，精简刷机包选择区域并明确要求使用有线网络刷机。该版支持中文用户名和中文目录，提供“GitHub高速下载”和“Cloudflare高速下载”两个按钮，实时显示连接数、速度、进度和预计剩余时间，并支持断点续传。GitHub公开下载不需要账号或Token；工具不读取电脑上的aria2配置，多连接被源站限制时会自动改用单连接兼容模式。工具固定使用D31专用ADB服务器端口5041，并会在启动时清理该端口的旧服务和旧设备连接。
 - [D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.1.0-candidate.1/D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip)：1.26GB独立签名Recovery刷机包，也可以直接在刷机工具中选择GitHub或Cloudflare高速下载。v1.1.0使用母机完整system只读副本制作，18个无用组件已经从镜像中物理删除，不再依赖刷机后的临场卸载。
 
 ### Cloudflare R2镜像
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.4.2.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.4.2.zip)
+- [D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip)
 - [D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip)
 
 ### SHA-256
 
 ```text
-EF5B6F8E79992048B63B55BE74F7BF5A7E8B2CB1DC64671E24A5C1675125E1AF  D31_SVP3390_Windows_Flash_Tool_v1.4.2.zip
+EB756A2DD78257B936C3FDA5A720F319CAA87AFD38817580D397D9B84236A28E  D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip
 6C4A109250EDB29257CDB64A0E3BA1E0F6C0C64E67574516C8276716F6D75841  D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip
 ```
 
@@ -104,8 +104,8 @@ D31的两个USB-A口目前只证明是主机口，不能当作USB设备接口连
 
 ## 正式刷机流程
 
-1. 解压`D31_SVP3390_Windows_Flash_Tool_v1.4.2.zip`，保持目录结构不变。该版本支持中文用户名和中文目录。
-2. 双击`D31-Flash-Tool-v1.4.2.exe`。
+1. 解压`D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip`，保持目录结构不变。该版本支持中文用户名和中文目录。
+2. 双击`D31-Flash-Tool-v1.4.3.exe`。
 3. 点击“选择刷机包”选择已经下载的官方ZIP，或点击“GitHub高速下载”或“Cloudflare高速下载”。GitHub公开Release下载不需要账号或Token；GitHub最多使用8个连接，Cloudflare最多使用16个连接。并发数只是上限，不是强制连接数；源站不支持或限制多连接时，工具会保留断点并自动改用单连接继续下载。
 4. 等待1.26GB固件的固定长度和内置SHA-256全部通过。校验失败时，设备检测会保持锁定。
 5. 填写D31的有线IP地址并点击“检测D31”。工具会连接D31的ADB端口5555。

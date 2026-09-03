@@ -73,18 +73,18 @@ I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 fo
 
 ### GitHub
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.4.2.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.1.0-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.4.2.zip): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, bootstrap APKs, and the aria2 1.37.0 download engine. The 1.26 GB firmware is downloaded separately. Version 1.4.2 provides separate GitHub and Cloudflare accelerated-download buttons, resumable transfers, and live connection count, throughput, progress, and remaining-time information. Public GitHub downloads require neither an account nor a token. The utility ignores user-level aria2 configuration and automatically falls back to a single connection if the selected host restricts segmented transfers. It also supports Windows user names and extraction paths containing Chinese characters, uses the dedicated ADB server port 5041, and clears stale services and device sessions on that port when it starts.
+- [D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.1.0-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, bootstrap APKs, and the aria2 1.37.0 download engine. The 1.26 GB firmware is downloaded separately. Version 1.4.3 uses the full Star-Net SVP3390 and China Mobile D31 product name, simplifies the firmware selection area, and makes the Ethernet-only flashing requirement explicit. It provides separate GitHub and Cloudflare accelerated-download buttons, resumable transfers, and live connection count, throughput, progress, and remaining-time information. Public GitHub downloads require neither an account nor a token. The utility ignores user-level aria2 configuration and automatically falls back to a single connection if the selected host restricts segmented transfers. It also supports Windows user names and extraction paths containing Chinese characters, uses the dedicated ADB server port 5041, and clears stale services and device sessions on that port when it starts.
 - [D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.1.0-candidate.1/D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip): the signed Recovery firmware package. Version 1.1.0 is built from a complete read-only copy of the reference D31 system partition. Eighteen unwanted components are physically absent from the image rather than being removed after flashing.
 
 ### Cloudflare R2 mirror
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.4.2.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.4.2.zip)
+- [D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip)
 - [D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip)
 
 ### SHA-256
 
 ```text
-EF5B6F8E79992048B63B55BE74F7BF5A7E8B2CB1DC64671E24A5C1675125E1AF  D31_SVP3390_Windows_Flash_Tool_v1.4.2.zip
+EB756A2DD78257B936C3FDA5A720F319CAA87AFD38817580D397D9B84236A28E  D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip
 6C4A109250EDB29257CDB64A0E3BA1E0F6C0C64E67574516C8276716F6D75841  D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip
 ```
 
@@ -104,8 +104,8 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 
 ## Flashing procedure
 
-1. Extract `D31_SVP3390_Windows_Flash_Tool_v1.4.2.zip` and keep the directory structure intact. This release supports Windows user names and extraction paths containing Chinese characters.
-2. Run `D31-Flash-Tool-v1.4.2.exe`.
+1. Extract `D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip` and keep the directory structure intact. This release supports Windows user names and extraction paths containing Chinese characters.
+2. Run `D31-Flash-Tool-v1.4.3.exe`.
 3. Select Choose firmware package to use a ZIP already downloaded to the PC, or select GitHub accelerated download or Cloudflare accelerated download. Public GitHub Release downloads do not require an account or token. GitHub uses up to eight connections and Cloudflare uses up to sixteen; these are upper limits rather than mandatory connection counts. If the host rejects or limits segmented transfers, the utility preserves the partial download and automatically continues in single-connection compatibility mode.
 4. Wait for the 1.26 GB firmware package to pass both the fixed-length check and the built-in SHA-256 check. Device detection remains locked if validation fails.
 5. Enter the D31's wired IP address and select Detect D31. The utility connects to the D31's ADB service on port 5555.
