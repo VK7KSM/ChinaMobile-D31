@@ -10,6 +10,8 @@
 
 我从闲鱼上淘的这台全新D31座机才220元人民币！九成新D22才80元人民币！全家人玩得不亦乐乎。
 
+![中国移动云视讯D31（星网锐捷SVP3390）实机](images/d31-device.jpg)
+
 ## 产品信息
 
 - 产品全称：中国移动云视讯 D31 / 星网锐捷 SVP3390 视频话机
@@ -51,6 +53,12 @@
 - 刷机包包含已在母机运行验收的IPv4/IPv6动态入站防火墙、ADB 5555开机恢复、8765状态探针和相关开机脚本。
 - 保留动态壁纸、屏保素材、MTK工程工具、日志工具和工厂测试工具。
 
+### 系统界面
+
+| Nexui主页 | 应用页 |
+| --- | --- |
+| ![D31 Nexui主页](images/d31-home.png) | ![D31应用页](images/d31-apps.png) |
+
 ### 移除的原厂预装和无用组件
 
 - **垃圾中的垃圾：**学习强国和WPS Office。
@@ -73,18 +81,18 @@
 
 ### GitHub
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.1.0-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip)：完整Windows工具包，包含图形程序、ADB、可选备份功能、Recovery急救入口、说明、首次引导APK和aria2 1.37.0高速下载组件，不包含1.26GB固件。v1.4.3采用“星网锐捷 SVP3390（中国移动云视讯 D31）刷机与备份工具”标题，精简刷机包选择区域并明确要求使用有线网络刷机。该版支持中文用户名和中文目录，提供“GitHub高速下载”和“Cloudflare高速下载”两个按钮，实时显示连接数、速度、进度和预计剩余时间，并支持断点续传。GitHub公开下载不需要账号或Token；工具不读取电脑上的aria2配置，多连接被源站限制时会自动改用单连接兼容模式。工具固定使用D31专用ADB服务器端口5041，并会在启动时清理该端口的旧服务和旧设备连接。
+- [D31_SVP3390_Windows_Flash_Tool_v1.4.7.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.1.0-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.4.7.zip)：完整Windows工具包，包含图形程序、ADB、可选备份功能、Recovery急救入口、说明、首次引导APK和aria2 1.37.0高速下载组件，不包含1.26GB固件。v1.4.7提供明确的“连接ADB”和“断开ADB”按钮，可在未下载刷机包时连接、检测和只读检查D31，也可按IP在多台D31之间切换；正式刷机仍只接受D31有线`eth0`地址。界面使用电台精灵Logo，项目版本号、作者和官网均可点击，并重新整理了IP区域、按钮字体和图文对齐。该版支持中文用户名和中文目录，提供GitHub与Cloudflare多连接下载、实时速度、进度、预计剩余时间和断点续传。GitHub公开下载不需要账号或Token；多连接被源站限制时会自动改用单连接兼容模式。工具固定使用D31专用ADB服务器端口5041，并会在启动时清理该端口的旧服务和旧设备连接。
 - [D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.1.0-candidate.1/D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip)：1.26GB独立签名Recovery刷机包，也可以直接在刷机工具中选择GitHub或Cloudflare高速下载。v1.1.0使用母机完整system只读副本制作，18个无用组件已经从镜像中物理删除，不再依赖刷机后的临场卸载。
 
 ### Cloudflare R2镜像
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip)
+- [D31_SVP3390_Windows_Flash_Tool_v1.4.7.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.4.7.zip)
 - [D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip)
 
 ### SHA-256
 
 ```text
-EB756A2DD78257B936C3FDA5A720F319CAA87AFD38817580D397D9B84236A28E  D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip
+28617682677EB480E9D7F1E2AADFECC0C4729DD905D86000C14006402342281B  D31_SVP3390_Windows_Flash_Tool_v1.4.7.zip
 6C4A109250EDB29257CDB64A0E3BA1E0F6C0C64E67574516C8276716F6D75841  D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip
 ```
 
@@ -104,14 +112,17 @@ D31的两个USB-A口目前只证明是主机口，不能当作USB设备接口连
 
 ## 正式刷机流程
 
-1. 解压`D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip`，保持目录结构不变。该版本支持中文用户名和中文目录。
-2. 双击`D31-Flash-Tool-v1.4.3.exe`。
-3. 点击“选择刷机包”选择已经下载的官方ZIP，或点击“GitHub高速下载”或“Cloudflare高速下载”。GitHub公开Release下载不需要账号或Token；GitHub最多使用8个连接，Cloudflare最多使用16个连接。并发数只是上限，不是强制连接数；源站不支持或限制多连接时，工具会保留断点并自动改用单连接继续下载。
-4. 等待1.26GB固件的固定长度和内置SHA-256全部通过。校验失败时，设备检测会保持锁定。
-5. 填写D31的有线IP地址并点击“检测D31”。工具会连接D31的ADB端口5555。
-6. 点击“只读检查”。该步骤检查刷机包、设备、分区、Recovery入口、空间和依赖，确保可以刷机。
-7. “刷机前自动备份原系统到电脑硬盘”默认勾选，但可以取消。勾选时，工具会先把当前D31的原系统保存到电脑的`D31备份`目录，然后自动继续刷机；取消时，工具提示风险后允许直接刷机。正常刷机不需要插U盘或TF卡。
-8. 勾选清空数据确认框，点击“开始刷机”。D31会自动重启。此时绝对不要将D31断电、乱按实体键或关闭刷机窗口，在刷机完成前不要碰D31，也绝对不能让电脑休眠或关机。刷机结束后，D31首次启动时会重建`userdata`并进行ART优化，可能明显变慢，这是正常现象。
+![D31 Windows刷机与备份工具v1.4.7](images/d31-flash-tool-v1.4.7.png)
+
+1. 解压`D31_SVP3390_Windows_Flash_Tool_v1.4.7.zip`，保持目录结构不变。该版本支持中文用户名和中文目录。
+2. 双击`D31-Flash-Tool-v1.4.7.exe`。
+3. 填写D31的IP地址并点击“连接ADB”。IP不是自动发现结果；有多台D31时，填写哪台的IP就连接哪台。连接成功后工具立即识别设备，“检测D31”用于刷新状态，“断开ADB”用于断开当前设备并切换到另一台。
+4. 点击“只读检查”。这一步不要求先下载刷机包，只检查设备、root、构建、网络、分区、Recovery入口、空间和依赖，不修改或重启D31。Wi-Fi地址可以连接、检测和只读检查，但不能用于正式刷机。
+5. 点击“选择刷机包”选择已经下载的官方ZIP，或点击“GitHub高速下载”或“Cloudflare高速下载”。GitHub公开Release下载不需要账号或Token；GitHub最多使用8个连接，Cloudflare最多使用16个连接。并发数只是上限，不是强制连接数；源站不支持或限制多连接时，工具会保留断点并自动改用单连接继续下载。
+6. 等待1.26GB固件的固定长度和内置SHA-256全部通过。设备连接、只读检查和刷机包选择可以任意先后。
+7. 正式刷机前插好网线，并确认工具连接的是D31有线`eth0`的IP。设备只读检查、刷机包校验和有线地址三项全部通过后，清空数据确认框和“开始刷机”才会开放。
+8. “刷机前自动备份原系统到电脑硬盘”默认勾选，但可以取消。勾选时，工具会先把当前D31的原系统保存到电脑的`D31备份`目录，然后自动继续刷机；取消时，工具提示风险后允许直接刷机。正常刷机不需要插U盘或TF卡。
+9. 勾选清空数据确认框，点击“开始刷机”。D31会自动重启。此时绝对不要将D31断电、乱按实体键或关闭刷机窗口，在刷机完成前不要碰D31，也绝对不能让电脑休眠或关机。刷机结束后，D31首次启动时会重建`userdata`并进行ART优化，可能明显变慢，这是正常现象。
 
 ## 刷机失败变砖抢救教程
 

@@ -10,6 +10,8 @@ I developed this custom system to turn a retired high-end business phone into a 
 
 I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 for just RMB 80. The whole family has had a great time with them.
 
+![China Mobile D31 / Star-net SVP3390 hardware](images/d31-device.jpg)
+
 ## Hardware
 
 - Product: China Mobile Cloud Video D31 / Star-net SVP3390 video phone
@@ -51,6 +53,12 @@ I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 fo
 - The package includes the dynamic IPv4/IPv6 inbound firewall, port 5555 ADB recovery at boot, the port 8765 status probe, and their boot integration as validated on the reference device.
 - Live wallpapers, screen-saver assets, MediaTek engineering tools, logging utilities, and factory diagnostics are retained.
 
+### System interface
+
+| Nexui home screen | Application screen |
+| --- | --- |
+| ![D31 Nexui home screen](images/d31-home.png) | ![D31 application screen](images/d31-apps.png) |
+
 ### Removed software
 
 - **The worst junk of the lot:** Xuexi Qiangguo and WPS Office.
@@ -73,18 +81,18 @@ I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 fo
 
 ### GitHub
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.1.0-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, bootstrap APKs, and the aria2 1.37.0 download engine. The 1.26 GB firmware is downloaded separately. Version 1.4.3 uses the full Star-Net SVP3390 and China Mobile D31 product name, simplifies the firmware selection area, and makes the Ethernet-only flashing requirement explicit. It provides separate GitHub and Cloudflare accelerated-download buttons, resumable transfers, and live connection count, throughput, progress, and remaining-time information. Public GitHub downloads require neither an account nor a token. The utility ignores user-level aria2 configuration and automatically falls back to a single connection if the selected host restricts segmented transfers. It also supports Windows user names and extraction paths containing Chinese characters, uses the dedicated ADB server port 5041, and clears stale services and device sessions on that port when it starts.
+- [D31_SVP3390_Windows_Flash_Tool_v1.4.7.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.1.0-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.4.7.zip): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, bootstrap APKs, and the aria2 1.37.0 download engine. The 1.26 GB firmware is downloaded separately. Version 1.4.7 adds explicit Connect ADB and Disconnect ADB controls. A D31 can now be connected, identified, and checked without downloading the firmware first, and an operator can switch between multiple phones by entering the required IP address. Flashing still requires the address assigned to the D31's wired `eth0` interface. The interface now uses the Elfradio logo, provides clickable project, author, and website links, and improves the IP controls, button typography, and icon alignment. It supports Windows user names and extraction paths containing Chinese characters, offers accelerated GitHub and Cloudflare downloads with live throughput, progress, remaining time, and resume support, and falls back to a single connection when a host limits segmented transfers. Public GitHub downloads require neither an account nor a token. The utility uses the dedicated ADB server port 5041 and clears stale services and device sessions on that port when it starts.
 - [D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.1.0-candidate.1/D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip): the signed Recovery firmware package. Version 1.1.0 is built from a complete read-only copy of the reference D31 system partition. Eighteen unwanted components are physically absent from the image rather than being removed after flashing.
 
 ### Cloudflare R2 mirror
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip)
+- [D31_SVP3390_Windows_Flash_Tool_v1.4.7.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.4.7.zip)
 - [D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip)
 
 ### SHA-256
 
 ```text
-EB756A2DD78257B936C3FDA5A720F319CAA87AFD38817580D397D9B84236A28E  D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip
+28617682677EB480E9D7F1E2AADFECC0C4729DD905D86000C14006402342281B  D31_SVP3390_Windows_Flash_Tool_v1.4.7.zip
 6C4A109250EDB29257CDB64A0E3BA1E0F6C0C64E67574516C8276716F6D75841  D31_SVP3390_Factory_Flash_v1.1.0_testkey.zip
 ```
 
@@ -104,14 +112,17 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 
 ## Flashing procedure
 
-1. Extract `D31_SVP3390_Windows_Flash_Tool_v1.4.3.zip` and keep the directory structure intact. This release supports Windows user names and extraction paths containing Chinese characters.
-2. Run `D31-Flash-Tool-v1.4.3.exe`.
-3. Select Choose firmware package to use a ZIP already downloaded to the PC, or select GitHub accelerated download or Cloudflare accelerated download. Public GitHub Release downloads do not require an account or token. GitHub uses up to eight connections and Cloudflare uses up to sixteen; these are upper limits rather than mandatory connection counts. If the host rejects or limits segmented transfers, the utility preserves the partial download and automatically continues in single-connection compatibility mode.
-4. Wait for the 1.26 GB firmware package to pass both the fixed-length check and the built-in SHA-256 check. Device detection remains locked if validation fails.
-5. Enter the D31's wired IP address and select Detect D31. The utility connects to the D31's ADB service on port 5555.
-6. Select Read-only check. This checks the firmware package, device, partitions, Recovery entry point, available space, and dependencies to make sure the phone is ready to flash.
-7. Back up the original system to this PC before flashing is selected by default, but it is optional. If left selected, the utility saves this D31's original system under `D31备份` on the PC and then continues automatically. If cleared, the utility warns that no rescue package will be available and allows the flash to continue. No USB drive or TF card is needed for a normal flash.
-8. Tick the data-wipe confirmation and select Start flashing. The D31 restarts automatically. Do not disconnect its power, press its physical keys, close the flashing utility, or allow the PC to sleep or shut down before the process finishes. On the first boot, Android rebuilds `userdata` and performs ART optimization, so the phone may run much more slowly than usual. This is normal.
+![D31 Windows Flash and Backup Tool v1.4.7](images/d31-flash-tool-v1.4.7.png)
+
+1. Extract `D31_SVP3390_Windows_Flash_Tool_v1.4.7.zip` and keep the directory structure intact. This release supports Windows user names and extraction paths containing Chinese characters.
+2. Run `D31-Flash-Tool-v1.4.7.exe`.
+3. Enter the D31's IP address and select Connect ADB. The address is not discovered automatically: when several D31 phones are present, enter the address of the unit you want to manage. A successful connection identifies the phone immediately. Detect D31 refreshes its status, while Disconnect ADB releases the current phone before switching to another one.
+4. Select Read-only check. The firmware package does not need to be downloaded first. This step checks the device, root access, build, network, partition layout, Recovery entry point, available space, and dependencies without modifying or restarting the D31. A Wi-Fi address can be used for connection and read-only checks, but not for flashing.
+5. Select Choose firmware package to use a ZIP already downloaded to the PC, or select GitHub accelerated download or Cloudflare accelerated download. Public GitHub Release downloads do not require an account or token. GitHub uses up to eight connections and Cloudflare uses up to sixteen; these are upper limits rather than mandatory connection counts. If the host rejects or limits segmented transfers, the utility preserves the partial download and automatically continues in single-connection compatibility mode.
+6. Wait for the 1.26 GB firmware package to pass both the fixed-length check and the built-in SHA-256 check. Device connection, the read-only check, and package selection may be completed in any order.
+7. Before flashing, connect Ethernet and make sure the utility is connected to the address assigned to the D31's wired `eth0` interface. The data-wipe confirmation and Start flashing control are enabled only after the device check, package verification, and wired-address check have all passed.
+8. Back up the original system to this PC before flashing is selected by default, but it is optional. If left selected, the utility saves this D31's original system under `D31备份` on the PC and then continues automatically. If cleared, the utility warns that no rescue package will be available and allows the flash to continue. No USB drive or TF card is needed for a normal flash.
+9. Tick the data-wipe confirmation and select Start flashing. The D31 restarts automatically. Do not disconnect its power, press its physical keys, close the flashing utility, or allow the PC to sleep or shut down before the process finishes. On the first boot, Android rebuilds `userdata` and performs ART optimization, so the phone may run much more slowly than usual. This is normal.
 
 ## Recovering from a failed flash
 
