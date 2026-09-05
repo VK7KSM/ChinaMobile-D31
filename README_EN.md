@@ -44,12 +44,14 @@ I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 fo
 - The stock Nexui phone launcher, SIP audio/video client, dialer, incoming-call screen, contacts, blacklist, call recording, gallery, Chinese keyboard, calculator, Android Settings, and System WebView remain available.
 - The original four-account SIP implementation, H.264/VP8 video, handset, speakerphone, HDMI, Ethernet, Wi-Fi, Bluetooth, and USB host support are preserved.
 - Firefox 142.0, VLC 3.7.1, Zello 5.30.1, Telegram 12.10.1, Thunderbird 22.0, Messages 0.3.0, and the D31 File Manager 1.7.4-d31.2 are preinstalled without user accounts.
-- D31 Wireless ADB 1.10.19 and D31 Zello Guard 0.2.7 are included with their boot integration. USB drives and TF cards are detected dynamically, shown in a confirmation prompt, and listed as separate storage locations in the file manager.
+- D31 Wireless ADB 1.10.26 and D31 Zello Guard 0.2.7 are included with their boot integration. USB drives and TF cards are opened from the mount path reported by Android rather than a fixed path; internal storage, each USB volume, and the TF card appear as separate locations in the file manager.
 - Zello stays online in the background. Direct and channel voice messages wake the display and bring Zello forward; after roughly five minutes without interaction, the phone returns to the stock launcher.
 - The defunct Video Conference and Voice Conference tiles now open Firefox and Telegram. The boot patch also stops conference processes started before the patched package is mounted, preventing those tiles from falling back to the original conference screens.
 - The orange tile on the stock home screen now opens the dual-channel Messages application. The application page contains Firefox, VLC, Zello, Telegram, Calculator, D31 Wireless ADB, Settings, and File Manager. Pressing `#` eleven times opens the application-page configuration menu.
 - The stock analogue clock no longer assumes China Standard Time and now follows the Android time zone.
 - The stock SIP client no longer forces TLS 1.0. It can negotiate TLS 1.2 with current SIP servers, and stale TLS sessions are cleared after a network change so SIP registration can recover. The fix has been verified with a successful TLS registration and a real incoming call.
+- The boot coordinator waits until PackageManager has scanned the stock packages, then loads the launcher, conference shortcut, TLS, and cellular-label patches before Nexui starts for the first time. It no longer replaces the launcher by stopping an already visible Nexui process. Firefox is deferred for about 180 seconds and Thunderbird for about 300 seconds. A verified Arm64 `interpret-only` OAT generated from the same clean Thunderbird APK avoids the Android 6 ART compiler crash seen during cold boots.
+- Cellular calling capability is restored after the vendor's boot initialization without a permanent polling service. With a compatible SIM installed, the cellular tile shows the line number when available, otherwise the current network name, with `2G`, `3G`, `4G LTE`, or `5G` below it. No carrier, APN, or phone number is preconfigured.
 - The package includes the dynamic IPv4/IPv6 inbound firewall, port 5555 ADB recovery at boot, the port 8765 status probe, and their boot integration as validated on the reference device.
 - Live wallpapers, screen-saver assets, MediaTek engineering tools, logging utilities, and factory diagnostics are retained.
 
@@ -81,19 +83,19 @@ I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 fo
 
 ### GitHub
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.4.8.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.2.0-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.4.8.zip): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, bootstrap APKs, and the aria2 1.37.0 download engine. The 1.32 GB firmware is downloaded separately. It supports explicit ADB connection and disconnection, device checks before downloading firmware, multiple D31 phones selected by IP, Chinese Windows paths, accelerated GitHub and Cloudflare downloads, live throughput and ETA, resume support, and automatic single-connection fallback. The utility uses the dedicated D31 ADB server port 5042 and does not interfere with Pixel 3 on 5041 or H13 on 5038.
-- [D31_SVP3390_Factory_Flash_v1.2.0_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.2.0-candidate.1/D31_SVP3390_Factory_Flash_v1.2.0_testkey.zip): the signed Recovery firmware package. Version 1.2.0 retains the complete, physically cleaned system image and adds dynamic USB/TF storage handling, the customized file manager, dual-channel messaging, and the Messages home-screen tile.
+- [D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.3.0-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, bootstrap APKs, and the aria2 1.37.0 download engine. The 1.34 GB firmware is downloaded separately. It supports explicit ADB connection and disconnection, device checks before downloading firmware, multiple D31 phones selected by IP, Chinese Windows paths, accelerated GitHub and Cloudflare downloads, live throughput and ETA, resume support, and automatic single-connection fallback. The utility uses the dedicated D31 ADB server port 5042 and does not interfere with Pixel 3 on 5041 or H13 on 5038.
+- [D31_SVP3390_Factory_Flash_v1.3.0_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.3.0-candidate.1/D31_SVP3390_Factory_Flash_v1.3.0_testkey.zip): the 1.34 GB signed Recovery package. Version 1.3.0 keeps the complete, physically cleaned system image and includes dynamic USB/TF storage handling, the customized file manager, dual-channel messaging, corrected boot ordering, the Thunderbird ART workaround, and the cellular calling display fix.
 
 ### Cloudflare R2 mirror
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.4.8.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.4.8.zip)
-- [D31_SVP3390_Factory_Flash_v1.2.0_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.2.0_testkey.zip)
+- [D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip)
+- [D31_SVP3390_Factory_Flash_v1.3.0_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.3.0_testkey.zip)
 
 ### SHA-256
 
 ```text
-91285ADF2C4701251B31DBCF20AB390885D29428CC5C2D7C6DE8B80C63B02D99  D31_SVP3390_Windows_Flash_Tool_v1.4.8.zip
-BB50F3BE5B4D9156915D01EC50270F4C5A6ECA80CB0B782C4764B84AA5FABD22  D31_SVP3390_Factory_Flash_v1.2.0_testkey.zip
+E0F4FCEB45178D49D25EBAEADFFDF65F6E6C9631CBCF41F2411B74348F8F43D4  D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip
+D494B23C0A6701BADDBA87B44032E4E35FC22246FBF07319AA78BF92FDDBE2E8  D31_SVP3390_Factory_Flash_v1.3.0_testkey.zip
 ```
 
 ## Preparing a factory D31
@@ -114,12 +116,12 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 
 ![D31 Windows Flash and Backup Tool](images/d31-flash-tool-v1.4.7.png)
 
-1. Extract `D31_SVP3390_Windows_Flash_Tool_v1.4.8.zip` and keep the directory structure intact. This release supports Windows user names and extraction paths containing Chinese characters.
-2. Run `D31-Flash-Tool-v1.4.8.exe`.
+1. Extract `D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip` and keep the directory structure intact. This release supports Windows user names and extraction paths containing Chinese characters.
+2. Run `D31-Flash-Tool-v1.4.9.exe`.
 3. Enter the D31's IP address and select Connect ADB. The address is not discovered automatically: when several D31 phones are present, enter the address of the unit you want to manage. A successful connection identifies the phone immediately. Detect D31 refreshes its status, while Disconnect ADB releases the current phone before switching to another one.
 4. Select Read-only check. The firmware package does not need to be downloaded first. This step checks the device, root access, build, network, partition layout, Recovery entry point, available space, and dependencies without modifying or restarting the D31. A Wi-Fi address can be used for connection and read-only checks, but not for flashing.
 5. Select Choose firmware package to use a ZIP already downloaded to the PC, or select GitHub accelerated download or Cloudflare accelerated download. Public GitHub Release downloads do not require an account or token. GitHub uses up to eight connections and Cloudflare uses up to sixteen; these are upper limits rather than mandatory connection counts. If the host rejects or limits segmented transfers, the utility preserves the partial download and automatically continues in single-connection compatibility mode.
-6. Wait for the 1.32 GB firmware package to pass both the fixed-length check and the built-in SHA-256 check. Device connection, the read-only check, and package selection may be completed in any order.
+6. Wait for the 1.34 GB firmware package to pass both the fixed-length check and the built-in SHA-256 check. Device connection, the read-only check, and package selection may be completed in any order.
 7. Before flashing, connect Ethernet and make sure the utility is connected to the address assigned to the D31's wired `eth0` interface. The data-wipe confirmation and Start flashing control are enabled only after the device check, package verification, and wired-address check have all passed.
 8. Back up the original system to this PC before flashing is selected by default, but it is optional. If left selected, the utility saves this D31's original system under `D31备份` on the PC and then continues automatically. If cleared, the utility warns that no rescue package will be available and allows the flash to continue. No USB drive or TF card is needed for a normal flash.
 9. Tick the data-wipe confirmation and select Start flashing. The D31 restarts automatically. Do not disconnect its power, press its physical keys, close the flashing utility, or allow the PC to sleep or shut down before the process finishes. On the first boot, Android rebuilds `userdata` and performs ART optimization, so the phone may run much more slowly than usual. This is normal.
