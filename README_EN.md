@@ -114,7 +114,7 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 
 ## Flashing procedure
 
-![D31 Windows Flash and Backup Tool](images/d31-flash-tool-v1.4.7.png)
+![D31 Windows Flash and Backup Tool](images/d31-flash-tool-v1.6.0.png)
 
 1. 下载`D31-Flash-Tool-v1.6.0.exe`，不需要解压，运行依赖和新版APK已内置。
 2. Run `D31-Flash-Tool-v1.6.0.exe`.

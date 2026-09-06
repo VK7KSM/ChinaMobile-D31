@@ -116,7 +116,7 @@ D31的两个USB-A口目前只证明是主机口，不能当作USB设备接口连
 
 ## 正式刷机流程
 
-![D31 Windows刷机与备份工具](images/d31-flash-tool-v1.4.7.png)
+![D31 Windows刷机与备份工具](images/d31-flash-tool-v1.6.0.png)
 
 1. 下载`D31-Flash-Tool-v1.6.0.exe`，不需要解压，运行依赖和新版APK已内置。
 2. 双击`D31-Flash-Tool-v1.6.0.exe`。
