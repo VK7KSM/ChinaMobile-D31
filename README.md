@@ -83,18 +83,18 @@
 
 ### GitHub
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.3.0-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip)：完整Windows工具包，包含图形程序、ADB、可选备份功能、Recovery急救入口、说明、首次引导APK和aria2 1.37.0高速下载组件，不包含1.34GB固件。工具提供明确的“连接ADB”和“断开ADB”按钮，可在未下载刷机包时连接、检测和只读检查D31，也可按IP在多台D31之间切换；正式刷机仍只接受D31有线`eth0`地址。该版支持中文用户名和中文目录，提供GitHub与Cloudflare多连接下载、实时速度、进度、预计剩余时间和断点续传。工具固定使用D31专用ADB服务器端口5042，不会停止Pixel 3的5041或H13的5038。
+- [D31-Flash-Tool-v1.6.0.exe](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.0/D31-Flash-Tool-v1.6.0.exe)：单文件Windows工具，内置ADB、首次引导/急救APK 1.11.0及高速下载组件，不含独立固件。新增“设备急救”，无需先连接ADB或下载刷机包，支持8765与uptool恢复ADB、只读诊断；卡刷仅预留禁用入口。保留中文路径、可取消的电脑备份、GitHub/Cloudflare多连接下载及进度、速度、剩余时间显示，专用ADB端口5042。
 - [D31_SVP3390_Factory_Flash_v1.3.0_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.3.0-candidate.1/D31_SVP3390_Factory_Flash_v1.3.0_testkey.zip)：1.34GB独立签名Recovery刷机包，也可以直接在刷机工具中选择GitHub或Cloudflare高速下载。v1.3.0使用母机完整system只读副本制作，18个无用组件已经从镜像中物理删除，并包含外置存储动态识别、定制文件管理器、双通道短信、开机顺序修复、Thunderbird旧ART规避和蜂窝电话显示修复。
 
 ### Cloudflare R2镜像
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip)
+- [D31-Flash-Tool-v1.6.0.exe](https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.0.exe)
 - [D31_SVP3390_Factory_Flash_v1.3.0_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.3.0_testkey.zip)
 
 ### SHA-256
 
 ```text
-E0F4FCEB45178D49D25EBAEADFFDF65F6E6C9631CBCF41F2411B74348F8F43D4  D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip
+7A264BFB0B70EBAEBCD24D1BBC36536A02D760952591F53802908D6B2C9C42BE  D31-Flash-Tool-v1.6.0.exe
 D494B23C0A6701BADDBA87B44032E4E35FC22246FBF07319AA78BF92FDDBE2E8  D31_SVP3390_Factory_Flash_v1.3.0_testkey.zip
 ```
 
@@ -107,7 +107,7 @@ D31的两个USB-A口目前只证明是主机口，不能当作USB设备接口连
 3. 摘下听筒或点击屏幕上的“拨号”，输入`*#223#*`并按绿色拨出键，可进入Android原生桌面；输入`*#233#*`并按绿色拨出键，可直接打开Android系统设置。
 4. 如果没有“开发者选项”，进入“关于设备”，连续点击“版本号”7次，然后打开“USB调试”。这里打开的是Android调试总开关，实际ADB数据仍走网络。
 5. 在Android“安全”设置中打开“未知来源”，再打开蓝牙并与Windows电脑配对。
-6. 下载新版首次引导工具[D31-wireless-adb-v1.11.0.apk](tools/D31-wireless-adb/D31-wireless-adb-v1.11.0.apk)。在Windows中运行`fsquirt`，或者右键点击任务栏蓝牙图标选择“发送文件”，把这个APK发送给D31。
+6. 点击Windows工具的“首次引导/急救APK”，打开内置APK目录；也可单独下载新版首次引导工具[D31-wireless-adb-v1.11.0.apk](tools/D31-wireless-adb/D31-wireless-adb-v1.11.0.apk)。在Windows中运行`fsquirt`，或者右键点击任务栏蓝牙图标选择“发送文件”，把这个APK发送给D31。
 7. 让D31停留在通过`*#223#*`打开的Android原生桌面，从顶部通知栏接受蓝牙文件。传输完成后点击收到的APK，用Android原生安装器安装。
 8. 安装完成后立即点击“打开”，再点击“重新启动无线 ADB（端口 5555）”。应用名称虽然叫“无线ADB”，同一个端口也可以通过有线网络访问。新版另有不依赖ADB的8765命令服务，详见[使用说明与源码](tools/D31-wireless-adb/README.md)。
 9. 从路由器后台或D31高级设置中查到D31的有线IPv4地址并记下来。
@@ -118,8 +118,8 @@ D31的两个USB-A口目前只证明是主机口，不能当作USB设备接口连
 
 ![D31 Windows刷机与备份工具](images/d31-flash-tool-v1.4.7.png)
 
-1. 解压`D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip`，保持目录结构不变。该版本支持中文用户名和中文目录。
-2. 双击`D31-Flash-Tool-v1.4.9.exe`。
+1. 下载`D31-Flash-Tool-v1.6.0.exe`，不需要解压，运行依赖和新版APK已内置。
+2. 双击`D31-Flash-Tool-v1.6.0.exe`。
 3. 填写D31的IP地址并点击“连接ADB”。IP不是自动发现结果；有多台D31时，填写哪台的IP就连接哪台。连接成功后工具立即识别设备，“检测D31”用于刷新状态，“断开ADB”用于断开当前设备并切换到另一台。
 4. 点击“只读检查”。这一步不要求先下载刷机包，只检查设备、root、构建、网络、分区、Recovery入口、空间和依赖，不修改或重启D31。Wi-Fi地址可以连接、检测和只读检查，但不能用于正式刷机。
 5. 点击“选择刷机包”选择已经下载的官方ZIP，或点击“GitHub高速下载”或“Cloudflare高速下载”。GitHub公开Release下载不需要账号或Token；GitHub最多使用8个连接，Cloudflare最多使用16个连接。并发数只是上限，不是强制连接数；源站不支持或限制多连接时，工具会保留断点并自动改用单连接继续下载。
@@ -129,6 +129,9 @@ D31的两个USB-A口目前只证明是主机口，不能当作USB设备接口连
 9. 勾选清空数据确认框，点击“开始刷机”。D31会自动重启。此时绝对不要将D31断电、乱按实体键或关闭刷机窗口，在刷机完成前不要碰D31，也绝对不能让电脑休眠或关机。刷机结束后，D31首次启动时会重建`userdata`并进行ART优化，可能明显变慢，这是正常现象。
 
 ## 刷机失败变砖抢救教程
+
+**Windows工具1.6.0：**点击主窗口“断开ADB”右侧的“设备急救”。先检查8765探针并恢复ADB；探针不可用时，选择有线网卡和D31有线MAC，通过原厂uptool查询及恢复。只需官方Npcap，不需要Python。卡刷恢复仅预留禁用入口。[完整操作、验收和风险说明](docs/D31-Windows工具急救.md)。本轮只更新工具，未更新固件；完整刷机后须重新检查新版APK及8765开机救援状态。
+
 
 **先不要恢复出厂，也不要反复拔电。卡在“中国移动”或“系统正在启动”，并不等于必须拆机或线刷。** 2026年9月6日，本项目已在卡启动、ADB不可用的D31上，通过原厂以太网管理接口重新启动adbd，实际连上ADB并取得root shell。这条方法不依赖桌面、USB调试设置页面或Recovery。
 

@@ -83,18 +83,18 @@ I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 fo
 
 ### GitHub
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.3.0-candidate.1/D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, bootstrap APKs, and the aria2 1.37.0 download engine. The 1.34 GB firmware is downloaded separately. It supports explicit ADB connection and disconnection, device checks before downloading firmware, multiple D31 phones selected by IP, Chinese Windows paths, accelerated GitHub and Cloudflare downloads, live throughput and ETA, resume support, and automatic single-connection fallback. The utility uses the dedicated D31 ADB server port 5042 and does not interfere with Pixel 3 on 5041 or H13 on 5038.
+- [D31-Flash-Tool-v1.6.0.exe](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.0/D31-Flash-Tool-v1.6.0.exe): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, bootstrap APKs, and the aria2 1.37.0 download engine. The 1.34 GB firmware is downloaded separately. It supports explicit ADB connection and disconnection, device checks before downloading firmware, multiple D31 phones selected by IP, Chinese Windows paths, accelerated GitHub and Cloudflare downloads, live throughput and ETA, resume support, and automatic single-connection fallback. The utility uses the dedicated D31 ADB server port 5042 and does not interfere with Pixel 3 on 5041 or H13 on 5038.
 - [D31_SVP3390_Factory_Flash_v1.3.0_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.3.0-candidate.1/D31_SVP3390_Factory_Flash_v1.3.0_testkey.zip): the 1.34 GB signed Recovery package. Version 1.3.0 keeps the complete, physically cleaned system image and includes dynamic USB/TF storage handling, the customized file manager, dual-channel messaging, corrected boot ordering, the Thunderbird ART workaround, and the cellular calling display fix.
 
 ### Cloudflare R2 mirror
 
-- [D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip)
+- [D31-Flash-Tool-v1.6.0.exe](https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.0.exe)
 - [D31_SVP3390_Factory_Flash_v1.3.0_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.3.0_testkey.zip)
 
 ### SHA-256
 
 ```text
-E0F4FCEB45178D49D25EBAEADFFDF65F6E6C9631CBCF41F2411B74348F8F43D4  D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip
+7A264BFB0B70EBAEBCD24D1BBC36536A02D760952591F53802908D6B2C9C42BE  D31-Flash-Tool-v1.6.0.exe
 D494B23C0A6701BADDBA87B44032E4E35FC22246FBF07319AA78BF92FDDBE2E8  D31_SVP3390_Factory_Flash_v1.3.0_testkey.zip
 ```
 
@@ -107,7 +107,7 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 3. Open the dialer. Dial `*#223#*` and press the green call key to open the stock Android launcher. Dial `*#233#*` and press the green call key to open Android Settings directly.
 4. If Developer options is hidden, open About device and tap Build number seven times. Enable USB debugging. This enables the Android debugging service; the transport still runs over the network.
 5. Enable Unknown sources under Android Security, then pair the D31 with the Windows PC over Bluetooth.
-6. 下载[D31-wireless-adb-v1.11.0.apk](tools/D31-wireless-adb/D31-wireless-adb-v1.11.0.apk)，在Windows运行`fsquirt`发送到D31。[使用说明与源码](tools/D31-wireless-adb/README.md)。
+6. 点击Windows工具的“首次引导/急救APK”取得内置文件，或单独下载[D31-wireless-adb-v1.11.0.apk](tools/D31-wireless-adb/D31-wireless-adb-v1.11.0.apk)，在Windows运行`fsquirt`发送到D31。[使用说明与源码](tools/D31-wireless-adb/README.md)。
 7. Leave the D31 on the stock Android launcher opened with `*#223#*`. Accept the transfer from the notification shade and install the received APK with Android's native package installer.
 8. Tap Open after installation, then tap the button that enables wireless ADB on port 5555. The application name says wireless ADB, but the same TCP port is reachable over Ethernet.
 9. Find and note the D31's wired IPv4 address in the router or the phone's Advanced Settings.
@@ -116,8 +116,8 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 
 ![D31 Windows Flash and Backup Tool](images/d31-flash-tool-v1.4.7.png)
 
-1. Extract `D31_SVP3390_Windows_Flash_Tool_v1.4.9.zip` and keep the directory structure intact. This release supports Windows user names and extraction paths containing Chinese characters.
-2. Run `D31-Flash-Tool-v1.4.9.exe`.
+1. 下载`D31-Flash-Tool-v1.6.0.exe`，不需要解压，运行依赖和新版APK已内置。
+2. Run `D31-Flash-Tool-v1.6.0.exe`.
 3. Enter the D31's IP address and select Connect ADB. The address is not discovered automatically: when several D31 phones are present, enter the address of the unit you want to manage. A successful connection identifies the phone immediately. Detect D31 refreshes its status, while Disconnect ADB releases the current phone before switching to another one.
 4. Select Read-only check. The firmware package does not need to be downloaded first. This step checks the device, root access, build, network, partition layout, Recovery entry point, available space, and dependencies without modifying or restarting the D31. A Wi-Fi address can be used for connection and read-only checks, but not for flashing.
 5. Select Choose firmware package to use a ZIP already downloaded to the PC, or select GitHub accelerated download or Cloudflare accelerated download. Public GitHub Release downloads do not require an account or token. GitHub uses up to eight connections and Cloudflare uses up to sixteen; these are upper limits rather than mandatory connection counts. If the host rejects or limits segmented transfers, the utility preserves the partial download and automatically continues in single-connection compatibility mode.
@@ -127,6 +127,9 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 9. Tick the data-wipe confirmation and select Start flashing. The D31 restarts automatically. Do not disconnect its power, press its physical keys, close the flashing utility, or allow the PC to sleep or shut down before the process finishes. On the first boot, Android rebuilds `userdata` and performs ART optimization, so the phone may run much more slowly than usual. This is normal.
 
 ## Recovering from a failed flash
+
+**Windows工具1.6.0：**点击主窗口“断开ADB”右侧的“设备急救”。先检查8765探针并恢复ADB；探针不可用时，选择有线网卡和D31有线MAC，通过原厂uptool查询及恢复。只需官方Npcap，不需要Python。卡刷恢复仅预留禁用入口。[完整操作、验收和风险说明](docs/D31-Windows工具急救.md)。本轮只更新工具，未更新固件；完整刷机后须重新检查新版APK及8765开机救援状态。
+
 
 This procedure covers a soft brick: Android no longer boots, repeatedly resets at the logo, or fails before reaching the launcher, while the stock Recovery still works. The Windows utility never writes the `recovery` partition, so a failed system/boot installation should normally leave Recovery intact.
 
