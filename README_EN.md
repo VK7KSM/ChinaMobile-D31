@@ -107,7 +107,7 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 3. Open the dialer. Dial `*#223#*` and press the green call key to open the stock Android launcher. Dial `*#233#*` and press the green call key to open Android Settings directly.
 4. If Developer options is hidden, open About device and tap Build number seven times. Enable USB debugging. This enables the Android debugging service; the transport still runs over the network.
 5. Enable Unknown sources under Android Security, then pair the D31 with the Windows PC over Bluetooth.
-6. Run `fsquirt` on Windows, or use Send a file from the Bluetooth tray menu, and send `首次引导工具/D31-wireless-adb-v1.0.apk` from the extracted utility.
+6. 下载[D31-wireless-adb-v1.11.0.apk](tools/D31-wireless-adb/D31-wireless-adb-v1.11.0.apk)，在Windows运行`fsquirt`发送到D31。它是同应用的升级版；旧Windows工具包内附带的APK尚未更新。[使用说明与源码](tools/D31-wireless-adb/README.md)。
 7. Leave the D31 on the stock Android launcher opened with `*#223#*`. Accept the transfer from the notification shade and install the received APK with Android's native package installer.
 8. Tap Open after installation, then tap the button that enables wireless ADB on port 5555. The application name says wireless ADB, but the same TCP port is reachable over Ethernet.
 9. Find and note the D31's wired IPv4 address in the router or the phone's Advanced Settings.

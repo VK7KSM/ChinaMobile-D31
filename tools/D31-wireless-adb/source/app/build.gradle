@@ -1,0 +1,55 @@
+apply plugin: 'com.android.application'
+
+def d31SigningReady = ['D31_SIGNING_KEYSTORE', 'D31_SIGNING_STORE_PASSWORD',
+                       'D31_SIGNING_KEY_ALIAS', 'D31_SIGNING_KEY_PASSWORD']
+        .every { System.getenv(it) }
+
+android {
+    buildFeatures { buildConfig true }
+    namespace 'net.elfradio.d31bootstrap'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'net.elfradio.d31bootstrap'
+        minSdk 21
+        targetSdk 27
+        versionCode 52
+        versionName '1.11.0-lan-rescue'
+    }
+
+    signingConfigs {
+        if (d31SigningReady) {
+            d31Release {
+                storeFile file(System.getenv('D31_SIGNING_KEYSTORE'))
+                storePassword System.getenv('D31_SIGNING_STORE_PASSWORD')
+                keyAlias System.getenv('D31_SIGNING_KEY_ALIAS')
+                keyPassword System.getenv('D31_SIGNING_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix '.preview'
+            versionNameSuffix '-not-for-install'
+        }
+        release {
+            minifyEnabled false
+            if (d31SigningReady) signingConfig signingConfigs.d31Release
+        }
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+
+    lint {
+        disable 'ExpiredTargetSdkVersion'
+    }
+}
+
+dependencies {
+    implementation 'org.nanohttpd:nanohttpd:2.3.1'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+}

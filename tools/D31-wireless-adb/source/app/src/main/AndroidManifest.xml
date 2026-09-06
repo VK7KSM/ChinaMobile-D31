@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <application
+        android:allowBackup="false"
+        android:label="D31 无线ADB"
+        android:usesCleartextTraffic="false"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <activity
+            android:name=".MainActivity"
+            android:launchMode="singleTop"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".UsbBrowseActivity"
+            android:exported="true"
+            android:noHistory="true">
+            <intent-filter>
+                <action android:name="android.provider.action.BROWSE_DOCUMENT_ROOT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.document/root" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".UsbInsertPromptActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:theme="@android:style/Theme.Material.Light.Dialog.Alert" />
+
+        <service
+            android:name=".ProbeService"
+            android:exported="false" />
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+                <action android:name="net.elfradio.d31bootstrap.REPAIR_ADB" />
+                <action android:name="net.elfradio.d31bootstrap.REFRESH_FIREWALL" />
+                <action android:name="net.elfradio.d31bootstrap.REFRESH_USB" />
+                <action android:name="net.elfradio.d31bootstrap.RETRY_USB_MOUNT" />
+                <action android:name="net.elfradio.d31bootstrap.START_THUNDERBIRD_BACKGROUND" />
+                <action android:name="net.elfradio.d31bootstrap.CLEANUP_THUNDERBIRD_RECEIVER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_MOUNTED" />
+                <action android:name="android.intent.action.MEDIA_EJECT" />
+                <action android:name="android.intent.action.MEDIA_UNMOUNTED" />
+                <action android:name="android.intent.action.MEDIA_REMOVED" />
+                <action android:name="android.intent.action.MEDIA_BAD_REMOVAL" />
+                <data android:scheme="file" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".VendorNetworkReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.starnet.systemapi.action.ETHERNET_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>
