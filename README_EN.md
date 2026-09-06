@@ -141,7 +141,15 @@ This procedure covers a soft brick: Android no longer boots, repeatedly resets a
 9. If Recovery reports `ERROR 22`, the original `system` and `boot` images have already been restored and verified, but automatic `userdata` erasure failed. Return to the Recovery main menu, run Wipe data/factory reset, and reboot.
 10. The first recovered boot rebuilds application data and the ART cache. Give it time; do not power-cycle the phone merely because the boot logo remains visible longer than usual.
 
-If stock Recovery itself cannot be entered, card-based recovery cannot run. That is a Recovery, preloader, or hardware-level failure and requires the private backups from this phone, a matching MediaTek low-level firmware set, and BootROM tooling. This Windows package does not currently provide that path. Never write `nvram`, `nvdata`, `proinfo`, or calibration partitions taken from a different D31.
+If stock Recovery cannot be entered, card-based recovery has no verified entry point. That alone does not prove a Recovery, preloader, or hardware failure. A physical Recovery key sequence and card-based restoration have not been validated on this customized D31. Never write `nvram`, `nvdata`, `proinfo`, or calibration partitions taken from a different D31.
+
+### Factory uptool: Commands and Security
+
+The factory `uptool` service uses raw Ethernet frames with `EtherType 0x9974`, not a TCP or UDP port. It has restored root ADB access on this project's D31 while the launcher was unavailable. It still needs a working kernel, Ethernet link, and service; it cannot guarantee recovery from a broken bootloader or kernel.
+
+The [complete command reference, operating steps, and security guidance](docs/D31-uptool指令与安全说明.md) lists all 18 identified action codes and other factory interfaces, distinguishing tested behavior from static findings. Query the specific phone first, then use the fixed ADB recovery script. Do not test update or factory-reset operations merely to see whether they work.
+
+**The tested firmware accepts root command execution without management credentials. An untrusted device on the same Layer 2 network could misuse it.** MAC addresses and MD5 checksums are not authentication. Closing ports 5555/8765 or adding ordinary IP firewall rules does not establish that uptool is blocked. Use a trusted, isolated maintenance network. For routine use, evaluate external Layer 2 filtering or on-demand service operation, but verify an alternative recovery path first. No service has been disabled or new access restriction applied as part of this documentation update.
 
 ## A final note
 
