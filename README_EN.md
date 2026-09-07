@@ -128,31 +128,52 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 
 ## Recovering from a failed flash
 
-**Windows工具1.6.0：**点击主窗口“断开ADB”右侧的“设备急救”。先检查8765探针并恢复ADB；探针不可用时，选择有线网卡和D31有线MAC，通过原厂uptool查询及恢复。只需官方Npcap，不需要Python。卡刷恢复仅预留禁用入口。[完整操作、验收和风险说明](docs/D31-Windows工具急救.md)。本轮只更新工具，未更新固件；完整刷机后须重新检查新版APK及8765开机救援状态。
+If the D31 is stuck at the China Mobile logo or “Starting apps,” keeps restarting its launcher, or will not accept ADB connections, use the Windows tool to restore management access first. Do not repeatedly disconnect power or jump straight to a factory reset. **Restoring ADB does not repair the system by itself**; it lets you collect diagnostics and address the fault.
 
+### Restore ADB with Windows tool 1.6.0
 
-This procedure covers a soft brick: Android no longer boots, repeatedly resets at the logo, or fails before reaching the launcher, while the stock Recovery still works. The Windows utility never writes the `recovery` partition, so a failed system/boot installation should normally leave Recovery intact.
+1. Leave the D31 powered on and connect it and the PC to the same wired LAN. Internet access and a downloaded firmware package are not required.
+2. Run `D31-Flash-Tool-v1.6.0.exe`, enter the affected phone’s **wired IPv4 address**, and select **设备急救** (Device rescue), to the right of Disconnect ADB. This window is available even when ADB is disconnected.
+3. Check the IP at the top of the rescue window. If you have several D31 phones, make sure you have selected the right one.
 
-1. First confirm that the backup option was left enabled for the failed flash. If it was cleared, no rescue package exists and this procedure cannot be used. Never use a rescue package from another D31.
-2. Under `D31备份` on the PC, find the rescue package for this D31. Copy the complete directory named `需要抢救时复制到TF卡或U盘`, including all of its files, to a FAT32-formatted TF card or USB drive.
-3. Connect the D31 to stable power, insert the TF card or USB drive, and enter the stock Recovery.
-4. For a TF card, select Apply update from SD card. For a USB drive, select the USB OTG media entry shown by Recovery.
-5. Open the rescue directory for this D31 and select `D31_RESCUE_UPDATE.zip`.
-6. The rescue installer checks the device, partition sizes, and the lengths and SHA-256 values of `system` and `boot` before writing anything. If any check fails, it stops without writing a partition.
-7. Do not remove power after recovery begins. The installer writes back the original pre-flash `system` and `boot` from this D31, then reads both partitions back and verifies them in full.
-8. When the screen reports `D31 emergency restore completed`, select Reboot system now.
-9. If Recovery reports `ERROR 22`, the original `system` and `boot` images have already been restored and verified, but automatic `userdata` erasure failed. Return to the Recovery main menu, run Wipe data/factory reset, and reboot.
-10. The first recovered boot rebuilds application data and the ART cache. Give it time; do not power-cycle the phone merely because the boot logo remains visible longer than usual.
+![D31 Device rescue button and window](images/d31-rescue-workflow-v1.6.0.png)
 
-If stock Recovery cannot be entered, card-based recovery has no verified entry point. That alone does not prove a Recovery, preloader, or hardware failure. A physical Recovery key sequence and card-based restoration have not been validated on this customized D31. Never write `nvram`, `nvdata`, `proinfo`, or calibration partitions taken from a different D31.
+#### Try the port 8765 command probe first
 
-### Factory uptool: Commands and Security
+1. In the upper section, select **检查探针** (Check probe).
+2. If it returns the probe version and a status including `uid=0`, select **恢复ADB** (Restore ADB) in that same section and confirm.
+3. The tool briefly stops and starts adbd on the D31, sets its port to 5555, clears the PC’s dedicated port 5042 connection, and then connects to and identifies the phone. **Success means the log confirms an ADB handshake and D31 identification**, not just that a command was sent.
+4. Use **导出诊断** (Export diagnostics) to save read-only status information to the PC. Close the rescue window, select Connect ADB in the main window, and continue with detection and the read-only check.
 
-The factory `uptool` service uses raw Ethernet frames with `EtherType 0x9974`, not a TCP or UDP port. It has restored root ADB access on this project's D31 while the launcher was unavailable. It still needs a working kernel, Ethernet link, and service; it cannot guarantee recovery from a broken bootloader or kernel.
+This route requires `D31-wireless-adb-v1.11.0.apk` to have been installed on the D31 and **启用开机救援（8765）** (Enable boot rescue) enabled before the failure. Having the APK on the PC, or installing it without enabling boot rescue, does not guarantee that the probe will be available during a failed boot.
 
-The [complete command reference, operating steps, and security guidance](docs/D31-uptool指令与安全说明.md) lists all 18 identified action codes and other factory interfaces, distinguishing tested behavior from static findings. Query the specific phone first, then use the fixed ADB recovery script. Do not test update or factory-reset operations merely to see whether they work.
+#### If the probe is unavailable, use the factory uptool service
 
-**The tested firmware accepts root command execution without management credentials. An untrusted device on the same Layer 2 network could misuse it.** MAC addresses and MD5 checksums are not authentication. Closing ports 5555/8765 or adding ordinary IP firewall rules does not establish that uptool is blocked. Use a trusted, isolated maintenance network. For routine use, evaluate external Layer 2 filtering or on-demand service operation, but verify an alternative recovery path first. No service has been disabled or new access restriction applied as part of this documentation update.
+1. Install [official Npcap](https://npcap.com/#download) on the PC. The rescue window’s **Npcap官网** button opens its website; select **刷新网卡** (Refresh adapters) after installation. **Python and a separate ADB installation are not needed; ADB is bundled with the tool.** If Npcap was restricted to administrators, run the tool as administrator.
+2. In the lower section, select the PC’s Ethernet adapter connected to the D31 and enter the affected phone’s **wired MAC address**. Do not use the PC’s MAC or the D31’s Wi-Fi MAC. Check the phone’s network settings, device label, or a trusted network-neighbor record.
+3. Select **查询设备** (Query device). After receiving a valid response from the target, select **恢复ADB** (Restore ADB) in the lower section and confirm.
+4. The tool queries that MAC again, sends the fixed ADB recovery command, and attempts an actual connection to the IP entered above. Again, **the ADB handshake and D31 identification must pass**; “sent” alone is not a success result.
+5. Close the rescue window and connect from the main window to investigate the fault. If recovery fails, keep the log and check the adapter, IP, and MAC instead of repeatedly reflashing.
+
+uptool requires the PC and D31 to share the same wired Layer 2 network. An ordinary Internet connection, routed connection, or VPN is not a substitute. The D31’s kernel, Ethernet driver, and factory service must still be running, but its launcher and the port 8765 probe need not be available.
+
+**Restore ADB does not flash partitions, erase user data, reboot the phone, or start a firmware installation.** The PC uses only the D31’s dedicated ADB server on port 5042 and leaves other devices’ servers alone. Diagnose first: Start flashing is a separate operation that erases data.
+
+Third-party tools or scripts can also call uptool. Manual use is an alternative covered in the [command reference](docs/D31-uptool指令与安全说明.md); the graphical workflow above is the recommended route and does not require a command line.
+
+### Recovery from a memory card is not available yet
+
+**We have not established and verified a reliable way to enter Recovery on this China Mobile-customized D31 after a failed flash prevents Android from starting normally.** There is no confirmed general-purpose physical key sequence, and card-based restoration has not been tested on this phone.
+
+**卡刷恢复 · 暂未开放** (Card recovery · Not available yet) is only a disabled placeholder. Copying recovery files to a TF card or USB drive does not mean the D31 will run them automatically at power-on. Restoring an earlier backup while a phone is still operable is different from gaining access to Recovery after it is bricked; the former is not a verified solution to the latter.
+
+If neither port 8765 nor uptool is available, this project currently has no verified offline card-recovery fallback. Do not guess key combinations, short contacts, or connect two host ports with an ordinary USB-A-to-USB-A cable.
+
+### Limits and security
+
+- This release updates the Windows tool, not the firmware package. A full flash clears data and may replace the boot hooks. Check the new APK and port 8765 boot-rescue setup again afterward; do not assume they survived.
+- Neither rescue channel guarantees recovery when the bootloader or kernel cannot start. See the [Windows rescue guide](docs/D31-Windows工具急救.md) for the test scope.
+- The development probe and the tested factory uptool service allow root commands without a password. Use a trusted maintenance network and do not expose ports 5555 or 8765 to the Internet. uptool uses raw Ethernet frames, so ordinary TCP/UDP filtering does not establish that it is blocked. See the [security guidance](docs/D31-uptool指令与安全说明.md).
 
 ## A final note
 
