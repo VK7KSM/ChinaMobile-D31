@@ -83,18 +83,18 @@
 
 ### GitHub
 
-- [D31-Flash-Tool-v1.6.2.exe](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.2/D31-Flash-Tool-v1.6.2.exe)：单文件Windows工具，内置ADB、首次引导/急救APK 1.11.5及高速下载组件。两个下载按钮均指向固件1.4.0，支持进度、速度、剩余时间和哈希校验，专用ADB端口5042。保留设备急救与可取消的电脑备份，卡刷按钮仍为预留项。
+- [D31-Flash-Tool-v1.6.3.exe](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.3/D31-Flash-Tool-v1.6.3.exe)：单文件Windows工具，内置ADB、首次引导/急救APK 1.11.5及高速下载组件。两个下载按钮均指向固件1.4.0，支持进度、速度、剩余时间和哈希校验，专用ADB端口5042。保留设备急救与可取消的电脑备份，卡刷按钮仍为预留项。
 - [D31_SVP3390_Factory_Flash_v1.4.0_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.0/D31_SVP3390_Factory_Flash_v1.4.0_testkey.zip)：约1.35GB独立签名刷机包。包含当前已验收的存储、启动、TLS和桌面修复，关闭自动取号，加入电台精灵品牌图及音量加Recovery入口；不含用户数据。详见[本次更新和恢复方法](docs/D31-v1.4.0与Recovery入口.md)。
 
 ### Cloudflare R2镜像
 
-- [D31-Flash-Tool-v1.6.2.exe](https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.2.exe)
+- [D31-Flash-Tool-v1.6.3.exe](https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.3.exe)
 - [D31_SVP3390_Factory_Flash_v1.4.0_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.4.0_testkey.zip)
 
 ### SHA-256
 
 ```text
-2BF9C3CEA174EF01207468BBF28A341F148A2312FD743E7C51382BF794E437A4  D31-Flash-Tool-v1.6.2.exe
+5BBF93C236120698BA769C18FAA176354ADEBAD94BA17060EDACB947D0F4BEED  D31-Flash-Tool-v1.6.3.exe
 B8ACAE60874313F3220D53B04B378FC45F06CA11105DC53B3B1385AB725792E9  D31_SVP3390_Factory_Flash_v1.4.0_testkey.zip
 ```
 
@@ -116,10 +116,12 @@ D31的两个USB-A口目前只证明是主机口，不能当作USB设备接口连
 
 ## 正式刷机流程
 
+请使用1.6.3工具。1.6.1/1.6.2存在后端固件校验版本错配，会在开始时提示“签名ZIP长度不匹配”；该阶段尚未写入分区。已下载的1.4.0固件可继续使用。[修复与测试范围](docs/D31-v1.4.0与Recovery入口.md#2026-09-08工具后端修正)
+
 ![D31 Windows刷机与备份工具](images/d31-flash-tool-v1.6.0.png)
 
-1. 下载`D31-Flash-Tool-v1.6.2.exe`，不需要解压，运行依赖和新版APK已内置。
-2. 双击`D31-Flash-Tool-v1.6.2.exe`。
+1. 下载`D31-Flash-Tool-v1.6.3.exe`，不需要解压，运行依赖和新版APK已内置。
+2. 双击`D31-Flash-Tool-v1.6.3.exe`。
 3. 填写D31的IP地址并点击“连接ADB”。IP不是自动发现结果；有多台D31时，填写哪台的IP就连接哪台。连接成功后工具立即识别设备，“检测D31”用于刷新状态，“断开ADB”用于断开当前设备并切换到另一台。
 4. 点击“只读检查”。这一步不要求先下载刷机包，只检查设备、root、构建、网络、分区、Recovery入口、空间和依赖，不修改或重启D31。Wi-Fi地址可以连接、检测和只读检查，但不能用于正式刷机。
 5. 点击“选择刷机包”选择已经下载的官方ZIP，或点击“GitHub高速下载”或“Cloudflare高速下载”。GitHub公开Release下载不需要账号或Token；GitHub最多使用8个连接，Cloudflare最多使用16个连接。并发数只是上限，不是强制连接数；源站不支持或限制多连接时，工具会保留断点并自动改用单连接继续下载。
@@ -132,10 +134,10 @@ D31的两个USB-A口目前只证明是主机口，不能当作USB设备接口连
 
 卡在“中国移动”或“系统正在启动”、桌面不断重启、ADB连不上时，先用刷机工具恢复管理连接，不要反复拔电或直接恢复出厂。**恢复ADB不等于自动修好系统**，但连上后才能继续检查日志、定位故障和修复。
 
-### 使用刷机工具1.6.2恢复ADB
+### 使用刷机工具1.6.3恢复ADB
 
 1. 保持D31通电，将电脑和D31接入同一个有线局域网。这一步不需要互联网，也不需要先下载刷机包。
-2. 运行`D31-Flash-Tool-v1.6.2.exe`，填写故障D31的**有线IPv4地址**，点击“断开ADB”右侧的“设备急救”。即使ADB尚未连接，也可以打开这个窗口。
+2. 运行`D31-Flash-Tool-v1.6.3.exe`，填写故障D31的**有线IPv4地址**，点击“断开ADB”右侧的“设备急救”。即使ADB尚未连接，也可以打开这个窗口。
 3. 核对急救窗口顶部的IP。局域网有多台D31时，不要填错设备。
 
 ![D31设备急救入口与操作窗口](images/d31-rescue-workflow-v1.6.0.png)
@@ -173,7 +175,7 @@ uptool要求电脑与D31处于同一有线二层网络，不能用普通互联�
 
 ### 使用边界与风险
 
-- 本轮同步更新固件1.4.0和Windows工具1.6.2。刷机会清空data、写入system和独立logo图片分区，不写boot或Recovery；新包包含独立8765守护和音量加恢复入口。
+- 本轮同步更新固件1.4.0和Windows工具1.6.3。刷机会清空data、写入system和独立logo图片分区，不写boot或Recovery；新包包含独立8765守护和音量加恢复入口。
 - 8765和原厂uptool均不能保证处理引导器或内核无法启动的故障。详细验收范围见[Windows设备急救说明](docs/D31-Windows工具急救.md)。
 - 开发版8765及本机原厂uptool允许无密码root命令执行，只应在可信维护网络使用，不要将5555或8765开放到公网。uptool使用原始以太网帧，普通TCP/UDP端口过滤不能证明已阻断它。[完整风险与防护说明](docs/D31-uptool指令与安全说明.md)。
 
