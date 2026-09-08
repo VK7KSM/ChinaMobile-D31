@@ -1,5 +1,13 @@
 # D31无线ADB与8765命令探针
 
+## 2026-09-08安装包签名修正
+
+当前请下载[D31-wireless-adb-v1.11.5-signed.apk](D31-wireless-adb-v1.11.5-signed.apk)，或使用[Cloudflare镜像](https://cdn.elfradio.net/d31/D31-wireless-adb-v1.11.5-signed.apk)。Windows工具1.6.2已内置修正版。
+
+此前1.6.1工具误带未签名的守护载荷，安卓6安装器会报“解析软件包时出现问题”。现已补齐v1签名，并核对与1.11.0的证书一致；包名不变，版本代码57。可直接覆盖同签名旧版，不要先卸载。旧1.11.5下载路径也已替换为签名版，建议使用上述带`-signed`的新地址避开缓存。
+
+修正版为78593字节，SHA-256：`FF4ADA4BF6BA0002CFA42F3C96A8E6ACF1B8AB6A5D84EE0F63D5A5ADB3E54895`。已完成安卓6签名与旧证书校验，本轮没有在实机覆盖安装。请将下载的APK文件传到D31后安装，不要把GitHub网页保存成APK。下文1.11.0段落为原版使用及源码记录。
+
 这是原`D31-wireless-adb-v1.0.apk`的升级版，不是另一个应用。包名仍为`net.elfradio.d31bootstrap`，版本为`1.11.0-lan-rescue`，版本代码52。使用原签名，可以覆盖安装。
 
 ## 下载与安装

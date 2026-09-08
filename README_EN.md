@@ -82,18 +82,18 @@ I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 fo
 
 ### GitHub
 
-- [D31-Flash-Tool-v1.6.1.exe](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.1/D31-Flash-Tool-v1.6.1.exe): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, bootstrap APKs, and the aria2 1.37.0 download engine. The 1.35 GB firmware is downloaded separately. It supports explicit ADB connection and disconnection, device checks before downloading firmware, multiple D31 phones selected by IP, Chinese Windows paths, accelerated GitHub and Cloudflare downloads, live throughput and ETA, resume support, and automatic single-connection fallback. The utility uses the dedicated D31 ADB server port 5042 and does not interfere with Pixel 3 on 5041 or H13 on 5038.
+- [D31-Flash-Tool-v1.6.2.exe](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.2/D31-Flash-Tool-v1.6.2.exe): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, bootstrap APKs, and the aria2 1.37.0 download engine. The 1.35 GB firmware is downloaded separately. It supports explicit ADB connection and disconnection, device checks before downloading firmware, multiple D31 phones selected by IP, Chinese Windows paths, accelerated GitHub and Cloudflare downloads, live throughput and ETA, resume support, and automatic single-connection fallback. The utility uses the dedicated D31 ADB server port 5042 and does not interfere with Pixel 3 on 5041 or H13 on 5038.
 - [D31_SVP3390_Factory_Flash_v1.4.0_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.0/D31_SVP3390_Factory_Flash_v1.4.0_testkey.zip): the 1.35 GB signed Recovery package. Version 1.4.0 keeps the complete, physically cleaned system image and includes dynamic USB/TF storage handling, the customized file manager, dual-channel messaging, corrected boot ordering, the Thunderbird ART workaround, and the cellular calling display fix.
 
 ### Cloudflare R2 mirror
 
-- [D31-Flash-Tool-v1.6.1.exe](https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.1.exe)
+- [D31-Flash-Tool-v1.6.2.exe](https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.2.exe)
 - [D31_SVP3390_Factory_Flash_v1.4.0_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.4.0_testkey.zip)
 
 ### SHA-256
 
 ```text
-0053D77FE49C1E10E609B8B325FF95DE91D84C46F49E85EB66EFA07F4B6365ED  D31-Flash-Tool-v1.6.1.exe
+2BF9C3CEA174EF01207468BBF28A341F148A2312FD743E7C51382BF794E437A4  D31-Flash-Tool-v1.6.2.exe
 B8ACAE60874313F3220D53B04B378FC45F06CA11105DC53B3B1385AB725792E9  D31_SVP3390_Factory_Flash_v1.4.0_testkey.zip
 ```
 
@@ -106,7 +106,7 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 3. Open the dialer. Dial `*#223#*` and press the green call key to open the stock Android launcher. Dial `*#233#*` and press the green call key to open Android Settings directly.
 4. If Developer options is hidden, open About device and tap Build number seven times. Enable USB debugging. This enables the Android debugging service; the transport still runs over the network.
 5. Enable Unknown sources under Android Security, then pair the D31 with the Windows PC over Bluetooth.
-6. 点击Windows工具的“首次引导/急救APK”取得内置文件，或单独下载[D31-wireless-adb-v1.11.5.apk](tools/D31-wireless-adb/D31-wireless-adb-v1.11.5.apk)，在Windows运行`fsquirt`发送到D31。[使用说明与源码](tools/D31-wireless-adb/README.md)。
+6. 点击Windows工具的“首次引导/急救APK”取得内置文件，或单独下载[D31-wireless-adb-v1.11.5-signed.apk](tools/D31-wireless-adb/D31-wireless-adb-v1.11.5-signed.apk)，在Windows运行`fsquirt`发送到D31。[使用说明与源码](tools/D31-wireless-adb/README.md)。
 7. Leave the D31 on the stock Android launcher opened with `*#223#*`. Accept the transfer from the notification shade and install the received APK with Android's native package installer.
 8. Tap Open after installation, then tap the button that enables wireless ADB on port 5555. The application name says wireless ADB, but the same TCP port is reachable over Ethernet.
 9. Find and note the D31's wired IPv4 address in the router or the phone's Advanced Settings.
@@ -115,8 +115,8 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 
 ![D31 Windows Flash and Backup Tool](images/d31-flash-tool-v1.6.0.png)
 
-1. 下载`D31-Flash-Tool-v1.6.1.exe`，不需要解压，运行依赖和新版APK已内置。
-2. Run `D31-Flash-Tool-v1.6.1.exe`.
+1. 下载`D31-Flash-Tool-v1.6.2.exe`，不需要解压，运行依赖和新版APK已内置。
+2. Run `D31-Flash-Tool-v1.6.2.exe`.
 3. Enter the D31's IP address and select Connect ADB. The address is not discovered automatically: when several D31 phones are present, enter the address of the unit you want to manage. A successful connection identifies the phone immediately. Detect D31 refreshes its status, while Disconnect ADB releases the current phone before switching to another one.
 4. Select Read-only check. The firmware package does not need to be downloaded first. This step checks the device, root access, build, network, partition layout, Recovery entry point, available space, and dependencies without modifying or restarting the D31. A Wi-Fi address can be used for connection and read-only checks, but not for flashing.
 5. Select Choose firmware package to use a ZIP already downloaded to the PC, or select GitHub accelerated download or Cloudflare accelerated download. Public GitHub Release downloads do not require an account or token. GitHub uses up to eight connections and Cloudflare uses up to sixteen; these are upper limits rather than mandatory connection counts. If the host rejects or limits segmented transfers, the utility preserves the partial download and automatically continues in single-connection compatibility mode.
@@ -129,10 +129,10 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 
 If the D31 is stuck at the China Mobile logo or “Starting apps,” keeps restarting its launcher, or will not accept ADB connections, use the Windows tool to restore management access first. Do not repeatedly disconnect power or jump straight to a factory reset. **Restoring ADB does not repair the system by itself**; it lets you collect diagnostics and address the fault.
 
-### Windows工具1.6.1恢复ADB
+### Windows工具1.6.2恢复ADB
 
 1. Leave the D31 powered on and connect it and the PC to the same wired LAN. Internet access and a downloaded firmware package are not required.
-2. Run `D31-Flash-Tool-v1.6.1.exe`, enter the affected phone’s **wired IPv4 address**, and select **设备急救** (Device rescue), to the right of Disconnect ADB. This window is available even when ADB is disconnected.
+2. Run `D31-Flash-Tool-v1.6.2.exe`, enter the affected phone’s **wired IPv4 address**, and select **设备急救** (Device rescue), to the right of Disconnect ADB. This window is available even when ADB is disconnected.
 3. Check the IP at the top of the rescue window. If you have several D31 phones, make sure you have selected the right one.
 
 ![D31 Device rescue button and window](images/d31-rescue-workflow-v1.6.0.png)
@@ -144,7 +144,7 @@ If the D31 is stuck at the China Mobile logo or “Starting apps,” keeps resta
 3. The tool briefly stops and starts adbd on the D31, sets its port to 5555, clears the PC’s dedicated port 5042 connection, and then connects to and identifies the phone. **Success means the log confirms an ADB handshake and D31 identification**, not just that a command was sent.
 4. Use **导出诊断** (Export diagnostics) to save read-only status information to the PC. Close the rescue window, select Connect ADB in the main window, and continue with detection and the read-only check.
 
-This route requires `D31-wireless-adb-v1.11.5.apk` to have been installed on the D31 and **启用开机救援（8765）** (Enable boot rescue) enabled before the failure. Having the APK on the PC, or installing it without enabling boot rescue, does not guarantee that the probe will be available during a failed boot.
+This route requires `D31-wireless-adb-v1.11.5-signed.apk` to have been installed on the D31 and **启用开机救援（8765）** (Enable boot rescue) enabled before the failure. Having the APK on the PC, or installing it without enabling boot rescue, does not guarantee that the probe will be available during a failed boot.
 
 #### If the probe is unavailable, use the factory uptool service
 
@@ -166,7 +166,7 @@ Third-party tools or scripts can also call uptool. Manual use is an alternative 
 
 ### Limits and security
 
-- [1.4.0固件、1.6.1工具：更新内容、数据清除及分区写入范围](docs/D31-v1.4.0与Recovery入口.md)
+- [1.4.0固件、1.6.2工具：更新内容、数据清除及分区写入范围](docs/D31-v1.4.0与Recovery入口.md)
 - Neither rescue channel guarantees recovery when the bootloader or kernel cannot start. See the [Windows rescue guide](docs/D31-Windows工具急救.md) for the test scope.
 - The development probe and the tested factory uptool service allow root commands without a password. Use a trusted maintenance network and do not expose ports 5555 or 8765 to the Internet. uptool uses raw Ethernet frames, so ordinary TCP/UDP filtering does not establish that it is blocked. See the [security guidance](docs/D31-uptool指令与安全说明.md).
 
