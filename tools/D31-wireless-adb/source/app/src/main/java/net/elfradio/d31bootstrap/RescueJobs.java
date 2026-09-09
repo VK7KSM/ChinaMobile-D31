@@ -2,6 +2,7 @@ package net.elfradio.d31bootstrap;
 
 import org.json.JSONObject;
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -10,6 +11,7 @@ final class RescueJobs {
     private final File root;
     private final Runner runner;
     private final AtomicBoolean busy = new AtomicBoolean();
+    private volatile Exception persistenceFailure;
 
     RescueJobs(File root, Runner runner) throws Exception {
         this.root = root;
@@ -42,6 +44,7 @@ final class RescueJobs {
     }
 
     synchronized JSONObject submit(String id, String command, int timeout) throws Exception {
+        if (persistenceFailure != null) throw new IOException("任务结果持久化失败，停止接受新任务", persistenceFailure);
         validate(id, command, timeout);
         File folder = new File(root, id);
         if (folder.exists()) {
@@ -73,7 +76,7 @@ final class RescueJobs {
                     try {
                         state.put("finished", System.currentTimeMillis());
                         RescueFiles.write(new File(folder, "result.json"), state.toString());
-                    } catch (Exception failure) { failure.printStackTrace(); }
+                    } catch (Exception failure) { persistenceFailure = failure; failure.printStackTrace(); }
                     busy.set(false);
                 }
             }, "d31-rescue-command").start();
@@ -85,6 +88,7 @@ final class RescueJobs {
     }
 
     JSONObject get(String id) throws Exception {
+        if (persistenceFailure != null) throw new IOException("任务结果未可靠保存", persistenceFailure);
         if (!id.matches("[a-zA-Z0-9-]{1,64}")) throw new IllegalArgumentException("Invalid id");
         File file = new File(new File(root, id), "result.json");
         return file.isFile() ? new JSONObject(RescueFiles.read(file, 600000)) : null;

@@ -1,4 +1,4 @@
-/* 仅授权系统支持应用连接的本机命令通道，不监听网络。 */
+/* 系统支持与开发急救APK共用本机命令通道，不监听网络。 */
 #include <arpa/inet.h>
 
 static int transfer(int fd, void *data, size_t count, int writing) {
@@ -15,6 +15,13 @@ static void serve_action(int fd) {
     uint32_t size;
     if (!transfer(fd, &size, sizeof size, 0)) return;
     size = ntohl(size);
+    uint32_t seconds = 7;
+    if (size & 0x80000000u) {
+        size &= 0x7fffffffu;
+        if (!transfer(fd, &seconds, sizeof seconds, 0)) return;
+        seconds = ntohl(seconds);
+        if (!seconds || seconds > 120) return;
+    }
     if (!size || size > 32768) return;
     char command[32769];
     if (!transfer(fd, command, size, 0) || memchr(command, 0, size)) return;
@@ -35,7 +42,7 @@ static void serve_action(int fd) {
     char output[65536], block[2048];
     size_t used = 0;
     int status = 0, ended = 0;
-    for (int tick = 0; tick < 140; tick++) {
+    for (uint32_t tick = 0; tick < seconds * 20; tick++) {
         ssize_t n;
         for (int batch = 0; batch < 32 && (n = read(pipefd[0], block, sizeof block)) > 0; batch++) {
             size_t keep = (size_t)n < sizeof output - used ? (size_t)n : sizeof output - used;
@@ -77,6 +84,18 @@ static int action_server(void) {
     }
     signal(SIGPIPE, SIG_IGN);
     while (access(ROOT "/disabled", F_OK) != 0) {
+        struct stat bootstrap, current;
+        uid_t rescue_uid = (uid_t)-1;
+        if (!stat("/data/data/net.elfradio.d31bootstrap", &bootstrap)
+                && S_ISDIR(bootstrap.st_mode) && bootstrap.st_uid >= 10000)
+            rescue_uid = bootstrap.st_uid;
+        gid_t group = rescue_uid == (uid_t)-1 ? app.st_uid : rescue_uid;
+        mode_t mode = rescue_uid == (uid_t)-1 ? 0600 : 0660;
+        if (lstat(path, &current)
+                || ((current.st_gid != group) && chown(path, app.st_uid, group))
+                || ((current.st_mode & 0777) != mode && chmod(path, mode))) {
+            close(listener); return 33;
+        }
         struct pollfd event = {.fd = listener, .events = POLLIN};
         if (poll(&event, 1, 1000) <= 0) continue;
         int fd = accept4(listener, NULL, NULL, SOCK_CLOEXEC);
@@ -86,7 +105,8 @@ static int action_server(void) {
         setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof timeout);
         struct ucred peer;
         socklen_t length = sizeof peer;
-        if (!getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &peer, &length) && peer.uid == app.st_uid)
+        if (!getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &peer, &length)
+                && (peer.uid == app.st_uid || peer.uid == rescue_uid || peer.uid == 0))
             serve_action(fd);
         close(fd);
     }

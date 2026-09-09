@@ -27,16 +27,25 @@ final class DeviceInfo {
     }
 
     static String firstIpv4() {
+        java.util.Map<String, String> addresses = new java.util.HashMap<>();
         try {
             for (NetworkInterface network : Collections.list(NetworkInterface.getNetworkInterfaces())) {
                 for (InetAddress address : Collections.list(network.getInetAddresses())) {
                     if (!address.isLoopbackAddress() && address instanceof Inet4Address) {
-                        return address.getHostAddress();
+                        addresses.put(network.getName(), address.getHostAddress());
                     }
                 }
             }
         } catch (Throwable ignored) {
         }
-        return "未知地址";
+        return lanIpv4(addresses);
+    }
+
+    static String lanIpv4(java.util.Map<String, String> addresses) {
+        for (String name : new String[]{"eth0", "wlan0"}) {
+            String address = addresses.get(name);
+            if (address != null && !address.isEmpty()) return address;
+        }
+        return "未取得有线或Wi-Fi地址";
     }
 }

@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 from build_factory_package import EXPECTED_SOURCES
 
 ROOT = Path(__file__).resolve().parent
-SOURCE = ROOT.parent / 'analysis/2026-09-09-factory-v1.4.1'
+SOURCE = ROOT.parent / 'analysis/2026-09-09-factory-v1.4.2'
 INSTALLER = (ROOT / 'native/update_binary.c').read_text(encoding='utf-8')
 
 
@@ -39,7 +39,7 @@ class ReleaseContractTest(unittest.TestCase):
             self.assertIn('chmod("/data/local/' + name + '", 0700)', INSTALLER)
 
     def test_old_bootstrap_is_not_in_payload(self):
-        self.assertIn('apks/D31-Wireless-ADB-1.11.5.apk', EXPECTED_SOURCES)
+        self.assertIn('apks/D31-Wireless-ADB-1.11.6.apk', EXPECTED_SOURCES)
         self.assertNotIn('1.11.1.apk', INSTALLER)
         self.assertNotIn('1.10.26.apk', INSTALLER)
 

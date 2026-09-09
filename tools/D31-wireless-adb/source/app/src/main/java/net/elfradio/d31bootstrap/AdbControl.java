@@ -30,16 +30,12 @@ final class AdbControl {
     private static final long ROOT_FAILURE_COOLDOWN_MILLIS = 120_000L;
     private static long rootBlockedUntil;
     private static String securityCommand(Context context) {
-        int adminUid = context.getApplicationInfo().uid;
-        int nexuiUid = packageUid(context, NEXUI_PACKAGE, NEXUI_UID_FALLBACK);
         return "while iptables -D INPUT -j D31_GUARD 2>/dev/null; do :; done; "
             + "iptables -F D31_GUARD 2>/dev/null || true; "
             + "iptables -X D31_GUARD 2>/dev/null || true; "
             + "while ip6tables -D INPUT -j D31_GUARD6 2>/dev/null; do :; done; "
             + "ip6tables -F D31_GUARD6 2>/dev/null || true; "
-            + "ip6tables -X D31_GUARD6 2>/dev/null || true; "
-            + "chown " + nexuiUid + ":" + adminUid + " /data/.snSudoSocket; "
-            + "chmod 660 /data/.snSudoSocket";
+            + "ip6tables -X D31_GUARD6 2>/dev/null || true";
     }
 
     private static String hardRestartCommand(Context context) {
@@ -113,8 +109,7 @@ final class AdbControl {
     static synchronized ActionResult executeOriginalRoot(
             String label, String command, int timeoutMillis) {
         StringBuilder log = new StringBuilder();
-        int exit = runRootWithHelper(
-                log, label, ORIGINAL_ROOT_HELPER, command, timeoutMillis);
+        int exit = runUnified(log, label, ORIGINAL_ROOT_HELPER, command, timeoutMillis);
         return new ActionResult(log.toString(), exit == 0);
     }
 
@@ -138,14 +133,12 @@ final class AdbControl {
     }
 
     static boolean isHealthy(Context context) {
-        return "5555".equals(readValue("getprop persist.adb.tcp.port"))
-                && "5555".equals(readValue("getprop service.adb.tcp.port"))
-                && adbEnabled(context) == 1
-                && readValue("getprop persist.sys.usb.config").contains("adb")
-                && readValue("getprop sys.usb.config").contains("adb")
-                && "1".equals(readValue("getprop sys.usb.ffs.ready"))
-                && "running".equals(readValue("getprop init.svc.adbd"))
-                && isListening();
+        return tcpHealthy(readValue("getprop service.adb.tcp.port"),
+                readValue("getprop init.svc.adbd"), isListening());
+    }
+
+    static boolean tcpHealthy(String port, String state, boolean listening) {
+        return "5555".equals(port) && "running".equals(state) && listening;
     }
 
     private static int adbEnabled(Context context) {
@@ -213,6 +206,22 @@ final class AdbControl {
     }
 
     private static synchronized int runRoot(StringBuilder log, String label, String command) {
+        return runUnified(log, label, ROOT_HELPER, command, 8000);
+    }
+
+    private static int runUnified(StringBuilder log, String label, String helper,
+            String command, int timeoutMillis) {
+        try {
+            RootTransport.Result result = RootTransport.execute(command, timeoutMillis);
+            log.append("\n== ").append(label).append(" ==\n").append(result.output)
+                    .append("\n[退出码 ").append(result.exit).append("]\n");
+            return result.exit;
+        } catch (RootTransport.Unavailable unavailable) {
+            log.append("独立与本机命令通道未连接，尝试原厂兼容接口。\n");
+        } catch (Exception uncertain) {
+            log.append("命令结果未确认，不重复提交：").append(uncertain).append('\n');
+            return -1;
+        }
         long now = SystemClock.elapsedRealtime();
         if (now < rootBlockedUntil) {
             long remainingSeconds = (rootBlockedUntil - now + 999L) / 1000L;
@@ -223,7 +232,7 @@ final class AdbControl {
             return -3;
         }
 
-        int exit = runRootWithHelper(log, label, ROOT_HELPER, command, 8000);
+        int exit = runRootWithHelper(log, label, helper, command, timeoutMillis);
         if (isRootTransportFailure(exit)) {
             rootBlockedUntil = SystemClock.elapsedRealtime() + ROOT_FAILURE_COOLDOWN_MILLIS;
         }

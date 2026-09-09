@@ -36,7 +36,8 @@ class BackendFakeAdb
         }
         else if (command.Contains("busybox sha256sum")) {
             string path = command.Substring(command.IndexOf("busybox sha256sum ") + 18);
-            if (path.EndsWith("/boot")) result = (mode == "bad-boot" ? new string('0',64) : metadata["bootSha256"].ToString()) + "  " + path;
+            if (path.EndsWith("/recovery")) result = (mode == "bad-recovery" ? new string('0',64) : "173CB00459E4CDFC2B4BF04D7BED4A130947795F8ACB3B557BBEF2C218B2E7D5") + "  " + path;
+            else if (path.EndsWith("/boot")) result = (mode == "bad-boot" ? new string('0',64) : metadata["bootSha256"].ToString()) + "  " + path;
             else if (path == remote) {
                 int count = state.ContainsKey("hashCount") ? Int32.Parse(state["hashCount"]) : 0;
                 state["hashCount"] = (count + 1).ToString();

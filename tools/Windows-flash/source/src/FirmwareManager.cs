@@ -36,9 +36,9 @@ namespace D31FlashTool
 
     internal static class FirmwareManager
     {
-        internal const string PackageName = "D31_SVP3390_Factory_Flash_v1.4.1_testkey.zip";
+        internal const string PackageName = "D31_SVP3390_Factory_Flash_v1.4.2_testkey.zip";
         private const string GitHubDownloadUrl =
-            "https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.1/" + PackageName;
+            "https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.2/" + PackageName;
         private const string CloudflareDownloadUrl =
             "https://cdn.elfradio.net/d31/" + PackageName;
         private static readonly Regex Aria2ProgressPattern = new Regex(
@@ -69,11 +69,21 @@ namespace D31FlashTool
             return new FirmwareSelection { PackagePath = packagePath, Sha256 = actualHash, Bytes = item.Length };
         }
 
-        internal static async Task<FirmwareSelection> DownloadAsync(
+        internal static Task<FirmwareSelection> DownloadAsync(
             string toolRoot,
             string outputRoot,
             FirmwareDownloadSource source,
             Action<int, string> report)
+        {
+            return DownloadFromAsync(toolRoot, outputRoot,
+                source == FirmwareDownloadSource.GitHub ? GitHubDownloadUrl : CloudflareDownloadUrl,
+                source == FirmwareDownloadSource.GitHub ? "GitHub" : "Cloudflare",
+                source == FirmwareDownloadSource.GitHub ? 8 : 16, report);
+        }
+
+        internal static async Task<FirmwareSelection> DownloadFromAsync(
+            string toolRoot, string outputRoot, string sourceUrl, string sourceName,
+            int connections, Action<int, string> report)
         {
             string aria2Path = Path.Combine(toolRoot, "tools", "aria2c.exe");
             if (!File.Exists(aria2Path))
@@ -93,15 +103,12 @@ namespace D31FlashTool
                 {
                     string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
                     packagePath = Path.Combine(outputRoot,
-                        "D31_SVP3390_Factory_Flash_v1.4.1_testkey_" + timestamp + ".zip");
+                        "D31_SVP3390_Factory_Flash_v1.4.2_testkey_" + timestamp + ".zip");
                     report(0, "现有同名文件校验不匹配，将保留原文件并下载到新文件。");
                 }
             }
 
             string partialPath = packagePath + ".高速下载中";
-            string sourceName = source == FirmwareDownloadSource.GitHub ? "GitHub" : "Cloudflare";
-            string sourceUrl = source == FirmwareDownloadSource.GitHub ? GitHubDownloadUrl : CloudflareDownloadUrl;
-            int connections = source == FirmwareDownloadSource.GitHub ? 8 : 16;
             report(0, "准备从" + sourceName + "高速下载，最多" + connections + "个并发连接；支持断点续传。");
             try
             {
@@ -134,16 +141,36 @@ namespace D31FlashTool
                         }
                     }
                 });
-                FirmwareSelection selection = await SelectPackageAsync(partialPath, report);
+                FirmwareSelection selection;
+                try { selection = await SelectPackageAsync(partialPath, report); }
+                catch (InvalidDataException) {
+                    string quarantine = QuarantineDownload(partialPath);
+                    throw new InvalidDataException("下载文件校验失败，已隔离到：" + quarantine +
+                        "。再次点击下载将重新获取刷机包。");
+                }
                 File.Move(partialPath, packagePath);
                 selection.PackagePath = packagePath;
                 return selection;
+            }
+            catch (InvalidDataException)
+            {
+                report(0, "下载文件校验失败，已停止使用该文件；请重新下载。");
+                throw;
             }
             catch
             {
                 report(0, "下载未完成；已保留临时文件和断点记录，再次选择任一高速下载源可继续。");
                 throw;
             }
+        }
+
+        internal static string QuarantineDownload(string partialPath)
+        {
+            string quarantine = partialPath + ".invalid-" + Guid.NewGuid().ToString("N");
+            // 先移走控制记录，避免下次把旧分块状态用于新的数据文件。
+            if (File.Exists(partialPath + ".aria2")) File.Move(partialPath + ".aria2", quarantine + ".aria2");
+            if (File.Exists(partialPath)) File.Move(partialPath, quarantine);
+            return quarantine;
         }
 
         private static void RunAria2Download(
@@ -164,7 +191,7 @@ namespace D31FlashTool
                 "--min-split-size=1M --max-tries=10 --retry-wait=3 --connect-timeout=20 --timeout=30 " +
                 "--summary-interval=1 --console-log-level=notice --download-result=hide " +
                 "--stop-with-process=" + Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture) + " " +
-                "--user-agent=" + QuoteArgument("D31-Flash-Tool/1.5.1") + " " +
+                "--user-agent=" + QuoteArgument("D31-Flash-Tool/" + BuildConstants.ToolVersion) + " " +
                 "--dir=" + QuoteArgument(directory) + " --out=" + QuoteArgument(outputName) + " " +
                 QuoteArgument(sourceUrl);
 
@@ -330,9 +357,18 @@ namespace D31FlashTool
             return (bytes / 1024d).ToString("0", CultureInfo.InvariantCulture) + " KB";
         }
 
-        private static string QuoteArgument(string value)
+        internal static string QuoteArgument(string value)
         {
-            return "\"" + value.Replace("\"", "\\\"") + "\"";
+            var result = new System.Text.StringBuilder("\"");
+            int slashes = 0;
+            foreach (char c in value) {
+                if (c == '\\') { slashes++; continue; }
+                result.Append('\\', c == '"' ? slashes * 2 + 1 : slashes);
+                result.Append(c);
+                slashes = 0;
+            }
+            result.Append('\\', slashes * 2);
+            return result.Append('"').ToString();
         }
     }
 }

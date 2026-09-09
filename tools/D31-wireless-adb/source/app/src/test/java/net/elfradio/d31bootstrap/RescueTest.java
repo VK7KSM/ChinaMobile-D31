@@ -54,6 +54,19 @@ public class RescueTest {
         assertEquals("interrupted", jobs.get("b").getString("state"));
     }
 
+    @Test public void persistenceFailureCannotLookCompletedOrAcceptNewWork() throws Exception {
+        RescueJobs jobs = new RescueJobs(temp.newFolder(), (folder,command,timeout) -> {
+            assertTrue(new File(folder, "result.json.tmp").mkdir());
+            return new JSONObject().put("state", "completed").put("exit_code", 0);
+        });
+        jobs.submit("failed-write", "true", 30);
+        long end = System.currentTimeMillis() + 3000;
+        while (jobs.isBusy() && System.currentTimeMillis() < end) Thread.sleep(10);
+        assertFalse(jobs.isBusy());
+        assertThrows(java.io.IOException.class, () -> jobs.get("failed-write"));
+        assertThrows(java.io.IOException.class, () -> jobs.submit("new-job", "true", 30));
+    }
+
     @Test public void bootHookPreservesOriginalAndIsIdempotent() {
         String original = "#!/system/bin/sh\necho original\n";
         String patched = RescueInstaller.patchedHook(original);
@@ -83,6 +96,11 @@ public class RescueTest {
             assertEquals(400, http(server, "/exec", request, "https://example.org"));
             assertEquals(202, http(server, "/exec", request, null));
             assertEquals(200, http(server, "/jobs/a", null, null));
+            long end = System.currentTimeMillis() + 3000;
+            while (jobs.isBusy() && System.currentTimeMillis() < end) Thread.sleep(10);
+            assertFalse(jobs.isBusy());
+            assertEquals("completed", jobs.get("a").getString("state"));
+            assertEquals(0, jobs.get("a").getInt("exit_code"));
         } finally { server.stop(); }
     }
 
@@ -122,7 +140,14 @@ public class RescueTest {
             connection.getOutputStream().write(headers.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
             connection.getOutputStream().write(bytes);
             java.io.BufferedReader input = new java.io.BufferedReader(new java.io.InputStreamReader(connection.getInputStream()));
-            return Integer.parseInt(input.readLine().split(" ")[1]);
+            int status = Integer.parseInt(input.readLine().split(" ")[1]);
+            if (status >= 400) {
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = input.readLine()) != null) response.append(line).append('\n');
+                System.err.println("HTTP响应诊断 " + path + " " + status + "\n" + response);
+            }
+            return status;
         }
     }
 }

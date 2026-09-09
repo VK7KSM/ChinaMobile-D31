@@ -1,6 +1,6 @@
 param(
-    [string]$SourceDirectory = "C:\Dev\H13_D22\research\d31\analysis\2026-09-09-factory-v1.4.1",
-    [string]$OutputDirectory = "C:\Dev\H13_D22\research\d31\dist\factory-flash-v1.4.1"
+    [string]$SourceDirectory = "C:\Dev\H13_D22\research\d31\analysis\2026-09-09-factory-v1.4.2",
+    [string]$OutputDirectory = "C:\Dev\H13_D22\research\d31\dist\factory-flash-v1.4.2"
 )
 
 $ErrorActionPreference = "Stop"
@@ -92,8 +92,8 @@ if ($LASTEXITCODE -ne 0) {
     throw "刷机包载荷构建失败：$LASTEXITCODE"
 }
 
-$unsigned = Join-Path $OutputDirectory "D31_SVP3390_Factory_Flash_v1.4.1_unsigned.zip"
-$signed = Join-Path $OutputDirectory "D31_SVP3390_Factory_Flash_v1.4.1_testkey.zip"
+$unsigned = Join-Path $OutputDirectory "D31_SVP3390_Factory_Flash_v1.4.2_unsigned.zip"
+$signed = Join-Path $OutputDirectory "D31_SVP3390_Factory_Flash_v1.4.2_testkey.zip"
 & $java -cp "$conscrypt;$signApk" com.android.signapk.SignApk -w $certificate $privateKey $unsigned $signed
 if ($LASTEXITCODE -ne 0) {
     throw "刷机包签名失败：$LASTEXITCODE"

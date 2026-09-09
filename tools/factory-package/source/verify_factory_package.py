@@ -322,10 +322,10 @@ def main() -> int:
         app_page = verify_app_page(archive.read("payload/system-patches/config-tab"))
         project_apks = {
             "管理程序": (
-                "D31-Wireless-ADB-1.11.5.apk",
+                "D31-Wireless-ADB-1.11.6.apk",
                 "net.elfradio.d31bootstrap",
-                "57",
-                "1.11.5-bounded-http-body",
+                "60",
+                "1.11.6-local-rescue-routing",
             ),
             "文件管理器": (
                 "D31-File-Manager-1.7.4-d31.2.apk",
@@ -334,10 +334,10 @@ def main() -> int:
                 "1.7.4-d31.2",
             ),
             "短信程序": (
-                "D31-Messages-0.3.0.apk",
+                "D31-Messages-0.3.1.apk",
                 "net.elfradio.d31phone.debug",
-                "3",
-                "0.3.0-dev-debug",
+                "4",
+                "0.3.1-dev-debug",
             ),
             "独立系统支持": (
                 "D31-System-Support-1.0.4.apk",
@@ -390,7 +390,7 @@ def main() -> int:
         system_output = run_checked(system_command, "独立挂载核验system镜像")
 
         manifest = json.loads(archive.read("payload/manifest.json"))
-        if manifest.get("版本") != "1.4.1":
+        if manifest.get("版本") != "1.4.2":
             raise SystemExit("包内清单版本不匹配")
         manifest_files = manifest.get("文件")
         if not isinstance(manifest_files, list):

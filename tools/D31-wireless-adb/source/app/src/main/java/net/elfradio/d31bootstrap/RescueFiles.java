@@ -7,7 +7,7 @@ import java.security.MessageDigest;
 final class RescueFiles {
     private RescueFiles() { }
 
-    static String read(File file, int limit) throws IOException {
+    static synchronized String read(File file, int limit) throws IOException {
         try (InputStream in = new FileInputStream(file);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             byte[] bytes = new byte[4096];
@@ -20,7 +20,7 @@ final class RescueFiles {
     }
 
     @android.annotation.SuppressLint("NewApi")
-    static void write(File file, String value) throws IOException {
+    static synchronized void write(File file, String value) throws IOException {
         File temp = new File(file.getPath() + ".tmp");
         try (FileOutputStream out = new FileOutputStream(temp)) {
             out.write(value.getBytes(StandardCharsets.UTF_8));

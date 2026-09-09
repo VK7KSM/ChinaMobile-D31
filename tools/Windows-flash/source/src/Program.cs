@@ -123,7 +123,7 @@ namespace D31FlashTool
                 "approved-package.json", "installed-files.json",
                 "create_d31_rescue.ps1",
                 Path.Combine("首次引导工具", "D31-setup-probe.apk"),
-                Path.Combine("首次引导工具", "D31-wireless-adb-v1.11.5.apk"),
+                Path.Combine("首次引导工具", "D31-wireless-adb-v1.11.6.apk"),
                 Path.Combine("tools", "adb.exe"),
                 Path.Combine("tools", "AdbWinApi.dll"),
                 Path.Combine("tools", "AdbWinUsbApi.dll"),
@@ -218,7 +218,7 @@ namespace D31FlashTool
             {
                 ValidateToolRoot(root, output);
                 ValidatePackage(packagePath, output);
-                output.WriteLine("SELFTEST PASS：D31 v1.4.1刷机包和单文件工具通过离线检查；未执行真实Recovery刷写。");
+                output.WriteLine("SELFTEST PASS：D31 v1.4.2刷机包和单文件工具通过离线检查；未执行真实Recovery刷写。");
                 return 0;
             }
             catch (Exception exception)
@@ -400,7 +400,7 @@ namespace D31FlashTool
 
         internal static string Quote(string value)
         {
-            return "\"" + value.Replace("\"", "\\\"") + "\"";
+            return FirmwareManager.QuoteArgument(value);
         }
     }
 }

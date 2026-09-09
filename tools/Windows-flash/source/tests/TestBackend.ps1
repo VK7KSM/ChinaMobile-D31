@@ -37,7 +37,7 @@ try {
     $stream.Dispose()
     Run-Case 'same-size-corrupt' @('-PackagePath',$bad,'-PackagePreflightOnly') $false $false
     $base = @('-Serial','192.0.2.31:5555','-PackagePath',$Package,'-SkipBackup')
-    foreach($name in @('wrong-network','bad-logo','bad-boot','no-space')) { Run-Case $name $base $false $false }
+    foreach($name in @('wrong-network','bad-logo','bad-boot','bad-recovery','no-space')) { Run-Case $name $base $false $false }
     Run-Case 'preflight' ($base + @('-PreflightOnly')) $true $false
     Run-Case 'bad-remote-hash' $base $false $false
     Run-Case 'missing-backup' @('-Serial','192.0.2.31:5555','-PackagePath',$Package) $false $false

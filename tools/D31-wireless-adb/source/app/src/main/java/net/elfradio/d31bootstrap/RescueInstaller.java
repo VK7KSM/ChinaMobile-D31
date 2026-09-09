@@ -41,10 +41,8 @@ final class RescueInstaller {
         if (healthy()) return "独立命令服务已运行";
         try {
             File dir = directory(context);
-            File guard = new File(dir, "enabled");
-            String generation = Integer.toString(BuildConfig.VERSION_CODE);
-            if (!guard.isFile() || !generation.equals(RescueFiles.read(guard, 128)))
-                RescueFiles.write(guard, generation);
+            File guard = new File(ROOT, "enabled");
+            String generation = BuildConfig.VERSION_CODE + "-" + System.currentTimeMillis();
             File launcher = new File(dir, "start.sh");
             RescueFiles.write(launcher, "#!/system/bin/sh\n"
                     + "[ -f " + RescueFiles.quote(guard.getPath()) + " ] || exit 0\n"
@@ -57,17 +55,29 @@ final class RescueInstaller {
             String script = "#!/system/bin/sh\nset -e\numask 077\n"
                     + "[ \"$(id -u)\" = 0 ]\n"
                     + "mkdir -p " + ROOT + "\nchmod 0700 " + ROOT + "\n"
+                    + "backup=" + ROOT + "/before-" + generation + "\nmkdir \"$backup\"\n"
+                    + "for f in daemon.apk start.sh enabled; do [ ! -f " + ROOT + "/$f ] || cp -p " + ROOT + "/$f \"$backup/$f\"; done\n"
                     + "cp " + RescueFiles.quote(apk) + " " + ROOT + "/daemon.apk.new\n"
                     + "chmod 0600 " + ROOT + "/daemon.apk.new\n"
                     + "mv " + ROOT + "/daemon.apk.new " + ROOT + "/daemon.apk\n"
                     + "cp " + RescueFiles.quote(launcher.getPath()) + " " + ROOT + "/start.sh.new\n"
                     + "chmod 0700 " + ROOT + "/start.sh.new\n"
                     + "mv " + ROOT + "/start.sh.new " + ROOT + "/start.sh\n";
-            script += "sleep 3\n/system/bin/sh " + ROOT + "/start.sh > " + ROOT
-                    + "/daemon.log 2>&1 < /dev/null &\n";
+            script += "printf '%s\\n' '" + generation + "' > " + ROOT + "/enabled\n"
+                    + "if [ -f " + RescueFiles.quote(new File(dir, "enabled").getPath()) + " ]; then printf '%s\\n' '"
+                    + generation + "' > " + RescueFiles.quote(new File(dir, "enabled").getPath()) + "; fi\n"
+                    + "sleep 3\n"
+                    + "for n in 1 2 3 4 5; do /system/bin/sh " + ROOT + "/start.sh > " + ROOT
+                    + "/daemon.log 2>&1 < /dev/null & sleep 1; done\n";
             RescueFiles.write(installer, script);
-            String result = runInstaller(installer);
-            for (int n = 0; n < 10; n++) {
+            // 先返回提交结果，再由独立进程更新旧守护，避免自杀导致命令回执丢失。
+            String detached = "/system/bin/busybox setsid /system/bin/sh -c "
+                    + RescueFiles.quote("sleep 2; exec /system/bin/sh " + RescueFiles.quote(installer.getPath()))
+                    + " > " + RescueFiles.quote(installer.getPath() + ".log") + " 2>&1 < /dev/null &";
+            AdbControl.ActionResult submitted = AdbControl.executeOriginalRoot("部署独立命令服务", detached, 5000);
+            String result = submitted.log;
+            if (!submitted.succeeded) return "部署提交未确认，不重复执行\n" + result;
+            for (int n = 0; n < 24; n++) {
                 if (healthy()) return "独立命令服务启动并回读成功\n" + result;
                 Thread.sleep(500);
             }
@@ -76,27 +86,11 @@ final class RescueInstaller {
     }
 
     private static String runInstaller(File installer) throws Exception {
-        String helper = new File("/system/bin/snSudoClient.real").canExecute()
-                ? "/system/bin/snSudoClient.real" : "/system/bin/snSudoClient";
-        Process child = new ProcessBuilder(helper,
+        AdbControl.ActionResult result = AdbControl.executeOriginalRoot("执行本地部署脚本",
                 "/system/bin/sh " + RescueFiles.quote(installer.getPath())
-                        + " > " + RescueFiles.quote(installer.getPath() + ".log") + " 2>&1")
-                .redirectErrorStream(true).start();
-        Thread drain = new Thread(() -> {
-            try (InputStream input = child.getInputStream()) {
-                byte[] buffer = new byte[1024];
-                while (input.read(buffer) != -1) { }
-            } catch (IOException ignored) { }
-        }, "d31-install-output");
-        drain.setDaemon(true);
-        drain.start();
-        long deadline = android.os.SystemClock.elapsedRealtime() + 12000;
-        while (android.os.SystemClock.elapsedRealtime() < deadline) {
-            try { return "部署客户端退出码：" + child.exitValue() + "；以实际健康回读为准"; }
-            catch (IllegalThreadStateException running) { Thread.sleep(100); }
-        }
-        child.destroy();
-        return "部署客户端超时；未据此判断服务端成功或失败";
+                        + " > " + RescueFiles.quote(installer.getPath() + ".log") + " 2>&1", 12000);
+        if (!result.succeeded) throw new IOException(result.log);
+        return result.log;
     }
 
     static synchronized String enableBoot(Context context) {

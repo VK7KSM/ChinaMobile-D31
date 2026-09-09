@@ -14,7 +14,7 @@ from pathlib import Path
 
 
 SYSTEM_SIZE = 1_610_612_736
-EXPECTED_SOURCES = json.loads((Path(__file__).parent / "sources-v1.4.1.json").read_text(encoding="utf-8"))
+EXPECTED_SOURCES = json.loads((Path(__file__).parent / "sources-v1.4.2.json").read_text(encoding="utf-8"))
 SENSITIVE_PATTERNS = {
     "电子邮件地址": re.compile(rb"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
     "澳大利亚手机号": re.compile(rb"(?<!\d)04\d{8}(?!\d)"),
@@ -141,7 +141,7 @@ def main() -> int:
 
     manifest = {
         "产品": "D31 SVP3390完整刷机包",
-        "版本": "1.4.1",
+        "版本": "1.4.2",
         "目标构建": "alps/full_hct6737t_66_m0/hct6737t_66_m0:6.0/MRA58K/1583081804:userdebug/test-keys",
         "数据策略": "清空userdata，只写入APK本体及无账号系统功能文件",
         "禁止写入分区": ["boot", "recovery", "nvram", "nvdata", "protect1", "protect2", "proinfo", "keystore", "oemkeystore", "frp"],
@@ -169,7 +169,7 @@ def main() -> int:
     privacy_report = output / "privacy_scan_structured.json"
     privacy_report.write_text(json.dumps(privacy_findings, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    unsigned = output / "D31_SVP3390_Factory_Flash_v1.4.1_unsigned.zip"
+    unsigned = output / "D31_SVP3390_Factory_Flash_v1.4.2_unsigned.zip"
     with zipfile.ZipFile(unsigned, "w", compression=zipfile.ZIP_STORED, allowZip64=False) as archive:
         for item in sorted(staging.rglob("*")):
             if item.is_file():

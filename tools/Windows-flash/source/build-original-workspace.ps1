@@ -1,10 +1,10 @@
 param(
     [string]$BuildSuffix = '',
-    [string]$FirmwareDirectory = 'factory-flash-v1.4.1'
+    [string]$FirmwareDirectory = 'factory-flash-v1.4.2'
 )
 $ErrorActionPreference = "Stop"
 
-$version = "1.6.4"
+$version = "1.6.5"
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $sourceDirectory = Join-Path $projectRoot "src"
 $outputDirectory = Join-Path $projectRoot "dist-v$version$BuildSuffix"
@@ -22,14 +22,14 @@ $downloadParserReport = Join-Path $reportDirectory "高速下载进度解析测�
 $compatibilityReport = Join-Path $reportDirectory "Windows PowerShell 5.1中文路径兼容测试.txt"
 $generated = Join-Path $objectDirectory "BuildConstants.g.cs"
 $packageRoot = (Resolve-Path (Join-Path $projectRoot "..\d31\dist\$FirmwareDirectory")).Path
-$package = Join-Path $packageRoot "D31_SVP3390_Factory_Flash_v1.4.1_testkey.zip"
+$package = Join-Path $packageRoot "D31_SVP3390_Factory_Flash_v1.4.2_testkey.zip"
 $backendRoot = (Resolve-Path (Join-Path $projectRoot "..\d31\factory_package")).Path
 $legacyAssetsRoot = (Resolve-Path (Join-Path $projectRoot "..\d31\dist\factory-flash-v1.0.4")).Path
 $rescueBuild = (Resolve-Path (Join-Path $projectRoot "..\d31\dist\rescue-launcher-v1-attempt4")).Path
 $aria2Root = (Resolve-Path (Join-Path $projectRoot "vendor\aria2-1.37.0-win-32bit-build1\aria2-1.37.0-win-32bit-build1")).Path
 $brandLogo = (Resolve-Path (Join-Path $projectRoot "assets\elfradio-logo.png")).Path
 $brandIcon = (Resolve-Path (Join-Path $projectRoot "assets\elfradio.ico")).Path
-$localRecoveryApk = (Resolve-Path (Join-Path $projectRoot "..\d31_adb_bootstrap\dist\installable-v1.11.5\D31-wireless-adb-v1.11.5-signed.apk")).Path
+$localRecoveryApk = (Resolve-Path (Join-Path $projectRoot "..\d31_adb_bootstrap\dist\installable-v1.11.6-final\D31-wireless-adb-v1.11.6-signed.apk")).Path
 $signingJava = Join-Path $projectRoot '..\..\.tools\jdk17\jdk-17.0.20+8\bin\java.exe'
 $signatureResult = & $signingJava -jar C:\Dev\android-sdk\build-tools\34.0.0\lib\apksigner.jar verify --verbose --print-certs --min-sdk-version 23 $localRecoveryApk 2>&1
 if ($LASTEXITCODE -ne 0 -or ($signatureResult -join "`n") -notmatch 'Verified using v1 scheme \(JAR signing\): true' -or ($signatureResult -join "`n") -notmatch '9b31f89fa50b672ecfe02d73a534cc03f6cf893739aec268f9fe0b71e72da72e') {
@@ -51,7 +51,7 @@ if ($packageItem.Length -ne $approved.bytes -or $packageHash -ne $approved.sha25
     throw '发布固件与批准清单不一致'
 }
 $installer = Get-Content -Raw -LiteralPath (Join-Path $backendRoot 'native\update_binary.c')
-$sourcesManifest = Get-Content -Raw -LiteralPath (Join-Path $backendRoot 'sources-v1.4.1.json') | ConvertFrom-Json
+$sourcesManifest = Get-Content -Raw -LiteralPath (Join-Path $backendRoot 'sources-v1.4.2.json') | ConvertFrom-Json
 $installedFiles = @()
 foreach ($match in [regex]::Matches($installer, '\{"payload/(apps|system-patches|runtime)/([^"\r\n]+)", "([^"\r\n]+)"')) {
     $folder = @{apps='apks'; 'system-patches'='system_payload'; runtime='runtime'}[$match.Groups[1].Value]
@@ -76,7 +76,7 @@ $runtimeSources = @(
     [PSCustomObject]@{ Relative = "tools\aria2c.exe"; Source = (Join-Path $aria2Root "aria2c.exe"); Bom = $false },
     [PSCustomObject]@{ Relative = "tools\aria2-COPYING.txt"; Source = (Join-Path $aria2Root "COPYING"); Bom = $false },
     [PSCustomObject]@{ Relative = "首次引导工具\D31-setup-probe.apk"; Source = (Join-Path $legacyAssetsRoot "首次引导工具\D31-setup-probe.apk"); Bom = $false },
-    [PSCustomObject]@{ Relative = "首次引导工具\D31-wireless-adb-v1.11.5.apk"; Source = $localRecoveryApk; Bom = $false },
+    [PSCustomObject]@{ Relative = "首次引导工具\D31-wireless-adb-v1.11.6.apk"; Source = $localRecoveryApk; Bom = $false },
     [PSCustomObject]@{ Relative = "rescue\D31_RESCUE_UPDATE.zip"; Source = (Join-Path $rescueBuild "D31_RESCUE_UPDATE.zip"); Bom = $false },
     [PSCustomObject]@{ Relative = "rescue\D31_RESCUE_TEST.zip"; Source = (Join-Path $rescueBuild "D31_RESCUE_TEST.zip"); Bom = $false }
 )

@@ -32,6 +32,7 @@ $ExpectedSizes = @{
 }
 $RequiredBackupPartitions = @("nvram", "nvdata", "protect1", "protect2", "proinfo")
 $AdditionalBackupPartitions = @("recovery", "secro", "seccfg", "frp")
+$ExpectedRecoveryHash = "173CB00459E4CDFC2B4BF04D7BED4A130947795F8ACB3B557BBEF2C218B2E7D5"
 $RemotePackage = "/data/local/tmp/D31-factory-v$($ApprovedPackage.version).zip"
 $ExpectedRescueRestoreHash = "783D95431DCE93094347C5CEDA31F367102CEF1786DF4E18A171914C74322BC4"
 $ExpectedRescueTestHash = "012FBBA56C97AE9A8A2A7E034EAB5CAB396C8D7E096FFEEB9E551DE6713BFD18"
@@ -466,6 +467,9 @@ if ((Get-RemoteSha256 "$ByName/boot") -ne $ApprovedPackage.bootSha256) {
 foreach ($name in @($RequiredBackupPartitions + $AdditionalBackupPartitions)) {
     $exists = Get-DeviceValue "if [ -e $ByName/$name ]; then echo YES; else echo NO; fi"
     if ($exists -ne "YES") { throw "目标机缺少分区：$name" }
+}
+if ((Get-RemoteSha256 "$ByName/recovery") -ne $ExpectedRecoveryHash) {
+    throw '当前Recovery与已验证基线不一致，已在上传前拒绝；此检查与是否备份无关'
 }
 $cacheMount = Get-DeviceValue "mount | grep ' /cache '"
 if ($cacheMount -notmatch '/cache') { throw "目标机/cache未挂载，不能安全写入Recovery命令" }

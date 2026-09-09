@@ -1,6 +1,6 @@
 # Windows刷机工具源码
 
-此目录是1.6.4成品使用的界面、下载、急救、内嵌资源加载、备份与测试源码。成品仍只需运行一个EXE，源码不是运行依赖。
+此目录是1.6.5成品使用的界面、下载、急救、内嵌资源加载、备份与测试源码。成品仍只需运行一个EXE，源码不是运行依赖。
 
 - `source/src`：界面、IP连接、GitHub/Cloudflare下载、8765及uptool客户端，含本次真实生成的版本和哈希常量。
 - `source/scripts`：备份流程；实际刷机后端见[安装器源码](../factory-package/source/flash_d31_recovery.ps1)。

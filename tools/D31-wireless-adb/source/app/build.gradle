@@ -13,8 +13,8 @@ android {
         applicationId 'net.elfradio.d31bootstrap'
         minSdk 21
         targetSdk 27
-        versionCode 57
-        versionName '1.11.5-bounded-http-body'
+        versionCode 60
+        versionName '1.11.6-local-rescue-routing'
     }
 
     signingConfigs {
