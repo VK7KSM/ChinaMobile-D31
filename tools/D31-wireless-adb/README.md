@@ -1,8 +1,16 @@
 # D31无线ADB与8765命令探针
 
+## 2026-09-09开发版组成更新
+
+Windows工具1.6.4内置已签名1.11.5 APK，源码已同步到本目录。Gradle工程新增`systemSupport`模块，独立提供U盘、TF卡及网络支持；该组件不依赖管理APK运行。独立HTTP守护修复大请求需要临时目录导致的退出问题，请求和输出上限保持不变。
+
+固件1.4.1的独立守护使用`/data/local/d31-rescue/enabled`，可在管理APK数据目录尚未创建时启动。与下文旧版由APK私有标记控制的安装方式不同，仅卸载管理APK不会停止固件内置守护；开发结束需要关闭时，删除独立标记即可，系统支持和存储功能不受影响。下文卸载验证属于旧版标记方式，不能套用于新固件。
+
+本次补充独立标记缺失、删除、代次变化及重复启动锁四项隔离测试；母机独立守护仍为已验证的1.11.5。详见[最终固件复核](../../docs/D31-v1.4.1逐项复核.md)。
+
 ## 2026-09-08安装包签名修正
 
-当前请下载[D31-wireless-adb-v1.11.5-signed.apk](D31-wireless-adb-v1.11.5-signed.apk)，或使用[Cloudflare镜像](https://cdn.elfradio.net/d31/D31-wireless-adb-v1.11.5-signed.apk)。Windows工具1.6.2已内置修正版。
+当前请下载[D31-wireless-adb-v1.11.5-signed.apk](D31-wireless-adb-v1.11.5-signed.apk)，或使用[Cloudflare镜像](https://cdn.elfradio.net/d31/D31-wireless-adb-v1.11.5-signed.apk)。Windows工具1.6.4已内置修正版。
 
 此前1.6.1工具误带未签名的守护载荷，安卓6安装器会报“解析软件包时出现问题”。现已补齐v1签名，并核对与1.11.0的证书一致；包名不变，版本代码57。可直接覆盖同签名旧版，不要先卸载。旧1.11.5下载路径也已替换为签名版，建议使用上述带`-signed`的新地址避开缓存。
 

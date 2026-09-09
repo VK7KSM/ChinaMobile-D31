@@ -86,6 +86,32 @@ public class RescueTest {
         } finally { server.stop(); }
     }
 
+    @Test public void largeRequestDoesNotUseTemporaryFiles() throws Exception {
+        CountDownLatch executed = new CountDownLatch(1);
+        String command = new String(new char[6000]).replace('\0', 'x');
+        RescueJobs jobs = new RescueJobs(temp.newFolder(), (f,c,t) -> {
+            assertEquals(command, c);
+            executed.countDown();
+            return new JSONObject().put("state", "completed").put("exit_code", 0);
+        });
+        RescueHttpServer server = new RescueHttpServer(0, jobs, () -> "cached");
+        server.setTempFileManagerFactory(() -> new fi.iki.elonen.NanoHTTPD.TempFileManager() {
+            public void clear() { }
+            public fi.iki.elonen.NanoHTTPD.TempFile createTempFile(String hint) throws Exception {
+                throw new java.io.IOException("临时目录不可用");
+            }
+        });
+        server.start(1000, true);
+        try {
+            String body = new JSONObject().put("id", "large").put("command", command).toString();
+            assertEquals(202, http(server, "/exec", body, null));
+            assertTrue(executed.await(2, TimeUnit.SECONDS));
+            assertEquals(200, http(server, "/health", null, null));
+            assertEquals(400, http(server, "/exec", new String(new char[16385]).replace('\0', 'x'), null));
+            assertEquals(200, http(server, "/health", null, null));
+        } finally { server.stop(); }
+    }
+
     private int http(RescueHttpServer server, String path, String body, String origin) throws Exception {
         try (java.net.Socket connection = new java.net.Socket("127.0.0.1", server.getListeningPort())) {
             connection.setSoTimeout(2000);

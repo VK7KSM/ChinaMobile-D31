@@ -29,8 +29,8 @@ public class UsbInsertPromptTest {
 
     @Test
     public void retryBackoffIsFinite() {
-        assertEquals(60, BootReceiver.usbRetryDelaySeconds(1));
-        assertEquals(180, BootReceiver.usbRetryDelaySeconds(2));
+        assertEquals(3, BootReceiver.usbRetryDelaySeconds(1));
+        assertEquals(10, BootReceiver.usbRetryDelaySeconds(2));
         assertThrows(IllegalArgumentException.class,
                 () -> BootReceiver.usbRetryDelaySeconds(3));
     }

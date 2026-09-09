@@ -6,6 +6,18 @@ import org.junit.Test;
 
 public final class LocalRecoveryTest {
     @Test
+    public void transactionRecoveryBypassesWithoutReplacingStartupScript() {
+        String command = LocalRecovery.transactionRecoveryCommand();
+        org.junit.Assert.assertTrue(command.contains("touch \"$root/disabled\""));
+        org.junit.Assert.assertTrue(command.contains("pending.properties"));
+        org.junit.Assert.assertTrue(command.contains("'^HANDOVER_EXIT='"));
+        org.junit.Assert.assertTrue(command.contains("timeout -t 30 -s KILL"));
+        org.junit.Assert.assertTrue(command.contains("--restore-states-for-reboot"));
+        org.junit.Assert.assertFalse(command.contains("mv "));
+        org.junit.Assert.assertFalse(command.contains("rm "));
+        org.junit.Assert.assertFalse(command.matches("(?s).*(^|[; ])reboot[; ].*"));
+    }
+    @Test
     public void hashCheckUsesCommandExitInsteadOfCapturedOutput() {
         assertEquals(
                 "/system/bin/busybox sha256sum /data/local/test.sh "

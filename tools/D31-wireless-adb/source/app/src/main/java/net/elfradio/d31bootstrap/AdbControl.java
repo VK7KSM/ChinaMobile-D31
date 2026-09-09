@@ -8,8 +8,6 @@ import android.provider.Settings;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.List;
 
 final class AdbControl {
@@ -136,12 +134,7 @@ final class AdbControl {
     }
 
     static boolean isListening() {
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress("127.0.0.1", PORT), 800);
-            return true;
-        } catch (Throwable ignored) {
-            return false;
-        }
+        return TcpListenerState.isListening(PORT);
     }
 
     static boolean isHealthy(Context context) {

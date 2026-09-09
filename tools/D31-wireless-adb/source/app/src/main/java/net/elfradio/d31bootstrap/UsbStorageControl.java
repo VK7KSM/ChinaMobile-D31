@@ -27,7 +27,18 @@ final class UsbStorageControl {
         return ensureMapping(uuid);
     }
 
-    static AdbControl.ActionResult refreshAllMappings() {
+    static synchronized AdbControl.ActionResult refreshReadyMappings() {
+        StringBuilder log = new StringBuilder();
+        boolean succeeded = true;
+        for (String uuid : findMountedUuids()) {
+            AdbControl.ActionResult result = ensureMapping(uuid);
+            log.append(result.log);
+            succeeded &= result.succeeded;
+        }
+        return new AdbControl.ActionResult(log.toString(), succeeded);
+    }
+
+    static synchronized AdbControl.ActionResult refreshAllMappings() {
         List<String> uuids = findMountedUuids();
         AdbControl.ActionResult legacy = AdbControl.executeRoot(
                 "移除旧版USB存储入口", buildRemoveLegacyCommand());
@@ -44,7 +55,7 @@ final class UsbStorageControl {
         return new AdbControl.ActionResult(log.toString(), true);
     }
 
-    static AdbControl.ActionResult ensureMapping(String uuid) {
+    static synchronized AdbControl.ActionResult ensureMapping(String uuid) {
         if (!isSafeUuid(uuid)) {
             return new AdbControl.ActionResult("没有找到可用的USB存储卷。\n", false);
         }
@@ -53,6 +64,9 @@ final class UsbStorageControl {
                     "卷" + uuid + "不是已挂载的可移动存储设备。\n", false);
         }
         String sourceDevice = sourceDevice(uuid);
+        if (sourceDevice == null) {
+            return new AdbControl.ActionResult("外置存储在处理期间已移除。\n", false);
+        }
         String targetDevice = targetDevice(uuid);
         StringBuilder log = new StringBuilder();
         boolean commandsSucceeded = true;
@@ -82,7 +96,7 @@ final class UsbStorageControl {
                 commandsSucceeded && verified);
     }
 
-    static AdbControl.ActionResult removeMapping(String uuid) {
+    static synchronized AdbControl.ActionResult removeMapping(String uuid) {
         if (!isSafeUuid(uuid)) return removeAllMappings();
         if (targetDevice(uuid) == null) {
             return new AdbControl.ActionResult("USB存储入口已不存在，无需重复清理。\n", true);
@@ -90,7 +104,7 @@ final class UsbStorageControl {
         return AdbControl.executeRoot("移除USB存储入口", buildRemoveCommand(uuid));
     }
 
-    static AdbControl.ActionResult removeAllMappings() {
+    static synchronized AdbControl.ActionResult removeAllMappings() {
         return AdbControl.executeRoot("移除全部USB存储入口", buildRemoveAllCommand());
     }
 

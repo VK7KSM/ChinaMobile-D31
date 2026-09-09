@@ -5,8 +5,6 @@ import android.content.Intent;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 
 final class LocalRecovery {
     private static final String PATCH = "/data/local/d31-patches/apply-home-patch.sh";
@@ -21,6 +19,8 @@ final class LocalRecovery {
     private static final String VERIFIED_PATCH_SHA256_V9 =
             "786AEAB0B906BFFA723FF8C87F2EDDDD9C184E4F60BDB57881D492FD08B22C4C";
     private static final String PATCH_TEMP = PATCH + ".local-recovery-new";
+    private static final String TRANSACTION_SHIM_SHA256 =
+            "501304545C83F7B88FD28DC47045E2090FDB01CFA2A15258C394A060FDEE8A21";
 
     private LocalRecovery() {
     }
@@ -100,6 +100,16 @@ final class LocalRecovery {
     }
 
     private static boolean restoreStartupPatch(StringBuilder log) {
+        if (runRootCheck(log, "识别事务式桌面入口",
+                hashCheckCommand(PATCH, TRANSACTION_SHIM_SHA256))) {
+            if (!runRootCheck(log, "旁路事务补丁并恢复遗留启用状态",
+                    transactionRecoveryCommand())) {
+                log.append("事务补丁已请求旁路，但遗留状态未确认恢复；请保留日志，不覆盖旧脚本。\n");
+                return false;
+            }
+            log.append("已保留新补丁文件并旁路其启动。重启后使用原厂桌面，待修复后再启用补丁。\n");
+            return true;
+        }
         if (runRootCheck(log, "校验当前开机脚本是否为已验证版本",
                 anyHashCheckCommand(PATCH,
                         VERIFIED_PATCH_SHA256_V7, VERIFIED_PATCH_SHA256_V8,
@@ -127,6 +137,19 @@ final class LocalRecovery {
 
         return runRootCheck(log, "复核恢复后的开机脚本",
                 hashCheckCommand(PATCH, PATCH_BACKUP_SHA256));
+    }
+
+    static String transactionRecoveryCommand() {
+        String root = "/data/local/d31-startup-handover";
+        return "set -e; root=" + root + "; "
+                + "test -d \"$root\"; test ! -L \"$root\"; "
+                + "touch \"$root/disabled\"; chmod 0600 \"$root/disabled\"; sync; "
+                + "if [ -f \"$root/pending.properties\" ]; then "
+                + "boot=$(cat /proc/sys/kernel/random/boot_id); "
+                + "if /system/bin/busybox grep -qx \"boot=$boot\" \"$root/pending.properties\"; then "
+                + "/system/bin/busybox grep -q '^HANDOVER_EXIT=' \"$root/runs/$boot/result.txt\" || exit 1; fi; "
+                + "CLASSPATH=\"$root/handover.jar\" /system/bin/busybox timeout -t 30 -s KILL "
+                + "/system/bin/app_process /system/bin HandoverRuntime --restore-states-for-reboot; fi";
     }
 
     static String hashCheckCommand(String path, String expectedSha256) {
@@ -231,12 +254,7 @@ final class LocalRecovery {
     }
 
     private static boolean isListening(int port) {
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress("127.0.0.1", port), 800);
-            return true;
-        } catch (Throwable ignored) {
-            return false;
-        }
+        return TcpListenerState.isListening(port);
     }
 
     private static String readAll(InputStream input) throws Exception {

@@ -22,6 +22,7 @@ public final class ProbeService extends Service {
                 .build();
         startForeground(NOTIFICATION_ID, notification);
         ProbeLog.append(this, "系统探针服务已创建");
+        BootReceiver.onProbeServiceCreated(this);
         new Thread(() -> {
             ProbeLog.append(this, RescueInstaller.ensure(this));
             while (!stopped) {
@@ -41,6 +42,7 @@ public final class ProbeService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent == null ? "系统重建服务" : String.valueOf(intent.getAction());
         ProbeLog.append(this, "系统探针收到启动请求：" + action);
+        BootReceiver.dispatchStorageEvent(this, intent);
         return START_STICKY;
     }
 

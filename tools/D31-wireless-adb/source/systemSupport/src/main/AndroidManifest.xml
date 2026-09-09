@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <application android:allowBackup="false" android:label="D31 系统支持"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <service android:name=".SystemSupportService" android:exported="false" />
+        <receiver android:name=".SystemReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+                <action android:name="android.intent.action.SIM_STATE_CHANGED" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_MOUNTED" />
+                <action android:name="android.intent.action.MEDIA_UNMOUNTED" />
+                <action android:name="android.intent.action.MEDIA_EJECT" />
+                <action android:name="android.intent.action.MEDIA_REMOVED" />
+                <action android:name="android.intent.action.MEDIA_BAD_REMOVAL" />
+                <data android:scheme="file" />
+            </intent-filter>
+        </receiver>
+        <receiver android:name=".CellularDisplayReceiver" android:exported="true">
+            <intent-filter><action android:name="com.starnet.getnumber" /></intent-filter>
+        </receiver>
+        <receiver android:name=".VendorNetworkReceiver" android:exported="true">
+            <intent-filter><action android:name="com.starnet.systemapi.action.ETHERNET_STATE_CHANGED" /></intent-filter>
+        </receiver>
+        <activity android:name=".UsbBrowseActivity" android:exported="true" android:noHistory="true">
+            <intent-filter>
+                <action android:name="android.provider.action.BROWSE_DOCUMENT_ROOT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.document/root" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".UsbInsertPromptActivity" android:exported="false"
+            android:excludeFromRecents="true" android:launchMode="singleTop"
+            android:theme="@android:style/Theme.Material.Light.Dialog.Alert" />
+    </application>
+</manifest>

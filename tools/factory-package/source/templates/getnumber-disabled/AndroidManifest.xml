@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.starnet.getnumber" android:versionCode="999" android:versionName="1.0.0.5">
+    <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="23" />
+    <application android:label="getnumber" android:hasCode="false" android:allowBackup="false">
+        <service android:name=".GetNumberService" android:enabled="false" android:exported="false" />
+        <receiver android:name=".BootReceiver" android:enabled="false" android:exported="false" />
+        <receiver android:name=".SmsListener" android:enabled="false" android:exported="false" />
+        <activity android:name=".MainActivity" android:enabled="false" android:exported="false" />
+    </application>
+</manifest>

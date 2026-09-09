@@ -11,6 +11,7 @@ import android.util.Log;
 public final class BootReceiver extends BroadcastReceiver {
     private static final String REPAIR_ACTION = "net.elfradio.d31bootstrap.REPAIR_ADB";
     private static final String REFRESH_USB_ACTION = "net.elfradio.d31bootstrap.REFRESH_USB";
+    private static final String READY_USB_ACTION = "net.elfradio.d31bootstrap.READY_USB";
     private static final String REFRESH_FIREWALL_ACTION =
             "net.elfradio.d31bootstrap.REFRESH_FIREWALL";
     private static final String RETRY_USB_ACTION =
@@ -21,14 +22,16 @@ public final class BootReceiver extends BroadcastReceiver {
             "net.elfradio.d31bootstrap.CLEANUP_THUNDERBIRD_RECEIVER";
     private static final String EXTRA_USB_RETRY = "usb_retry";
     private static final int MAX_USB_RETRIES = 2;
-    private static final int[] USB_RETRY_DELAYS_SECONDS = {60, 180};
-    private static final long USB_BOOT_SETTLE_MILLIS = 180_000L;
+    private static final int[] USB_RETRY_DELAYS_SECONDS = {3, 10};
     private static final String TAG = "D31WirelessAdb";
+    private static final java.util.concurrent.ExecutorService STORAGE_WORKER =
+            java.util.concurrent.Executors.newSingleThreadExecutor(r ->
+                    new Thread(r, "d31-storage-worker"));
 
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
-        context.startService(new Intent(context, ProbeService.class).setAction(action));
+        context.startService(new Intent(intent).setClass(context, ProbeService.class));
         ProbeLog.append(context, "收到系统广播：" + action);
 
         if (Intent.ACTION_BOOT_COMPLETED.equals(action)) {
@@ -51,26 +54,7 @@ public final class BootReceiver extends BroadcastReceiver {
             Log.i(TAG, "应用更新完成，优先安排SIP网络状态复核：" + action);
             return;
         }
-        if (Intent.ACTION_MEDIA_MOUNTED.equals(action)) {
-            int delaySeconds = earlyUsbDelaySeconds(SystemClock.elapsedRealtime());
-            String uuid = UsbStorageControl.uuidFromIntent(intent);
-            if (delaySeconds > 0 && UsbStorageControl.isMountedUuid(uuid)) {
-                scheduleUsbRetry(context, intent.getData(), uuid, 0, delaySeconds);
-                ProbeLog.append(context, "开机稳定期内检测到外置存储，延后"
-                        + delaySeconds + "秒建立入口，卷=" + uuid);
-                return;
-            }
-            runUsbAction(context, true, intent);
-            return;
-        }
-        if (RETRY_USB_ACTION.equals(action)) {
-            runUsbAction(context, true, intent);
-            return;
-        }
-        if (REFRESH_USB_ACTION.equals(action)) {
-            refreshUsbMappings(context);
-            return;
-        }
+        if (isStorageAction(action)) return;
         if (REFRESH_FIREWALL_ACTION.equals(action)) {
             refreshFirewall(context);
             return;
@@ -81,13 +65,6 @@ public final class BootReceiver extends BroadcastReceiver {
         }
         if (CLEANUP_THUNDERBIRD_RECEIVER_ACTION.equals(action)) {
             disableDeferredReceiver(context, DeferredAppStartup.THUNDERBIRD);
-            return;
-        }
-        if (Intent.ACTION_MEDIA_EJECT.equals(action)
-                || Intent.ACTION_MEDIA_UNMOUNTED.equals(action)
-                || Intent.ACTION_MEDIA_REMOVED.equals(action)
-                || Intent.ACTION_MEDIA_BAD_REMOVAL.equals(action)) {
-            runUsbAction(context, false, intent);
             return;
         }
         if ("android.net.conn.CONNECTIVITY_CHANGE".equals(action)) {
@@ -111,11 +88,56 @@ public final class BootReceiver extends BroadcastReceiver {
         }, "d31-adb-auto-repair").start();
     }
 
-    private void runUsbAction(Context context, boolean mount, Intent intent) {
-        PendingResult pending = goAsync();
+    static boolean isStorageAction(String action) {
+        return Intent.ACTION_MEDIA_MOUNTED.equals(action) || RETRY_USB_ACTION.equals(action)
+                || REFRESH_USB_ACTION.equals(action) || READY_USB_ACTION.equals(action)
+                || Intent.ACTION_MEDIA_EJECT.equals(action)
+                || Intent.ACTION_MEDIA_UNMOUNTED.equals(action)
+                || Intent.ACTION_MEDIA_REMOVED.equals(action)
+                || Intent.ACTION_MEDIA_BAD_REMOVAL.equals(action);
+    }
+
+    static void onProbeServiceCreated(Context context) {
+        dispatchStorageEvent(context, new Intent(READY_USB_ACTION));
+    }
+
+    static void dispatchStorageEvent(Context context, Intent intent) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        if (!isStorageAction(action) && !Intent.ACTION_BOOT_COMPLETED.equals(action)
+                && !Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) return;
+        Context appContext = context.getApplicationContext();
+        Intent request = new Intent(intent);
+        STORAGE_WORKER.execute(() -> {
+            long started = SystemClock.elapsedRealtime();
+            try {
+                if (Intent.ACTION_BOOT_COMPLETED.equals(action)
+                        || Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)
+                        || READY_USB_ACTION.equals(action)) {
+                    refreshReadyUsbMappings(appContext, request);
+                } else if (REFRESH_USB_ACTION.equals(action)) {
+                    refreshUsbMappings(appContext);
+                } else if (Intent.ACTION_MEDIA_MOUNTED.equals(action)
+                        && !UsbStorageControl.isMountedUuid(UsbStorageControl.uuidFromIntent(request))) {
+                    // Internal emulated storage becoming ready also exposes boot-mounted media.
+                    refreshReadyUsbMappings(appContext, request);
+                } else {
+                    runUsbAction(appContext, Intent.ACTION_MEDIA_MOUNTED.equals(action)
+                            || RETRY_USB_ACTION.equals(action), request);
+                }
+            } catch (Throwable error) {
+                ProbeLog.append(appContext, "存储任务异常：" + error);
+            } finally {
+                ProbeLog.append(appContext, "存储任务完成，动作=" + action
+                        + "，运行毫秒=" + SystemClock.elapsedRealtime()
+                        + "，耗时=" + (SystemClock.elapsedRealtime() - started));
+            }
+        });
+    }
+
+    private static void runUsbAction(Context context, boolean mount, Intent intent) {
         Context appContext = context.getApplicationContext();
         String action = intent.getAction();
-        new Thread(() -> {
             String uuid = UsbStorageControl.uuidFromIntent(intent);
             AdbControl.ActionResult result = mount
                     ? UsbStorageControl.ensureMapping(uuid)
@@ -145,22 +167,38 @@ public final class BootReceiver extends BroadcastReceiver {
                     ProbeLog.append(appContext, "显示U盘确认对话框失败：" + error);
                 }
             }
-            pending.finish();
-        }, "d31-usb-storage").start();
     }
 
-    private void refreshUsbMappings(Context context) {
-        PendingResult pending = goAsync();
+    private static void refreshReadyUsbMappings(Context context, Intent intent) {
         Context appContext = context.getApplicationContext();
-        new Thread(() -> {
+                AdbControl.ActionResult result = UsbStorageControl.refreshReadyMappings();
+                ProbeLog.append(appContext, "开机优先建立外置存储入口，成功="
+                        + result.succeeded + "\n" + result.log);
+                int retry = intent.getIntExtra(EXTRA_USB_RETRY, 0);
+                if (!result.succeeded && retry < MAX_USB_RETRIES) {
+                    scheduleReadyUsbRetry(appContext, retry + 1);
+                }
+    }
+
+    private static void refreshUsbMappings(Context context) {
+        Context appContext = context.getApplicationContext();
             AdbControl.ActionResult vendorPrompt = UsbStorageControl.disableVendorUsbPrompt();
             AdbControl.ActionResult result = UsbStorageControl.refreshAllMappings();
             ProbeLog.append(appContext, "原厂U盘重复弹窗入口禁用="
                     + vendorPrompt.succeeded + "\n" + vendorPrompt.log
                     + "\nUSB存储全量刷新完成，成功="
                     + result.succeeded + "\n" + result.log);
-            pending.finish();
-        }, "d31-usb-storage-refresh").start();
+    }
+
+    private static void scheduleReadyUsbRetry(Context context, int retry) {
+        AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (alarms == null) return;
+        Intent request = new Intent(context, BootReceiver.class).setAction(READY_USB_ACTION)
+                .putExtra(EXTRA_USB_RETRY, retry);
+        PendingIntent operation = PendingIntent.getBroadcast(context, 208, request,
+                PendingIntent.FLAG_UPDATE_CURRENT);
+        alarms.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                SystemClock.elapsedRealtime() + usbRetryDelaySeconds(retry) * 1000L, operation);
     }
 
     private void refreshFirewall(Context context) {
@@ -206,12 +244,6 @@ public final class BootReceiver extends BroadcastReceiver {
             throw new IllegalArgumentException("无效的USB重试次数");
         }
         return USB_RETRY_DELAYS_SECONDS[retry - 1];
-    }
-
-    static int earlyUsbDelaySeconds(long elapsedRealtimeMillis) {
-        if (elapsedRealtimeMillis >= USB_BOOT_SETTLE_MILLIS) return 0;
-        long remaining = USB_BOOT_SETTLE_MILLIS - elapsedRealtimeMillis;
-        return (int) ((remaining + 999L) / 1000L);
     }
 
     private static void scheduleUsbRetry(Context context, android.net.Uri data,

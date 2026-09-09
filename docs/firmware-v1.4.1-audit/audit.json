@@ -1,0 +1,508 @@
+{
+  "结论": "最终ZIP逐文件复核通过；不代表全新用户分区实刷验收",
+  "未解释差异": [],
+  "ZIP": {
+    "文件": "D31_SVP3390_Factory_Flash_v1.4.1_testkey.zip",
+    "字节数": 1705392433,
+    "SHA256": "fc377e30fb73a26dcc1a00bfd7aa5e5f14279a4fa72b260f6f3d864d34296eab"
+  },
+  "system相同文件数": 2331,
+  "system内容差异": [
+    "vendor/3rd-app/getnumber.apk",
+    "vendor/3rd-app/imscc.apk",
+    "vendor/3rd-app/nexui.apk",
+    "vendor/starnet/launcher/config/config-tab"
+  ],
+  "已精简原厂文件": [
+    "app/BluetoothMidiService/BluetoothMidiService.apk",
+    "app/BluetoothMidiService/oat/arm64/BluetoothMidiService.odex",
+    "app/CalendarImporter/CalendarImporter.apk",
+    "app/CalendarImporter/oat/arm64/CalendarImporter.odex",
+    "app/Exchange2/Exchange2.apk",
+    "app/Exchange2/oat/arm64/Exchange2.odex",
+    "app/HTMLViewer/HTMLViewer.apk",
+    "app/HTMLViewer/oat/arm64/HTMLViewer.odex",
+    "app/MtkBrowser/MtkBrowser.apk",
+    "app/MtkBrowser/oat/arm64/MtkBrowser.odex",
+    "app/MtkCalendar/MtkCalendar.apk",
+    "app/MtkCalendar/oat/arm64/MtkCalendar.odex",
+    "app/Music/Music.apk",
+    "app/Music/oat/arm64/Music.odex",
+    "app/Omacp/Omacp.apk",
+    "app/Omacp/oat/arm64/Omacp.odex",
+    "app/QuickSearchBox/QuickSearchBox.apk",
+    "app/QuickSearchBox/oat/arm64/QuickSearchBox.odex",
+    "priv-app/CalendarProvider/CalendarProvider.apk",
+    "priv-app/CalendarProvider/oat/arm64/CalendarProvider.odex",
+    "vendor/3rd-app/android.apk",
+    "vendor/3rd-app/daemon.apk",
+    "vendor/3rd-app/emu.apk",
+    "vendor/3rd-app/i-jetty.apk",
+    "vendor/3rd-app/moffice.apk",
+    "vendor/3rd-app/tr069.apk",
+    "vendor/3rd-app/tr069proxy.apk",
+    "vendor/operator/app/Baidu_Location/Baidu_Location.apk",
+    "vendor/operator/app/Baidu_Location/oat/arm/Baidu_Location.odex"
+  ],
+  "权限属主差异": [],
+  "system镜像SHA256": "0e4ff332d2697d539007fb6895d18ec619b1a59772c78ad33fd4893b636c5686",
+  "真实安卓初始化核对": "最终ZIP中的类与两份XML执行--inspect及--verify通过；未执行--apply",
+  "载荷对照": [
+    {
+      "文件": "payload/apps/Firefox-142.0.apk",
+      "部署路径": "/data/app/org.mozilla.firefox-2/base.apk",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "f5fe6a300cc5fc5286ef5efcd65daddc1166b1c74a6f5f7873381d48a01e2a9c"
+    },
+    {
+      "文件": "payload/apps/VLC-3.7.1.apk",
+      "部署路径": "/data/app/org.videolan.vlc-1/base.apk",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "bea9ea0cdecfd8f461ef305d2afe5d1ac1459cfb9156acce2f615788a486de74"
+    },
+    {
+      "文件": "payload/apps/Zello-5.30.1.apk",
+      "部署路径": "/data/app/com.loudtalks-1/base.apk",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "86d6bce8e696c1d4e19dc60d69af4e4a2a4e117cc46fad1a29160efc450af5da"
+    },
+    {
+      "文件": "payload/apps/Telegram-12.10.1.apk",
+      "部署路径": "/data/app/org.telegram.messenger.web-1/base.apk",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "f5e1192725772960cc94b83e54ffd8939f876b2b6e5f21d4a8537eb6fcba50e6"
+    },
+    {
+      "文件": "payload/apps/Thunderbird-22.0.apk",
+      "部署路径": "/data/app/net.thunderbird.android-1/base.apk",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "4a1875bb1cf4293c468048e56a91d16818653f7d6e646642dff7486dfbf0732d"
+    },
+    {
+      "文件": "payload/apps/D31-File-Manager-1.7.4-d31.2.apk",
+      "部署路径": "/data/app/me.zhanghai.android.files-2/base.apk",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "e2c2a94e38ae87065983e33179306386caaa1fbc244e8d90dbfd4e0bb84713c8"
+    },
+    {
+      "文件": "payload/apps/D31-Messages-0.3.0.apk",
+      "部署路径": "/data/app/net.elfradio.d31phone.debug-1/base.apk",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "7023c6b536f8009b7f2322ac781cfc0c3fada07a280b6cae76eba9f377d2aafb"
+    },
+    {
+      "文件": "payload/apps/D31-Wireless-ADB-1.11.5.apk",
+      "部署路径": "/data/app/net.elfradio.d31bootstrap-1/base.apk",
+      "母机一致": false,
+      "差异说明": "发行管理APK为可安装签名修复版；母机旧管理APK停用，独立守护另行逐字核验",
+      "SHA256": "ff4ada4bf6ba0002cfa42f3c96a8e6acf1b8ab6a5d84ee0f63d5a5adb3e54895"
+    },
+    {
+      "文件": "payload/apps/D31-Zello-Guard-0.2.7.apk",
+      "部署路径": "/data/app/net.elfradio.d31zelloguard-2/base.apk",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "85242b4be0ac8e165dfaa473343542c3c4a9714ddf5d2eabd997f6545fc80946"
+    },
+    {
+      "文件": "payload/system-patches/apply-home-patch.sh",
+      "部署路径": "/data/local/d31-patches/apply-home-patch.sh",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "501304545c83f7b88fd28dc47045e2090fdb01cfa2a15258c394a060fdee8a21"
+    },
+    {
+      "文件": "payload/system-patches/startup-handover.jar",
+      "部署路径": "/data/local/d31-startup-handover/handover.jar",
+      "母机一致": false,
+      "差异说明": "最终复核补入Zello及守护省电白名单初始化；母机两项已存在，新JAR真实安卓只读核对通过",
+      "SHA256": "f56cb9586d08046848e02c321cb00916f595ee039f2b0e8e3e92028474c2da92"
+    },
+    {
+      "文件": "payload/system-patches/startup-handover.sh",
+      "部署路径": "/data/local/d31-startup-handover/start.sh",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "35a9963961dc7e30c9d9be2b0e5ebf37783582c8db78d5ca2f799f577da6e615"
+    },
+    {
+      "文件": "payload/system-patches/startup-cellular-enabled",
+      "部署路径": "/data/local/d31-startup-handover/cellular-enabled",
+      "母机一致": false,
+      "差异说明": "开关只判断文件存在；内容不参与配置",
+      "SHA256": "e056a35db086947e2f5969d747f0a7517bff00c7ffff1f9e7b47b72bfac9d948"
+    },
+    {
+      "文件": "payload/system-patches/recovery-volume-persistent.sh",
+      "部署路径": "/data/local/d31-recovery-entry/persistent.sh",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "2d494df0f49eda10ef4ea9cc821c05dd72401a1a3cafe824958cf96fd61eab57"
+    },
+    {
+      "文件": "payload/system-patches/recovery-volume-watch",
+      "部署路径": "/data/local/d31-recovery-entry/volume-watch",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "c87672777990570ebc518edc2a0646dcb72f9896ce82ea4230699224d80ad4a9"
+    },
+    {
+      "文件": "payload/system-patches/recovery-volume-gate.sh",
+      "部署路径": "/data/local/d31-recovery-entry/gate.sh",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "f841d6866eb103953fdaea0d8fd371dc62f117dbe9d7f19e70790f950fc5b3ea"
+    },
+    {
+      "文件": "payload/system-patches/recovery-volume-enabled",
+      "部署路径": "/data/local/d31-recovery-entry/enabled",
+      "母机一致": false,
+      "差异说明": "开关只判断文件存在；内容不参与配置",
+      "SHA256": "e056a35db086947e2f5969d747f0a7517bff00c7ffff1f9e7b47b72bfac9d948"
+    },
+    {
+      "文件": "payload/system-patches/config-tab",
+      "部署路径": "/data/local/d31-patches/config-tab",
+      "母机一致": false,
+      "差异说明": "发行模板新增落盘副本；系统模板和母机实际应用页已核对相同",
+      "SHA256": "fdc14d064ceb777197b095181e4fd515457681c7729f8a0e4d3258d21f56db43"
+    },
+    {
+      "文件": "payload/system-patches/getnumber-cellular-labels-v1-unsigned.apk",
+      "部署路径": "/data/local/d31-patches/getnumber-cellular-labels-v1-unsigned.apk",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "3b69433f5c56dd253f1e0ee5e323ecfd5859c7dbecd9b6f19332f78e15205fa8"
+    },
+    {
+      "文件": "payload/system-patches/libvsip-tls12-dns-transport-v2.so",
+      "部署路径": "/data/local/d31-patches/libvsip-tls12-dns-transport-v2.so",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "defa367ee93f4759fbb7b4debb9c5e4648bc71695de1f02975014f256596be37"
+    },
+    {
+      "文件": "payload/system-patches/nexui-v8-ethernet-gate.apk",
+      "部署路径": "/data/local/d31-patches/nexui-v8-ethernet-gate.apk",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "992b7169112f8438e0d16898ca4d61a68995c1a7c674021025ebf51ce9096243"
+    },
+    {
+      "文件": "payload/apps/D31-System-Support-1.0.4.apk",
+      "部署路径": "/data/app/net.elfradio.d31system-1/base.apk",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "4a47b76a75da3b9a65f1f68bdd2747be90d4be879f1553d7dae9193ce8b7ae5f"
+    },
+    {
+      "文件": "payload/system-patches/support-guard",
+      "部署路径": "/data/local/d31-system-support/guard",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "812663d3d49f6b096528688ca3d5e71f17c94aef91f98614230769f1749058b2"
+    },
+    {
+      "文件": "payload/system-patches/support-start.sh",
+      "部署路径": "/data/local/d31-system-support/start.sh",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "12b040a1b32f48197a72b5d595fe59457735be2738ae1f12b1c206fdb51f527b"
+    },
+    {
+      "文件": "payload/system-patches/support-state.jar",
+      "部署路径": "/data/local/d31-system-support/state.jar",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "8cebab4336f395ccfb2e77f80521ded9380d9548e6984ee7fc3da8b79b848c2c"
+    },
+    {
+      "文件": "payload/system-patches/curtain.jar",
+      "部署路径": "/data/local/d31-startup-curtain/curtain.jar",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "e9cc1602f910141550e7fcbd9a936039fcac841ba5ff0daf176e20d0b832ecf6"
+    },
+    {
+      "文件": "payload/system-patches/curtain-frame.jpg",
+      "部署路径": "/data/local/d31-startup-curtain/frame.jpg",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "2d9598f65f78e935d10f569939596e3a72cb58951152bbee9a19332a4a96d86c"
+    },
+    {
+      "文件": "payload/system-patches/rescue-daemon.apk",
+      "部署路径": "/data/local/d31-rescue/daemon.apk",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "1f8ec8b0008b0f70c05b7498b4fd33fdd457f87125028102aafbf94fa9e78e73"
+    },
+    {
+      "文件": "payload/system-patches/rescue-start.sh",
+      "部署路径": "/data/local/d31-rescue/start.sh",
+      "母机一致": false,
+      "差异说明": "仅将启动标记迁出应用私有目录，不依赖首次创建应用数据",
+      "SHA256": "e7981120d1c44563cfa4914de952b7f3c415c91604a4ee6b81865793bf2641b1"
+    },
+    {
+      "文件": "payload/system-patches/rescue-enabled",
+      "部署路径": "/data/local/d31-rescue/enabled",
+      "母机一致": false,
+      "差异说明": "与发行探针入口配套的独立标记；守护按参数读取标记及代次",
+      "SHA256": "fe096a06d67909206ccb28fe0af9157fbc4a4f22e4b174ef3faeabeaa80852c8"
+    },
+    {
+      "文件": "payload/system-patches/init-package-restrictions.xml",
+      "部署路径": "/data/local/d31-startup-handover/init-package-restrictions.xml",
+      "母机一致": false,
+      "差异说明": "新机初始化白名单，母机不执行清数据初始化；真实安卓只读验证另有记录",
+      "SHA256": "9e347b5a5bc652318ddafb58657169db2443253b4f95c2533edbfb302b417422"
+    },
+    {
+      "文件": "payload/system-patches/init-runtime-permissions.xml",
+      "部署路径": "/data/local/d31-startup-handover/init-runtime-permissions.xml",
+      "母机一致": false,
+      "差异说明": "新机初始化白名单，母机不执行清数据初始化；真实安卓只读验证另有记录",
+      "SHA256": "90f444c231de577876b77a574e798451159c2778c15bc07d27c93346001db3a0"
+    },
+    {
+      "文件": "payload/system-patches/factory-init-required",
+      "部署路径": "/data/local/d31-startup-handover/factory-init-required",
+      "母机一致": false,
+      "差异说明": "新机初始化白名单，母机不执行清数据初始化；真实安卓只读验证另有记录",
+      "SHA256": "e031d4452dc5efd091e2467b55e90ac2a30d02e9316f2e45123d812d89b1093b"
+    },
+    {
+      "文件": "payload/system-patches/imscc-firefox-telegram-messages-wrapper-v3.apk",
+      "部署路径": "/data/local/d31-patches/imscc-firefox-telegram-messages-wrapper-v3.apk",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "966c005e5416aeee2f0cd44b690915ef2465079ba5e32f968501182802fb1678"
+    },
+    {
+      "文件": "payload/system-patches/tca8418.kl",
+      "部署路径": "/data/system/devices/keylayout/tca8418.kl",
+      "母机一致": true,
+      "差异说明": "",
+      "SHA256": "0f695970fb51d229bc5928eecc8d0d21fc9a3815ca8f71c5066ab45b81aaeac2"
+    }
+  ],
+  "编译缓存校验": [
+    {
+      "缓存": "Thunderbird-22.0-arm64-interpret-only.odex",
+      "APK": "Thunderbird-22.0.apk",
+      "安装路径": "/data/app/net.thunderbird.android-1/base.apk",
+      "DEX": [
+        {
+          "条目": "classes.dex",
+          "长度": 10732544,
+          "CRC32": "f5b89754"
+        },
+        {
+          "条目": "classes2.dex",
+          "长度": 567764,
+          "CRC32": "0ac02b83"
+        }
+      ],
+      "SHA256": "ad9866f4676dde297eeeaf969c4dcdf5e35428bf3b2fb3f59d238a6cc2f66ab6"
+    },
+    {
+      "缓存": "Firefox-142.0-arm64.odex",
+      "APK": "Firefox-142.0.apk",
+      "安装路径": "/data/app/org.mozilla.firefox-2/base.apk",
+      "DEX": [
+        {
+          "条目": "classes.dex",
+          "长度": 12041824,
+          "CRC32": "d92eff59"
+        },
+        {
+          "条目": "classes2.dex",
+          "长度": 488772,
+          "CRC32": "0c498377"
+        },
+        {
+          "条目": "classes3.dex",
+          "长度": 9717292,
+          "CRC32": "d6aa8f84"
+        },
+        {
+          "条目": "classes4.dex",
+          "长度": 4566476,
+          "CRC32": "c11fc23a"
+        }
+      ],
+      "SHA256": "6fd9b0124c69cf3109dd954538b18ee9b01b61393042e3bcd2a765781f4dfd19"
+    },
+    {
+      "缓存": "VLC-3.7.1-arm64.odex",
+      "APK": "VLC-3.7.1.apk",
+      "安装路径": "/data/app/org.videolan.vlc-1/base.apk",
+      "DEX": [
+        {
+          "条目": "classes.dex",
+          "长度": 9880960,
+          "CRC32": "b5f38286"
+        },
+        {
+          "条目": "classes2.dex",
+          "长度": 734728,
+          "CRC32": "40fc5782"
+        },
+        {
+          "条目": "classes3.dex",
+          "长度": 8899228,
+          "CRC32": "b3fe9cf7"
+        },
+        {
+          "条目": "classes4.dex",
+          "长度": 8915488,
+          "CRC32": "4c3c821f"
+        },
+        {
+          "条目": "classes5.dex",
+          "长度": 6525660,
+          "CRC32": "070949f1"
+        },
+        {
+          "条目": "classes6.dex",
+          "长度": 5348508,
+          "CRC32": "8af7ccb8"
+        }
+      ],
+      "SHA256": "c6f9095f08773cca5154f81c5d5e7dcf9093d9073fcead41aedc75de8166d116"
+    },
+    {
+      "缓存": "Zello-5.30.1-arm64.odex",
+      "APK": "Zello-5.30.1.apk",
+      "安装路径": "/data/app/com.loudtalks-1/base.apk",
+      "DEX": [
+        {
+          "条目": "classes.dex",
+          "长度": 13107836,
+          "CRC32": "caf63b00"
+        },
+        {
+          "条目": "classes2.dex",
+          "长度": 690740,
+          "CRC32": "06ab95fd"
+        },
+        {
+          "条目": "classes3.dex",
+          "长度": 8881176,
+          "CRC32": "473c596d"
+        },
+        {
+          "条目": "classes4.dex",
+          "长度": 8269060,
+          "CRC32": "b481db11"
+        },
+        {
+          "条目": "classes5.dex",
+          "长度": 940984,
+          "CRC32": "c41833cc"
+        }
+      ],
+      "SHA256": "573dad1d22e75290f54eed0d2a902c320ed7768982b8d6ce87c54b359d85097d"
+    },
+    {
+      "缓存": "Telegram-12.10.1-arm64.odex",
+      "APK": "Telegram-12.10.1.apk",
+      "安装路径": "/data/app/org.telegram.messenger.web-1/base.apk",
+      "DEX": [
+        {
+          "条目": "classes.dex",
+          "长度": 8667936,
+          "CRC32": "a784c839"
+        },
+        {
+          "条目": "classes2.dex",
+          "长度": 501512,
+          "CRC32": "c90fde24"
+        },
+        {
+          "条目": "classes3.dex",
+          "长度": 8895232,
+          "CRC32": "840950b7"
+        },
+        {
+          "条目": "classes4.dex",
+          "长度": 10275452,
+          "CRC32": "aa4d1df0"
+        },
+        {
+          "条目": "classes5.dex",
+          "长度": 10430852,
+          "CRC32": "fdf611b6"
+        }
+      ],
+      "SHA256": "4bcac61896e3176921ffed56c57e581833c4983ffb6d7ecfd22b8ab879059852"
+    },
+    {
+      "缓存": "D31-File-Manager-1.7.4-d31.2-arm64.odex",
+      "APK": "D31-File-Manager-1.7.4-d31.2.apk",
+      "安装路径": "/data/app/me.zhanghai.android.files-2/base.apk",
+      "DEX": [
+        {
+          "条目": "classes.dex",
+          "长度": 7850700,
+          "CRC32": "dfdc74c2"
+        }
+      ],
+      "SHA256": "25846e037723588fb076310e2eddfdd235678c4f75eb99dd8a2d7568123f9bbb"
+    },
+    {
+      "缓存": "D31-Messages-0.3.0-arm64.odex",
+      "APK": "D31-Messages-0.3.0.apk",
+      "安装路径": "/data/app/net.elfradio.d31phone.debug-1/base.apk",
+      "DEX": [
+        {
+          "条目": "classes.dex",
+          "长度": 9155684,
+          "CRC32": "3deea4bd"
+        },
+        {
+          "条目": "classes2.dex",
+          "长度": 1650748,
+          "CRC32": "10787fc2"
+        },
+        {
+          "条目": "classes3.dex",
+          "长度": 3269560,
+          "CRC32": "671cda48"
+        },
+        {
+          "条目": "classes4.dex",
+          "长度": 9676712,
+          "CRC32": "aa1f7cf3"
+        }
+      ],
+      "SHA256": "367162acd18d44ac7fb6407b6cd61055fecf216598301c862657c5fcbe01e977"
+    },
+    {
+      "缓存": "D31-Zello-Guard-0.2.7-arm64.odex",
+      "APK": "D31-Zello-Guard-0.2.7.apk",
+      "安装路径": "/data/app/net.elfradio.d31zelloguard-2/base.apk",
+      "DEX": [
+        {
+          "条目": "classes.dex",
+          "长度": 1852,
+          "CRC32": "e12561e6"
+        },
+        {
+          "条目": "classes2.dex",
+          "长度": 26604,
+          "CRC32": "b1286b47"
+        }
+      ],
+      "SHA256": "3a714cd9ff813786e518b83747fb72c8da9483304213ee801e78a00a4ba22c10"
+    }
+  ]
+}

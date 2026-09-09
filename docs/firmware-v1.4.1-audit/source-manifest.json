@@ -1,0 +1,612 @@
+[
+  {
+    "路径": "tools/D31-wireless-adb/source/build.gradle",
+    "字节数": 163,
+    "SHA256": "5E56FC9779F8EEE0233745161E6069D8787C8D3FCB6A4828D9A2E1B2C8AFBC7B"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/settings.gradle",
+    "字节数": 301,
+    "SHA256": "CD4342D367F532C845FEA440007D30ABC2924FAE53280EA4E38522EE0AF256D1"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/gradle.properties",
+    "字节数": 109,
+    "SHA256": "6F1253A0552E0FC1CC62998662A3563CB5818F8A2CEAA517200C5D7B627ABD2C"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/gradlew",
+    "字节数": 8762,
+    "SHA256": "A3648413B47EF77AF21D5EBC36C687C7D103AAEF3E17F33DE7D4F080A6F300A3"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/gradlew.bat",
+    "字节数": 2872,
+    "SHA256": "2209F919A22528AF59A2AF2AD97E8D056CCA18E39F7D87AA3FD549A73B180150"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/rescue_client.py",
+    "字节数": 1657,
+    "SHA256": "1230C0C26626F9479B5FBD6644597F3D61F2BF03743F9FF1A0D157D9A39CA8ED"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/gradle/wrapper/gradle-wrapper.jar",
+    "字节数": 43504,
+    "SHA256": "498495120A03B9A6AB5D155F5DE3C8F0D986A449153702FB80FC80E134484F17"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/gradle/wrapper/gradle-wrapper.properties",
+    "字节数": 250,
+    "SHA256": "3D91F0932DA99885C41E9DC4E85C9F9A2D3BFEF4F0AD87473014DC0827A94884"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/build.gradle",
+    "字节数": 1481,
+    "SHA256": "5863C5998C4CCD60219154F07DA87ACD3BE15F7F97E186ACF9A1007EF40C1969"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/debug/AndroidManifest.xml",
+    "字节数": 265,
+    "SHA256": "088B857FE58241297BA0C33297463BCE4CFDC9A9DC0FEDE2F8DA7A7003B8BD1C"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/debug/java/net/elfradio/d31bootstrap/ProviderProbeActivity.java",
+    "字节数": 633,
+    "SHA256": "6FC393F12E297B92B026940031792DD46F143627FCD8C59D962A658B061F5118"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/AndroidManifest.xml",
+    "字节数": 3621,
+    "SHA256": "79F5EB5B4A7E9772DA782A13735ACEC54A450D690F9E4255F9D1990A4CD0998A"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/AdbControl.java",
+    "字节数": 11768,
+    "SHA256": "5718F8501D2831B686700BE7D5B31BA0304B9AD5E6B9AE8DFF4A2BB46B6A2DC8"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/ArpControl.java",
+    "字节数": 3119,
+    "SHA256": "4F6C9710253A8EFDE04CC77ACA0DC1D237D8D2EEFBB6CFC59CE3DED89DE0DB41"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/BootReceiver.java",
+    "字节数": 14494,
+    "SHA256": "39B7464B9CC150F319BFF9AA0D701081D653E92A9C5CE09F68A1FF066A5C2DB5"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/DeferredAppStartup.java",
+    "字节数": 1989,
+    "SHA256": "C7F676EFB0D46DD844B19513AF85D9A97BA0CDEE5B2E45FC721325D3B2F90277"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/DeviceInfo.java",
+    "字节数": 1455,
+    "SHA256": "12A4BBCC8CA187A98ADB68E5CD886139EABB1E2BDA4C0647F400DADD48CDD5FF"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/FirewallControl.java",
+    "字节数": 14412,
+    "SHA256": "F38642BABD44CC5685F2C9A42AF4492C04549312FD9E2F280B48F159ABA178C2"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/LocalRecovery.java",
+    "字节数": 13034,
+    "SHA256": "719E1A9FB0E3B09BBCCF855DCA2A28F2F63A9130A1D003FFB2D983DCDDBCE308"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/MainActivity.java",
+    "字节数": 7903,
+    "SHA256": "9D1DF480FF98F1A8FBA89BEDB23FD15D78E20D73A68458F8E47A71BA92B64C26"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/ProbeLog.java",
+    "字节数": 1696,
+    "SHA256": "3469432F143EF8728F8E7F459A7ECA5289DC5FA2CD53898C772140EF1F6A6BC0"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/ProbeService.java",
+    "字节数": 2958,
+    "SHA256": "4D744CE5904C0FD6C7DDF174221B6EC5DC6DB01ED0251C3F211F3D6C42C00E97"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RescueDaemon.java",
+    "字节数": 6567,
+    "SHA256": "7F9D4F12384E601DF900B432A0093B6D50639C55C7FC56664AEFE95A7DE958FF"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RescueFiles.java",
+    "字节数": 2212,
+    "SHA256": "163F51F51FE71C70F19D0D0F2644031F24554C1477C4E072C3050A3B8427E84F"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RescueHttpServer.java",
+    "字节数": 5428,
+    "SHA256": "C14235F3E1D50231CC1EFCF72BBAD531BE61C7740D3193F1EDB3791CB42BE1F3"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RescueInstaller.java",
+    "字节数": 8544,
+    "SHA256": "F42E6AE042BC240B94F03A2E0DAF77FA4040D5EB41E68EA44D8F49F7DB65A439"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RescueJobs.java",
+    "字节数": 5093,
+    "SHA256": "7824A80AE55EB160AA4D2CD34EB3EDB16B3A5FA32BA92EB9F2A4DFABB5F33897"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/SipNetworkMonitor.java",
+    "字节数": 9897,
+    "SHA256": "8C2D64644157A959955CC9EAD927312441080FCDCACC0366D1454EA729E2A9AA"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/TcpListenerState.java",
+    "字节数": 1316,
+    "SHA256": "1DFA7F0242888A9116BF51F926CD7DFCB529B2B11B905DBDF9FDE23BDD2187BF"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/UsbBrowseActivity.java",
+    "字节数": 1095,
+    "SHA256": "4DF8B7C3D08DE3E9777DC0E49E35A4726FD7A8024C902EF1DB678673BDD47503"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/UsbFileOpener.java",
+    "字节数": 1513,
+    "SHA256": "5882ACA120454E9CD2D032B1A599CCF9C951DB26D79106D537F472287E63CB69"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/UsbInsertPromptActivity.java",
+    "字节数": 4981,
+    "SHA256": "7C9CB8ED9C19E553E9E0AD1D5930F5AD0E192E3D089DEA11BFACBC2A91EE6420"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/UsbStorageControl.java",
+    "字节数": 9777,
+    "SHA256": "1D353B09101298BE2B641E728E90A1D9CBCFE3EFD067B566648F760F0038EF08"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/VendorNetworkReceiver.java",
+    "字节数": 362,
+    "SHA256": "657F42BC2D45F474C5E9000B0814835630C713C2A6E05B5AACC9526263A2F340"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/AdbControlTest.java",
+    "字节数": 613,
+    "SHA256": "CFB0B91F5A45AB8A7000D40407AC28F1303A19B1B6FF5FD6A9E215B3004B1D80"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/ArpControlTest.java",
+    "字节数": 1801,
+    "SHA256": "5FADD4089C706A45069BC4AB0A1FA3343855453ABF3D0BD0DB037258A82F10E7"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/BootReceiverTest.java",
+    "字节数": 926,
+    "SHA256": "559CBCE4C49859DC5533D3359A642F8309F92BA919B36E10D04A024EA3EC303B"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/DeferredAppStartupTest.java",
+    "字节数": 1633,
+    "SHA256": "8D7D40083F96B9234E74FDD4863BCC9D5800D77A1D7FD3C24E7855FEBF9D5454"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/FirewallControlTest.java",
+    "字节数": 3621,
+    "SHA256": "8EA943328ACCCFB6C2F112EA3CF9E8419E98ED2FFF8C56FD0FFCF7F3FDD90832"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/LocalRecoveryTest.java",
+    "字节数": 3481,
+    "SHA256": "7E25665CDE5DC8DA599E0980B917B8427EA2CA5CA97C631AB5D0934625E7DEEE"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/RescueTest.java",
+    "字节数": 7111,
+    "SHA256": "009768049FA4625E602D6C0E0F4E4C76F03F58A2E172D8A59F5C31B39B0C9E13"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/SipNetworkMonitorTest.java",
+    "字节数": 2521,
+    "SHA256": "9CB6E4330EE58751AF6F700ED4590956BCDA429FE0B9F1710DDB73A770761D65"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/TcpListenerStateTest.java",
+    "字节数": 1283,
+    "SHA256": "CD21F7E9B1F4E83E726B5F6335410728FD8B1407C90EF870F2FD6948F5439FE9"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/UsbInsertPromptTest.java",
+    "字节数": 1411,
+    "SHA256": "7F2BEF154D2783E517B9369B674D06A17E8A0DF4E289D8EC61D7A471518A5892"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/UsbStorageControlTest.java",
+    "字节数": 3475,
+    "SHA256": "2F5A9CF34D5BA4C659B172B206AE3AA8AAA5C5F46E8B7A85D759598712B34421"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/build.gradle",
+    "字节数": 873,
+    "SHA256": "E92A55B22101B6BF4A1A557F7BCAB86D619631754F942084D1D8FD8905F14879"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/AndroidManifest.xml",
+    "字节数": 2860,
+    "SHA256": "C6A3C622F4645846C6FB0AD495433D037ADBC562E06E860CE0584D9AA39D8017"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/CellularDisplay.java",
+    "字节数": 4965,
+    "SHA256": "8090496DA738E56263E75E9DB72D80DC603909BED8C06D952ED12C1E2F4AE8B1"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/CellularDisplayReceiver.java",
+    "字节数": 500,
+    "SHA256": "2A8427BA07DCD1BB8184E85F6BFB57BBAA485088418927CC5BDB5B6B04A7F9F0"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/DeferredAppStartup.java",
+    "字节数": 2010,
+    "SHA256": "42BDCF9A836192AAD9C04F47E1BFBD4B9BA40BCA64DFBC51F6189764B7B49B11"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/DeviceInfo.java",
+    "字节数": 1452,
+    "SHA256": "7F10F10A49FC030010802F629B4EC41BC4420BE3408199840DD59A5FC099E379"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/FirewallControl.java",
+    "字节数": 14476,
+    "SHA256": "6166A5666637B0571207B592358412601BD17D2AA120587FB989D9D477DA405E"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/LocalRootChannel.java",
+    "字节数": 1611,
+    "SHA256": "DD19B5587B6B382624E9F48E373548E2B6D18DE22F125787887E6D30F8D4273B"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/SipNetworkMonitor.java",
+    "字节数": 9900,
+    "SHA256": "F2919333CF527B075F62A1437A668B471935EBFC7E85F57F772027A827B8BB64"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/SystemActions.java",
+    "字节数": 3485,
+    "SHA256": "1BF3B269F6D3E5874E9C2E6E551D2D84BD1DB074E8F4E87122CB2AE130C0CEDA"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/SystemLog.java",
+    "字节数": 1704,
+    "SHA256": "3C03C400AEC4A2E76BA7B700F846D0ED10038ADFDE2ABF0338E24BF514BDC50C"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/SystemReceiver.java",
+    "字节数": 395,
+    "SHA256": "3ACD8B6A75E13B9112364DE0157370171E43DCAD3D47390DDB785A2C37168E79"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/SystemSupportService.java",
+    "字节数": 5436,
+    "SHA256": "D60AFC44DC6B631994A5CF7ECAD73AD175A82163850C5E57E8822FC37A69C5E6"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/UsbBrowseActivity.java",
+    "字节数": 1096,
+    "SHA256": "17123960E7B557B4A3733F7E0B093DF7EE5756F2109D7CB78D73E93CC35530D2"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/UsbFileOpener.java",
+    "字节数": 1512,
+    "SHA256": "6A27C0C6FEDE9A91A9A0EB4FADA7EAC5EB8899B05839C89C83A4EC4EB02753AF"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/UsbInsertPromptActivity.java",
+    "字节数": 4986,
+    "SHA256": "FD707CF5A7F9305ADC3C8CA176527833CAC9485F47F950484C9E768826698B44"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/UsbStorageControl.java",
+    "字节数": 9861,
+    "SHA256": "DECB585349913EEBFA775E0A6971D4835D2DC0704B953894B79E48BFA1A9CE42"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/main/java/net/elfradio/d31system/VendorNetworkReceiver.java",
+    "字节数": 438,
+    "SHA256": "D7E37302A8611821C2442C8F4B81C362D4063918EFB194C5B718FFB2ADF3E5B7"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/test/java/net/elfradio/d31system/CellularDisplayTest.java",
+    "字节数": 1243,
+    "SHA256": "2D311BC12704E04026EB6A016F946C9D1217A0085F8F82FE9EBBD470F1AA2D9D"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/src/test/java/net/elfradio/d31system/SystemSupportTest.java",
+    "字节数": 1343,
+    "SHA256": "17AFE8C7F302B80F30101AB4045B0D03B38841A70A41408F3E68238C7AD2AE37"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/guard.c",
+    "字节数": 5837,
+    "SHA256": "717903CDE55BA70D189F4BA211209681F03F73937718EE3313B4EE1527BE3E51"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/local_actions.h",
+    "字节数": 3841,
+    "SHA256": "DB87B3A4C5E541D1DBBB4D51D729E578C06EE1787DB169166E43DE5ED9D98D76"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/PackageState.java",
+    "字节数": 1096,
+    "SHA256": "D1D6B229DB6A223CEA666FA445BB93B66587F9CD7771858B5B7C3332489808DA"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/start.sh",
+    "字节数": 139,
+    "SHA256": "6F8EB77CF06B0FB5F0B8F5B751DB1ABAC66CBBF9BD277B32749A4E1032F112B0"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/test_channel.c",
+    "字节数": 2567,
+    "SHA256": "A62632B9E9167E4A9AA33F6929113507410ACE02B8D9780759AC299BBE4EF59C"
+  },
+  {
+    "路径": "tools/D31-wireless-adb/source/systemSupport/test_first_boot.c",
+    "字节数": 1539,
+    "SHA256": "E7B2425C500ACA67BBDCD63242869D3BA348F863D13C41139D4B61B8AD3C9E95"
+  },
+  {
+    "路径": "tools/Windows-flash/source/src/FirmwareManager.cs",
+    "字节数": 15670,
+    "SHA256": "380D5D260D40DBA0233EADE418DF42A8A585972C44614EB802608DE4DF07D5B2"
+  },
+  {
+    "路径": "tools/Windows-flash/source/src/MainForm.cs",
+    "字节数": 43465,
+    "SHA256": "92AEF661B09DAB9E58AB9CEB535680C205EAAA0502C776CF97326A3118161E71"
+  },
+  {
+    "路径": "tools/Windows-flash/source/src/Program.cs",
+    "字节数": 18674,
+    "SHA256": "180E75BE385C0A2334CE278019AD07BA5BF50679B9EC41F0080DE1B4F74E63C0"
+  },
+  {
+    "路径": "tools/Windows-flash/source/src/RescueClient.cs",
+    "字节数": 13226,
+    "SHA256": "B395316B03DE154C29C79212180D50A29499393B853A1578FDAE680DA89011C1"
+  },
+  {
+    "路径": "tools/Windows-flash/source/src/RescueForm.cs",
+    "字节数": 8372,
+    "SHA256": "22BD40DCD0BD1A01A8D56917B785E17B97943E412C00B7EAE5A51B4113A8DA2C"
+  },
+  {
+    "路径": "tools/Windows-flash/source/src/RuntimeAssets.cs",
+    "字节数": 3916,
+    "SHA256": "E1FBD95E95176CA9826A0FD45756B00693111C9BCAA8BCAA2BC61103BB8E9C04"
+  },
+  {
+    "路径": "tools/Windows-flash/source/tests/BackendFakeAdb.cs",
+    "字节数": 7681,
+    "SHA256": "4DC8870A6342881DF42D6CFFC6BA2ED6C5661205074C50CB491D2E29593B9F66"
+  },
+  {
+    "路径": "tools/Windows-flash/source/tests/check_rescue_readonly.ps1",
+    "字节数": 484,
+    "SHA256": "733B48E3DE82467B3290B9DF097B4AB3555BA36C32FC42B782EB74F879F691A3"
+  },
+  {
+    "路径": "tools/Windows-flash/source/tests/check_uptool_readonly.ps1",
+    "字节数": 764,
+    "SHA256": "E274048A62341D1FD17867DE22CCD4C351D6C2A3C352F7436791B314A6EBBC8D"
+  },
+  {
+    "路径": "tools/Windows-flash/source/tests/RescueLayoutTests.cs",
+    "字节数": 2104,
+    "SHA256": "124045168FA5982643B5EE76299FCDE21090909B41CBF6CDBB892B7C62758C90"
+  },
+  {
+    "路径": "tools/Windows-flash/source/tests/RescueTests.cs",
+    "字节数": 3417,
+    "SHA256": "26DAC61C06F40EB4211D54C492B9C8644D254A2244810EC344F21AFF739C1C39"
+  },
+  {
+    "路径": "tools/Windows-flash/source/tests/Test-D31RescueOffline.ps1",
+    "字节数": 6424,
+    "SHA256": "5CDCEA649689DB69DB75FDC73BF3EDDEED7E85119E9F6ED0FD0001E981B031BB"
+  },
+  {
+    "路径": "tools/Windows-flash/source/tests/TestBackend.ps1",
+    "字节数": 3528,
+    "SHA256": "102E801B2FDB59D34810EF003960F134EFF1D93F4C83D70270E524515A383FBE"
+  },
+  {
+    "路径": "tools/Windows-flash/source/tests/TestPostBoot.ps1",
+    "字节数": 2077,
+    "SHA256": "C30978D252824787E81832D5F2691E14D0E98E0CE59518C4698EDC9D72F4747E"
+  },
+  {
+    "路径": "tools/Windows-flash/source/tests/verify_rescue_roundtrip.ps1",
+    "字节数": 2668,
+    "SHA256": "E51E0B88783F9510AF93E2F7595ED63E2AF4A16D6C216D002F31FCDAA9076B8D"
+  },
+  {
+    "路径": "tools/Windows-flash/source/scripts/create_d31_rescue.ps1",
+    "字节数": 15392,
+    "SHA256": "E3699FF9FBDC139FC619F288D046D42A828F2E75BAF7754812F1D3D8D539B44B"
+  },
+  {
+    "路径": "tools/Windows-flash/source/assets/elfradio-icon-256.png",
+    "字节数": 52046,
+    "SHA256": "F21A54E4929F5880B6286A7CA80433FBCAA70C8B2F331BBE827CA4CC1E99E885"
+  },
+  {
+    "路径": "tools/Windows-flash/source/assets/elfradio-logo.png",
+    "字节数": 17861,
+    "SHA256": "A0DCC747C13F29D5C6E6465EAE28C8114282A4F8DD214D961CF40D654FC63640"
+  },
+  {
+    "路径": "tools/Windows-flash/source/assets/elfradio.ico",
+    "字节数": 52068,
+    "SHA256": "AF3C4823E12F840868976B4717CE80E03BE6E79AF755510DC5A5E04A860311E1"
+  },
+  {
+    "路径": "tools/Windows-flash/source/build-original-workspace.ps1",
+    "字节数": 15872,
+    "SHA256": "0035D44EB57C8D6F4E173E8FC564A3E3DBB893D500637FD229EE10042F06F265"
+  },
+  {
+    "路径": "tools/Windows-flash/source/src/BuildConstants.g.cs",
+    "字节数": 2986,
+    "SHA256": "B702C422ABF6A6336447EA4C22E12715BCE982FE24092AE990D2BD92C1C62F24"
+  },
+  {
+    "路径": "tools/factory-package/source/build_factory_package.ps1",
+    "字节数": 6611,
+    "SHA256": "85B490F94F3123CE870A02BD6F2E51C89BB0B65F81B631A07A66E8E21C457834"
+  },
+  {
+    "路径": "tools/factory-package/source/build_factory_package.py",
+    "字节数": 7894,
+    "SHA256": "0C6F5F8B14EB641736F450B7E58DF6959D0DC6AA92EFB0EC85535162CF5495E7"
+  },
+  {
+    "路径": "tools/factory-package/source/verify_factory_package.py",
+    "字节数": 18176,
+    "SHA256": "98E4BE110112267CE58BAFFE51A6D926B02FD9DEB92C3C781CB7579ABD4820F2"
+  },
+  {
+    "路径": "tools/factory-package/source/verify_d31_system_image.sh",
+    "字节数": 3352,
+    "SHA256": "B9D46C89F2084FE2BF7F19B82C0DE0906CF0EFA704BCA2A3856BDB39C2D4B266"
+  },
+  {
+    "路径": "tools/factory-package/source/verify_oat.py",
+    "字节数": 2612,
+    "SHA256": "2B46FEAE571515EF4DC5CD343BB41A55A6FF037E54EA5956F9018156953F6C49"
+  },
+  {
+    "路径": "tools/factory-package/source/approved-package.json",
+    "字节数": 274,
+    "SHA256": "69956FE831414D6F6D6D3C60CCB1869641EF8A26919692E140D2938B639DCC6C"
+  },
+  {
+    "路径": "tools/factory-package/source/sources-v1.4.1.json",
+    "字节数": 5949,
+    "SHA256": "296A60EE9433F78E98EB8AA116A977CD5B33BC4F37CBD4AC1361D14C718BB705"
+  },
+  {
+    "路径": "tools/factory-package/source/flash_d31_recovery.ps1",
+    "字节数": 29379,
+    "SHA256": "3492C4E6B9832D0B701A6C7D52B6F28958FFE8BAD4AA70F23E7B04919D2E3B28"
+  },
+  {
+    "路径": "tools/factory-package/source/master_target_state.json",
+    "字节数": 3636,
+    "SHA256": "D25968233EB5315AB54844AA68ABDE6FCD02F5605FDE07BD0F48D6510C1CF9EF"
+  },
+  {
+    "路径": "tools/factory-package/source/test_release_contract.py",
+    "字节数": 6056,
+    "SHA256": "4107799F6B8A276E1F7A384F79765614EDE3F947BC5BCBE4B7B10DC4B3641D30"
+  },
+  {
+    "路径": "tools/factory-package/source/test_factory_init.py",
+    "字节数": 5951,
+    "SHA256": "141382C9701580D8817F3A00F5AC03ABD568F8C0A0D9A6CD0815FCF54AC92885"
+  },
+  {
+    "路径": "tools/factory-package/source/test_handover_wait.py",
+    "字节数": 2395,
+    "SHA256": "1C9A43C48988D1BA7339FB32605E9D9AA5978267431A481A1FE6EAA9995DC970"
+  },
+  {
+    "路径": "tools/factory-package/source/test_rescue_guard.py",
+    "字节数": 4808,
+    "SHA256": "B9FC6E975455F2F79715855184F8A6E6DEFBCEF41FFEAA91BAC490F660C041AD"
+  },
+  {
+    "路径": "tools/factory-package/source/native/update_binary.c",
+    "字节数": 25949,
+    "SHA256": "67E7EBDAAF9D862FEE11C7E830B931B6DC525F134C2C4D0A677340063690AFB2"
+  },
+  {
+    "路径": "tools/factory-package/source/native/tls_align.S",
+    "字节数": 242,
+    "SHA256": "67AE9A9F277010FC8B434EA8D4A3DCC0A4C1E3E853CB5BEE20089DBD92D76D23"
+  },
+  {
+    "路径": "tools/factory-package/source/native/updater-script",
+    "字节数": 52,
+    "SHA256": "C737856FCFC44487151615184A9742F45CA90643FE08372E7581AD9D5D0E1DEB"
+  },
+  {
+    "路径": "tools/factory-package/source/templates/config-tab",
+    "字节数": 1647,
+    "SHA256": "FDC14D064CEB777197B095181E4FD515457681C7729F8A0E4D3258D21F56DB43"
+  },
+  {
+    "路径": "tools/factory-package/source/templates/getnumber-disabled/AndroidManifest.xml",
+    "字节数": 800,
+    "SHA256": "C7A2863B28944D5A38D6AF976C5C445CC17AFEFBE7EF9A492D157B435A59B198"
+  },
+  {
+    "路径": "tools/factory-package/source/startup-handover/StartupHandover.java",
+    "字节数": 1119,
+    "SHA256": "AE3578D6E3843D11373B107195298802BD3C0AB205BAE44AD0ADFEE6503CA8CB"
+  },
+  {
+    "路径": "tools/factory-package/source/startup-handover/HandoverPolicy.java",
+    "字节数": 1450,
+    "SHA256": "0D16EFCE038DEC0F4F388AAEB3BFC112DFE8C73D591BF6ADB5AFC6DA54DAE304"
+  },
+  {
+    "路径": "tools/factory-package/source/startup-handover/HandoverRuntime.java",
+    "字节数": 15211,
+    "SHA256": "CB14A3A9391DB2FF8D33AD62EA243A9F84F55ED838C6FF6237ADAD1C7B5C99CB"
+  },
+  {
+    "路径": "tools/factory-package/source/startup-handover/FactoryInit.java",
+    "字节数": 13471,
+    "SHA256": "3BD2088428D95DA8EFEE7822B3B3B2093A707E46BAF757A77810D287BCAAB8BC"
+  },
+  {
+    "路径": "tools/factory-package/source/startup-handover/HandoverPolicyTest.java",
+    "字节数": 4364,
+    "SHA256": "CEE787362A4CB6936A64E583972895AEE832B69CA9DF29388EAC385C445779B5"
+  },
+  {
+    "路径": "tools/factory-package/source/startup-handover/FactoryDefaultsTest.java",
+    "字节数": 1843,
+    "SHA256": "08F72EB5DA72E76B2B0533C9706D7CC5D5B4F4FA56C0754CDAED7C17BB2F587B"
+  },
+  {
+    "路径": "tools/factory-package/source/startup-handover/build.ps1",
+    "字节数": 1909,
+    "SHA256": "1C91214A37D91D307A4EEB8569103561B588B4C9A7FDEDA6A175A79A8B95B6D8"
+  },
+  {
+    "路径": "tools/factory-package/source/startup-handover/start.sh",
+    "字节数": 1851,
+    "SHA256": "35A9963961DC7E30C9D9BE2B0E5EBF37783582C8DB78D5CA2F799F577DA6E615"
+  },
+  {
+    "路径": "docs/firmware-v1.4.1-audit/audit.json",
+    "字节数": 18439,
+    "SHA256": "D63208069AD01A7CE5722C53344CC9F45B148A86FF9723471492B7DCD9FD167B"
+  },
+  {
+    "路径": "docs/firmware-v1.4.1-audit/system-hashes.txt",
+    "字节数": 223168,
+    "SHA256": "BCA5934AA044789D920FEA3E6015F19083C6CEE0ADA57D7B82754790829A7450"
+  },
+  {
+    "路径": "docs/firmware-v1.4.1-audit/system-links.txt",
+    "字节数": 3769,
+    "SHA256": "7A65BF7B2BB4EB5D936B2D481DA15125ABC2FF839E3FDD173252D2BED4734964"
+  },
+  {
+    "路径": "docs/firmware-v1.4.1-audit/system-metadata.txt",
+    "字节数": 119887,
+    "SHA256": "60907D20BD55A697D84D65A3F8B5C25837DBD1D78A5B3CAC3970E069D3837190"
+  }
+]

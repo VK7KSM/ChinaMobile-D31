@@ -1,0 +1,91 @@
+{
+  "目标构建": "alps/full_hct6737t_66_m0/hct6737t_66_m0:6.0/MRA58K/1583081804:userdebug/test-keys",
+  "交付原则": "复制母机已验收功能，不复制母机用户数据和设备身份",
+  "必须保留的原厂系统组件": [
+    "/system/vendor/3rd-app/nexui.apk",
+    "/system/vendor/3rd-app/imscc.apk",
+    "原厂SIP电话",
+    "计算器",
+    "中文输入法",
+    "动态壁纸与屏保素材",
+    "MTK工程、日志和工厂测试工具"
+  ],
+  "必须物理删除的系统路径": [
+    "/system/vendor/3rd-app/android.apk",
+    "/system/vendor/3rd-app/moffice.apk",
+    "/system/app/BluetoothMidiService",
+    "/system/app/QuickSearchBox",
+    "/system/app/Exchange2",
+    "/system/vendor/operator/app/Baidu_Location",
+    "/system/app/MtkCalendar",
+    "/system/priv-app/CalendarProvider",
+    "/system/app/CalendarImporter",
+    "/system/app/MtkBrowser",
+    "/system/vendor/3rd-app/i-jetty.apk",
+    "/system/app/HTMLViewer",
+    "/system/app/Music",
+    "/system/vendor/3rd-app/tr069.apk",
+    "/system/vendor/3rd-app/tr069proxy.apk",
+    "/system/vendor/3rd-app/emu.apk",
+    "/system/vendor/3rd-app/daemon.apk",
+    "/system/app/Omacp"
+  ],
+  "必须预装且保持未登录的应用": [
+    "Firefox",
+    "VLC",
+    "Zello",
+    "Telegram",
+    "Thunderbird",
+    "文件管理器",
+    "短信",
+    "D31无线ADB",
+    "D31 Zello守护"
+  ],
+  "必须交付的优化": [
+    "原厂SIP客户端TLS 1.2库",
+    "Firefox与Telegram主页入口和正确路由",
+    "系统时区时钟修复",
+    "实体键映射",
+    "Zello后台守护及频道和私聊前台唤醒",
+    "8765独立命令守护开机运行；Windows工具通过探针恢复被原厂停用的5555",
+    "IPv4与IPv6动态入站防火墙功能保留，开发版默认关闭",
+    "有线与Wi-Fi切换后的SIP重新注册和旧TLS会话释放",
+    "Nexui应用页8个固定入口",
+    "U盘与TF卡动态识别、独立显示和插入确认弹窗",
+    "双通道短信客户端及Nexui主页短信入口"
+    ,"Firefox约180秒、Thunderbird约300秒错峰启动，并在每次开机广播前关闭两者的WorkManager重排接收器"
+    ,"Thunderbird 22的Arm64 interpret-only OAT，避免Android 6旧ART编译器冷启动崩溃"
+    ,"蜂窝线路显示号码或当前运营商，并在第二行显示2G、3G、4G LTE或5G制式"
+    ,"首次通过真实包管理器初始化权限、实体快捷键无障碍、通知监听和默认短信"
+    ,"Zello与守护省电白名单，保留后台保活"
+    ,"Nexui原厂TCP加速默认关闭；系统悬浮横幅关闭以保留顶部下拉"
+    ,"无代码无短信权限的取号占位包和四个收费取号入口禁用"
+    ,"八份与APK及安装位置匹配的Arm64缓存"
+    ,"独立存储服务等待首次应用目录建立并监督退出恢复"
+    ,"音量加Recovery入口及防循环保护"
+    ,"电台精灵最早开机图索引0与38、启动提示背景及桌面标志"
+  ],
+  "禁止复制的数据": [
+    "整个userdata镜像",
+    "/data/data与/data/user中的应用数据",
+    "SIP账号、密码和服务器地址",
+    "Wi-Fi名称与密码",
+    "通信录、通话记录、短信和邮件",
+    "Telegram、Zello、Firefox与Thunderbird登录状态",
+    "ADB授权密钥",
+    "Android ID与应用身份",
+    "Nexui完整偏好和当前拨号账号",
+    "日志、抓包、截图和历史测试文件",
+    "nvram、nvdata、protect、proinfo、keystore与frp等设备身份分区"
+  ],
+  "应用页顺序": [
+    "Firefox",
+    "VLC",
+    "Zello",
+    "Telegram",
+    "计算器",
+    "D31 无线ADB",
+    "设置",
+    "文件管理器"
+  ]
+}

@@ -3,8 +3,9 @@ package net.elfradio.d31bootstrap;
 import fi.iki.elonen.NanoHTTPD;
 import org.json.JSONObject;
 import java.net.InetAddress;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.EOFException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 final class RescueHttpServer extends NanoHTTPD {
     interface Status { String get(); }
@@ -64,9 +65,16 @@ final class RescueHttpServer extends NanoHTTPD {
                 return response(Response.Status.BAD_REQUEST, "需要无Origin的application/json请求");
             long length = Long.parseLong(session.getHeaders().get("content-length"));
             if (length < 1 || length > 16384) return response(Response.Status.BAD_REQUEST, "请求大小超限");
-            Map<String, String> body = new HashMap<>();
-            session.parseBody(body);
-            JSONObject request = new JSONObject(body.get("postData"));
+            // 命令正文有严格上限，直接读取，避免独立进程依赖不存在的临时目录。
+            byte[] body = new byte[(int) length];
+            InputStream input = session.getInputStream();
+            int offset = 0;
+            while (offset < body.length) {
+                int count = input.read(body, offset, body.length - offset);
+                if (count < 0) throw new EOFException("请求正文不完整");
+                offset += count;
+            }
+            JSONObject request = new JSONObject(new String(body, StandardCharsets.UTF_8));
             JSONObject result = jobs.submit(request.getString("id"), request.getString("command"),
                     request.optInt("timeout", 30));
             return json(Response.Status.ACCEPTED, result);
