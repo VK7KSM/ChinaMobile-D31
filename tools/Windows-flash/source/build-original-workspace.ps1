@@ -1,10 +1,10 @@
 param(
     [string]$BuildSuffix = '',
-    [string]$FirmwareDirectory = 'factory-flash-v1.4.2'
+    [string]$FirmwareDirectory = 'factory-flash-v1.4.3'
 )
 $ErrorActionPreference = "Stop"
 
-$version = "1.6.5"
+$version = "1.6.6"
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $sourceDirectory = Join-Path $projectRoot "src"
 $outputDirectory = Join-Path $projectRoot "dist-v$version$BuildSuffix"
@@ -22,7 +22,7 @@ $downloadParserReport = Join-Path $reportDirectory "高速下载进度解析测�
 $compatibilityReport = Join-Path $reportDirectory "Windows PowerShell 5.1中文路径兼容测试.txt"
 $generated = Join-Path $objectDirectory "BuildConstants.g.cs"
 $packageRoot = (Resolve-Path (Join-Path $projectRoot "..\d31\dist\$FirmwareDirectory")).Path
-$package = Join-Path $packageRoot "D31_SVP3390_Factory_Flash_v1.4.2_testkey.zip"
+$package = Join-Path $packageRoot "D31_SVP3390_Factory_Flash_v1.4.3_testkey.zip"
 $backendRoot = (Resolve-Path (Join-Path $projectRoot "..\d31\factory_package")).Path
 $legacyAssetsRoot = (Resolve-Path (Join-Path $projectRoot "..\d31\dist\factory-flash-v1.0.4")).Path
 $rescueBuild = (Resolve-Path (Join-Path $projectRoot "..\d31\dist\rescue-launcher-v1-attempt4")).Path
@@ -51,7 +51,7 @@ if ($packageItem.Length -ne $approved.bytes -or $packageHash -ne $approved.sha25
     throw '发布固件与批准清单不一致'
 }
 $installer = Get-Content -Raw -LiteralPath (Join-Path $backendRoot 'native\update_binary.c')
-$sourcesManifest = Get-Content -Raw -LiteralPath (Join-Path $backendRoot 'sources-v1.4.2.json') | ConvertFrom-Json
+$sourcesManifest = Get-Content -Raw -LiteralPath (Join-Path $backendRoot 'sources-v1.4.3.json') | ConvertFrom-Json
 $installedFiles = @()
 foreach ($match in [regex]::Matches($installer, '\{"payload/(apps|system-patches|runtime)/([^"\r\n]+)", "([^"\r\n]+)"')) {
     $folder = @{apps='apks'; 'system-patches'='system_payload'; runtime='runtime'}[$match.Groups[1].Value]

@@ -43,15 +43,15 @@ I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 fo
 
 - The stock Nexui phone launcher, SIP audio/video client, dialer, incoming-call screen, contacts, blacklist, call recording, gallery, Chinese keyboard, calculator, Android Settings, and System WebView remain available.
 - The original four-account SIP implementation, H.264/VP8 video, handset, speakerphone, HDMI, Ethernet, Wi-Fi, Bluetooth, and USB host support are preserved.
-- Firefox 142.0, VLC 3.7.1, Zello 5.30.1, Telegram 12.10.1, Thunderbird 22.0, Messages 0.3.0, and the D31 File Manager 1.7.4-d31.2 are preinstalled without user accounts.
-- [D31系统支持1.0.4、独立8765守护1.11.6与外置存储](docs/D31-v1.4.2逐项复核.md#功能与对应文件)
+- Firefox 142.0, VLC 3.7.1, Zello 5.30.1, Telegram 12.10.1, Thunderbird 22.0, Messages 0.4.0, and the D31 File Manager 1.7.4-d31.2 are preinstalled without user accounts.
+- [D31系统支持1.0.4、独立8765守护1.11.6与外置存储](docs/D31-v1.4.3逐项复核.md#功能与对应文件)
 - Zello stays online in the background. Direct and channel voice messages wake the display and bring Zello forward; after roughly five minutes without interaction, the phone returns to the stock launcher.
 - The defunct Video Conference and Voice Conference tiles now open Firefox and Telegram. The boot patch also stops conference processes started before the patched package is mounted, preventing those tiles from falling back to the original conference screens.
 - The orange tile on the stock home screen now opens the dual-channel Messages application. The application page contains Firefox, VLC, Zello, Telegram, Calculator, D31 Wireless ADB, Settings, and File Manager. Pressing `#` eleven times opens the application-page configuration menu.
 - The stock analogue clock no longer assumes China Standard Time and now follows the Android time zone.
 - The stock SIP client no longer forces TLS 1.0. It can negotiate TLS 1.2 with current SIP servers, and stale TLS sessions are cleared after a network change so SIP registration can recover. The fix has been verified with a successful TLS registration and a real incoming call.
-- [启动交接、自动短信取号禁用及蜂窝VoLTE验收边界](docs/D31-v1.4.2逐项复核.md#功能与对应文件)
-- 开发版保留防火墙功能但默认关闭。8765独立守护开机启动；Windows工具在安卓启动完成且探针可用时恢复5555，不能保证原厂adbd始终在线。[详细说明](docs/D31-v1.4.2逐项复核.md)
+- [启动交接、自动短信取号禁用及蜂窝VoLTE验收边界](docs/D31-v1.4.3逐项复核.md#功能与对应文件)
+- 开发版保留防火墙功能但默认关闭。8765独立守护开机启动；Windows工具在安卓启动完成且探针可用时恢复5555，不能保证原厂adbd始终在线。[详细说明](docs/D31-v1.4.3逐项复核.md)
 - Live wallpapers, screen-saver assets, MediaTek engineering tools, logging utilities, and factory diagnostics are retained.
 
 ### System interface
@@ -82,21 +82,21 @@ I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 fo
 
 ### GitHub
 
-- [D31-Flash-Tool-v1.6.5.exe](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.5/D31-Flash-Tool-v1.6.5.exe): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, bootstrap APKs, and the aria2 1.37.0 download engine. The 1.71 GB firmware is downloaded separately. It supports explicit ADB connection and disconnection, device checks before downloading firmware, multiple D31 phones selected by IP, Chinese Windows paths, accelerated GitHub and Cloudflare downloads, live throughput and ETA, resume support, and automatic single-connection fallback. The utility uses the dedicated D31 ADB server port 5042 and does not interfere with Pixel 3 on 5041 or H13 on 5038.
-- [D31_SVP3390_Factory_Flash_v1.4.2_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.2/D31_SVP3390_Factory_Flash_v1.4.2_testkey.zip)：约1.71GB，更新独立急救通道、修复短信后台任务；保留文件管理器、启动优化、TLS、品牌图及音量加Recovery入口。短信为0.3.1后台修复版，尚未包含另行开发的0.4统一短信界面。[最终ZIP逐项复核与验收范围](docs/D31-v1.4.2逐项复核.md)
+- [D31-Flash-Tool-v1.6.6.exe](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.6/D31-Flash-Tool-v1.6.6.exe): the complete Windows utility, including the GUI, ADB, optional PC-based system backup, signed Recovery rescue launchers, instructions, bootstrap APKs, and the aria2 1.37.0 download engine. The 1.71 GB firmware is downloaded separately. It supports explicit ADB connection and disconnection, device checks before downloading firmware, multiple D31 phones selected by IP, Chinese Windows paths, accelerated GitHub and Cloudflare downloads, live throughput and ETA, resume support, and automatic single-connection fallback. The utility uses the dedicated D31 ADB server port 5042 and does not interfere with Pixel 3 on 5041 or H13 on 5038.
+- [D31_SVP3390_Factory_Flash_v1.4.3_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.3/D31_SVP3390_Factory_Flash_v1.4.3_testkey.zip)：约1.71GB，合入已通过用户测试的短信0.4.0；保留文件管理器、启动优化、TLS、品牌图及音量加Recovery入口。SIM与SIP短信合并显示，分别使用浅粉色与浅蓝色底色；蓝色加号创建SIM短信，粉色加号创建SIP短信，两者共用编辑界面。修复SIP发送的传输与代理绑定，保留后台任务修复。[最终ZIP逐项复核与验收范围](docs/D31-v1.4.3逐项复核.md)
 
 ### Cloudflare R2 mirror
 
-- [D31-Flash-Tool-v1.6.5.exe](https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.5.exe)
-- [D31_SVP3390_Factory_Flash_v1.4.2_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.4.2_testkey.zip)
+- [D31-Flash-Tool-v1.6.6.exe](https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.6.exe)
+- [D31_SVP3390_Factory_Flash_v1.4.3_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.4.3_testkey.zip)
 
-源码：[Windows刷机工具](tools/Windows-flash/README.md)、[固件安装器与启动初始化](tools/factory-package/README.md)、[无线ADB与独立系统支持](tools/D31-wireless-adb/README.md)。
+源码：[Windows刷机工具](tools/Windows-flash/README.md)、[固件安装器与启动初始化](tools/factory-package/README.md)、[无线ADB与独立系统支持](tools/D31-wireless-adb/README.md)、[短信客户端](tools/D31-Messages/README.md)。
 
 ### SHA-256
 
 ```text
-4DEFE9BBA737D927A7B00B990F9752E406A9FB879D3356FF06BF27FFEA83ED3C  D31-Flash-Tool-v1.6.5.exe
-77C2D699C4CEF5ECBB9A9FBA5251DD5B8ECABF4473946369B99292B157011D2F  D31_SVP3390_Factory_Flash_v1.4.2_testkey.zip
+B90F0A30886FF1F05E6A7842D047F2AF37C157FBCFDE33BEB83D6507AA0A7BD7  D31-Flash-Tool-v1.6.6.exe
+9D44B71BE5077257D1B7B4CFE08EF4357EE0102AC3BDACB1CBC52ACF1394119A  D31_SVP3390_Factory_Flash_v1.4.3_testkey.zip
 ```
 
 ## Preparing a factory D31
@@ -115,28 +115,28 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 
 ## Flashing procedure
 
-[1.6.5工具配套1.4.2固件：修正急救通道、公共Recovery核对、盘符根目录和损坏下载断点；最终ZIP复核及测试范围](docs/D31-v1.4.2逐项复核.md)
+[1.6.6工具配套1.4.3固件：合入已测试通过的短信0.4.0，保留上一版急救、备份检查和下载修复；最终ZIP复核及测试范围](docs/D31-v1.4.3逐项复核.md)
 
 ![D31 Windows Flash and Backup Tool](images/d31-flash-tool-v1.6.0.png)
 
-1. 下载`D31-Flash-Tool-v1.6.5.exe`，不需要解压，运行依赖和新版APK已内置。
-2. Run `D31-Flash-Tool-v1.6.5.exe`.
+1. 下载`D31-Flash-Tool-v1.6.6.exe`，不需要解压，运行依赖和新版APK已内置。
+2. Run `D31-Flash-Tool-v1.6.6.exe`.
 3. Enter the D31's IP address and select Connect ADB. The address is not discovered automatically: when several D31 phones are present, enter the address of the unit you want to manage. A successful connection identifies the phone immediately. Detect D31 refreshes its status, while Disconnect ADB releases the current phone before switching to another one.
 4. Select Read-only check. The firmware package does not need to be downloaded first. This step checks the device, root access, build, network, partition layout, Recovery entry point, available space, and dependencies without modifying or restarting the D31. A Wi-Fi address can be used for connection and read-only checks, but not for flashing.
 5. Select Choose firmware package to use a ZIP already downloaded to the PC, or select GitHub accelerated download or Cloudflare accelerated download. Public GitHub Release downloads do not require an account or token. GitHub uses up to eight connections and Cloudflare uses up to sixteen; these are upper limits rather than mandatory connection counts. If the host rejects or limits segmented transfers, the utility preserves the partial download and automatically continues in single-connection compatibility mode.
 6. Wait for the 1.71 GB firmware package to pass both the fixed-length check and the built-in SHA-256 check. Device connection, the read-only check, and package selection may be completed in any order.
 7. Before flashing, connect Ethernet and make sure the utility is connected to the address assigned to the D31's wired `eth0` interface. The data-wipe confirmation and Start flashing control are enabled only after the device check, package verification, and wired-address check have all passed.
 8. Back up the original system to this PC before flashing is selected by default, but it is optional. If left selected, the utility saves this D31's original system under `D31备份` on the PC and then continues automatically. If cleared, the utility warns that no rescue package will be available and allows the flash to continue. No USB drive or TF card is needed for a normal flash.
-9. 勾选清空数据确认并点击开始刷机；等待工具完成刷后验收，期间不要断电、按实体键、关闭工具或让电脑休眠。一直停在原厂桌面、U盘打不开或反复无响应均不属于正常结果，请保留日志。[实际验收范围](docs/D31-v1.4.2逐项复核.md#验证范围)
+9. 勾选清空数据确认并点击开始刷机；等待工具完成刷后验收，期间不要断电、按实体键、关闭工具或让电脑休眠。一直停在原厂桌面、U盘打不开或反复无响应均不属于正常结果，请保留日志。[实际验收范围](docs/D31-v1.4.3逐项复核.md#验证范围)
 
 ## Recovering from a failed flash
 
 If the D31 is stuck at the China Mobile logo or “Starting apps,” keeps restarting its launcher, or will not accept ADB connections, use the Windows tool to restore management access first. Do not repeatedly disconnect power or jump straight to a factory reset. **Restoring ADB does not repair the system by itself**; it lets you collect diagnostics and address the fault.
 
-### Windows工具1.6.5恢复ADB
+### Windows工具1.6.6恢复ADB
 
 1. Leave the D31 powered on and connect it and the PC to the same wired LAN. Internet access and a downloaded firmware package are not required.
-2. Run `D31-Flash-Tool-v1.6.5.exe`, enter the affected phone’s **wired IPv4 address**, and select **设备急救** (Device rescue), to the right of Disconnect ADB. This window is available even when ADB is disconnected.
+2. Run `D31-Flash-Tool-v1.6.6.exe`, enter the affected phone’s **wired IPv4 address**, and select **设备急救** (Device rescue), to the right of Disconnect ADB. This window is available even when ADB is disconnected.
 3. Check the IP at the top of the rescue window. If you have several D31 phones, make sure you have selected the right one.
 
 ![D31 Device rescue button and window](images/d31-rescue-workflow-v1.6.0.png)
@@ -150,7 +150,7 @@ If the D31 is stuck at the China Mobile logo or “Starting apps,” keeps resta
 
 This route requires `D31-wireless-adb-v1.11.6-signed.apk` to have been installed on the D31 and **启用开机救援（8765）** (Enable boot rescue) enabled before the failure. Having the APK on the PC, or installing it without enabling boot rescue, does not guarantee that the probe will be available during a failed boot.
 
-固件1.4.2已包含独立守护及开机入口，使用`/data/local/d31-rescue/enabled`标记；仅卸载管理APK不会停止这个固件内置服务。[独立标记与关闭方法](tools/D31-wireless-adb/README.md#2026-09-09开发版组成更新)
+固件1.4.3已包含独立守护及开机入口，使用`/data/local/d31-rescue/enabled`标记；仅卸载管理APK不会停止这个固件内置服务。[独立标记与关闭方法](tools/D31-wireless-adb/README.md#2026-09-09开发版组成更新)
 
 #### If the probe is unavailable, use the factory uptool service
 
@@ -168,11 +168,11 @@ Third-party tools or scripts can also call uptool. Manual use is an alternative 
 
 ### Recovery
 
-[1.4.2保留音量加激活Recovery；音量减移动，免提确认；操作步骤和适用条件](docs/D31-v1.4.2逐项复核.md#音量加进入recovery)
+[1.4.3保留音量加激活Recovery；音量减移动，免提确认；操作步骤和适用条件](docs/D31-v1.4.3逐项复核.md#音量加进入recovery)
 
 ### Limits and security
 
-- [1.4.2固件、1.6.5工具：更新内容、数据清除及分区写入范围](docs/D31-v1.4.2逐项复核.md)
+- [1.4.3固件、1.6.6工具：更新内容、数据清除及分区写入范围](docs/D31-v1.4.3逐项复核.md)
 - Neither rescue channel guarantees recovery when the bootloader or kernel cannot start. See the [Windows rescue guide](docs/D31-Windows工具急救.md) for the test scope.
 - The development probe and the tested factory uptool service allow root commands without a password. Use a trusted maintenance network and do not expose ports 5555 or 8765 to the Internet. uptool uses raw Ethernet frames, so ordinary TCP/UDP filtering does not establish that it is blocked. See the [security guidance](docs/D31-uptool指令与安全说明.md).
 

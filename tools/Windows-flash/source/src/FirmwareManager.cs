@@ -36,9 +36,9 @@ namespace D31FlashTool
 
     internal static class FirmwareManager
     {
-        internal const string PackageName = "D31_SVP3390_Factory_Flash_v1.4.2_testkey.zip";
+        internal const string PackageName = "D31_SVP3390_Factory_Flash_v1.4.3_testkey.zip";
         private const string GitHubDownloadUrl =
-            "https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.2/" + PackageName;
+            "https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.3/" + PackageName;
         private const string CloudflareDownloadUrl =
             "https://cdn.elfradio.net/d31/" + PackageName;
         private static readonly Regex Aria2ProgressPattern = new Regex(
@@ -103,7 +103,7 @@ namespace D31FlashTool
                 {
                     string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
                     packagePath = Path.Combine(outputRoot,
-                        "D31_SVP3390_Factory_Flash_v1.4.2_testkey_" + timestamp + ".zip");
+                        "D31_SVP3390_Factory_Flash_v1.4.3_testkey_" + timestamp + ".zip");
                     report(0, "现有同名文件校验不匹配，将保留原文件并下载到新文件。");
                 }
             }

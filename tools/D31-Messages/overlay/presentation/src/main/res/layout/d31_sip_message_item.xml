@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/sipMessageRow"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="3dp"
+    android:paddingBottom="3dp">
+
+    <!-- Speech Bubble -->
+    <TextView
+        android:id="@+id/sipMessageBubble"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:maxWidth="520dp"
+        android:minHeight="38dp"
+        android:autoLink="web|phone|email"
+        android:lineSpacingExtra="2dp"
+        android:paddingStart="14dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="10dp"
+        android:textColor="#FFFFFF"
+        android:textSize="15sp"
+        tools:background="@drawable/d31_bubble_sip_out"
+        tools:text="这是一条通过 FreePBX 发送的 SIP 网络短信测试消息" />
+
+    <!-- Metadata Row (Time, SIP Indicator, Delivery Status) -->
+    <LinearLayout
+        android:id="@+id/sipMetaContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="2dp"
+        android:layout_marginEnd="4dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/sipNetworkIcon"
+            android:layout_width="11dp"
+            android:layout_height="11dp"
+            android:src="@drawable/ic_public_black_24dp"
+            app:tint="#1E88E5" />
+
+        <TextView
+            android:id="@+id/sipMessageTime"
+            style="@style/TextTertiary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:textSize="11sp"
+            tools:text="14:35" />
+
+        <!-- Status Icon / Text -->
+        <TextView
+            android:id="@+id/sipMessageStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:textSize="11sp"
+            tools:text="已送达"
+            tools:textColor="#1E88E5" />
+
+        <!-- Failed Retry Button -->
+        <ImageView
+            android:id="@+id/sipRetryIcon"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_marginStart="4dp"
+            android:contentDescription="@string/d31_sip_retry"
+            android:src="@drawable/ic_error_black_24dp"
+            android:visibility="gone"
+            app:tint="#C25C26"
+            tools:visibility="visible" />
+    </LinearLayout>
+</LinearLayout>

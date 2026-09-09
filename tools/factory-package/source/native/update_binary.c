@@ -49,7 +49,7 @@ static const PayloadFile payload_files[] = {
     {"payload/apps/Telegram-12.10.1.apk", "/data/app/org.telegram.messenger.web-1/base.apk", 0644, 1000, 1000},
     {"payload/apps/Thunderbird-22.0.apk", "/data/app/net.thunderbird.android-1/base.apk", 0644, 1000, 1000},
     {"payload/apps/D31-File-Manager-1.7.4-d31.2.apk", "/data/app/me.zhanghai.android.files-2/base.apk", 0644, 1000, 1000},
-    {"payload/apps/D31-Messages-0.3.1.apk", "/data/app/net.elfradio.d31phone.debug-1/base.apk", 0644, 1000, 1000},
+    {"payload/apps/D31-Messages-0.4.0.apk", "/data/app/net.elfradio.d31phone.debug-1/base.apk", 0644, 1000, 1000},
     {"payload/apps/D31-Wireless-ADB-1.11.6.apk", "/data/app/net.elfradio.d31bootstrap-1/base.apk", 0644, 1000, 1000},
     {"payload/apps/D31-Zello-Guard-0.2.7.apk", "/data/app/net.elfradio.d31zelloguard-2/base.apk", 0644, 1000, 1000},
     {"payload/system-patches/apply-home-patch.sh", "/data/local/d31-patches/apply-home-patch.sh", 0750, 0, 0},
@@ -84,7 +84,7 @@ static const PayloadFile payload_files[] = {
     {"payload/runtime/Zello-5.30.1-arm64.odex", "/data/app/com.loudtalks-1/oat/arm64/base.odex", 0644, 1000, 39999},
     {"payload/runtime/Telegram-12.10.1-arm64.odex", "/data/app/org.telegram.messenger.web-1/oat/arm64/base.odex", 0644, 1000, 39999},
     {"payload/runtime/D31-File-Manager-1.7.4-d31.2-arm64.odex", "/data/app/me.zhanghai.android.files-2/oat/arm64/base.odex", 0644, 1000, 39999},
-    {"payload/runtime/D31-Messages-0.3.1-arm64.odex", "/data/app/net.elfradio.d31phone.debug-1/oat/arm64/base.odex", 0644, 1000, 39999},
+    {"payload/runtime/D31-Messages-0.4.0-arm64.odex", "/data/app/net.elfradio.d31phone.debug-1/oat/arm64/base.odex", 0644, 1000, 39999},
     {"payload/runtime/D31-Zello-Guard-0.2.7-arm64.odex", "/data/app/net.elfradio.d31zelloguard-2/oat/arm64/base.odex", 0644, 1000, 39999},
 };
 
@@ -544,7 +544,7 @@ int main(int argc, char **argv) {
     if (errno != 0 || end == argv[2] || *end != '\0' || parsed_fd < 0) return 3;
     output_fd = (int)parsed_fd;
 
-    ui_print("D31完整刷机包 v1.4.2");
+    ui_print("D31完整刷机包 v1.4.3");
     ui_print("将清除全部用户数据、账号和软件配置");
     ui_print("不会写入boot、Recovery、设备身份、校准或NVRAM分区");
 

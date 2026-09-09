@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 from build_factory_package import EXPECTED_SOURCES
 
 ROOT = Path(__file__).resolve().parent
-SOURCE = ROOT.parent / 'analysis/2026-09-09-factory-v1.4.2'
+SOURCE = ROOT.parent / 'analysis/2026-09-09-factory-v1.4.3'
 INSTALLER = (ROOT / 'native/update_binary.c').read_text(encoding='utf-8')
 
 

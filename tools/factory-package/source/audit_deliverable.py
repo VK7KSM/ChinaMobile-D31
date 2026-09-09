@@ -9,7 +9,7 @@ TOOLS=Path(__file__).parent
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--package',type=Path,required=True)
 args=parser.parse_args()
-OUT=ROOT/'research/d31/analysis'/('v142-final-zip-audit-'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
+OUT=ROOT/'research/d31/analysis'/('v143-final-zip-audit-'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
 OUT.mkdir()
 EXTRACTED=OUT/'extracted'
 ADB=['C:/Dev/android-sdk/platform-tools/adb.exe','-P','5042','-s','192.168.2.62:5555']
@@ -73,7 +73,7 @@ try:
             assert item.stat().st_size==size and sha(item)==digest.lower(),entry
     image=OUT/'system.img'
     with gzip.open(EXTRACTED/'payload/system.img.gz','rb') as source,image.open('wb') as target:shutil.copyfileobj(source,target,4*1024*1024)
-    sources=json.loads((TOOLS/'sources-v1.4.2.json').read_text())
+    sources=json.loads((TOOLS/'sources-v1.4.3.json').read_text())
     assert [image.stat().st_size,sha(image).upper()]==sources['partitions/system.img']
     capture('镜像逐文件扫描',['wsl.exe','-d','docker-desktop','--','sh',linux(TOOLS/'audit_final_image.sh'),linux(image),linux(OUT)],300)
     assert shell('构建基线','getprop ro.build.fingerprint')=='alps/full_hct6737t_66_m0/hct6737t_66_m0:6.0/MRA58K/1583081804:userdebug/test-keys'

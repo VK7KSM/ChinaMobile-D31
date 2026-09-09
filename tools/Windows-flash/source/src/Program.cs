@@ -218,7 +218,7 @@ namespace D31FlashTool
             {
                 ValidateToolRoot(root, output);
                 ValidatePackage(packagePath, output);
-                output.WriteLine("SELFTEST PASS：D31 v1.4.2刷机包和单文件工具通过离线检查；未执行真实Recovery刷写。");
+                output.WriteLine("SELFTEST PASS：{0}与单文件工具通过离线检查；未执行真实Recovery刷写。", Path.GetFileName(packagePath));
                 return 0;
             }
             catch (Exception exception)
