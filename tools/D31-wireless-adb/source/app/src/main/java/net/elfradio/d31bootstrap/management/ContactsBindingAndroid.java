@@ -11,7 +11,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.MessageDigest;
 
-/** 真实APP仅绑定已有原厂服务；绝不创建Messenger请求或读取联系人。 */
+/** 真实APP的组件与绑定适配；原厂启动只由显式LOCAL读取路径调用。 */
 final class ContactsBindingAndroid implements ContactsBindingProbe.Platform {
     private final Context app;
     private final String expectedHash;
@@ -20,6 +20,7 @@ final class ContactsBindingAndroid implements ContactsBindingProbe.Platform {
     private IBinder binder;
     private IBinder.DeathRecipient death;
     private boolean closed, accepted, linked;
+    private int vendorUid = -1;
 
     ContactsBindingAndroid(Context context, String hash) throws IOException {
         app = context; expectedHash = ContactsAppContract.digest(hash);
@@ -52,10 +53,24 @@ final class ContactsBindingAndroid implements ContactsBindingProbe.Platform {
         if (!ContactsNexuiAndroid.PACKAGE.equals(info.packageName) || !ContactsNexuiAndroid.SERVICE.equals(info.name)
                 || !info.enabled || !info.exported || info.applicationInfo == null || !info.applicationInfo.enabled)
             throw new IOException("CONTACTS_COMPONENT_MISMATCH");
+        vendorUid = info.applicationInfo.uid;
         control.check();
     }
 
     public boolean bind(final ContactsBindingProbe.Listener listener) {
+        return bind(listener, 0);
+    }
+
+    boolean startVendor() {
+        return target.equals(app.startService(new Intent(ContactsNexuiAndroid.ACTION).setComponent(target)));
+    }
+
+    int vendorUid() { return vendorUid; }
+    synchronized IBinder connectedBinder() { return binder; }
+
+    boolean bindForRead(ContactsBindingProbe.Listener listener) { return bind(listener, Context.BIND_AUTO_CREATE); }
+
+    private boolean bind(final ContactsBindingProbe.Listener listener, int flags) {
         connection = new ServiceConnection() {
             public void onServiceConnected(ComponentName name, IBinder service) {
                 synchronized (ContactsBindingAndroid.this) {
@@ -74,7 +89,7 @@ final class ContactsBindingAndroid implements ContactsBindingProbe.Platform {
             }
             public void onServiceDisconnected(ComponentName name) { listener.failed("CONTACTS_SERVICE_DIED"); }
         };
-        accepted = app.bindService(new Intent(ContactsNexuiAndroid.ACTION).setComponent(target), connection, 0);
+        accepted = app.bindService(new Intent(ContactsNexuiAndroid.ACTION).setComponent(target), connection, flags);
         return accepted;
     }
 

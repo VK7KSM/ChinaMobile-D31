@@ -6,6 +6,9 @@ import org.json.JSONObject;
 
 /** wifi_enabled单一开关的事务核心；不注册任务、不创建线程、不调用网络接口。 */
 public final class NetworkChangeTransaction {
+    public static final class Busy extends IOException {
+        public Busy() { super("网络维护或事务锁被占用"); }
+    }
     public interface Clock {
         String bootId() throws Exception;
         long elapsedMillis();
@@ -145,7 +148,7 @@ public final class NetworkChangeTransaction {
             JSONObject all = records(s);
             return all.has(taskId) ? report(all.getJSONObject(taskId)) : new JSONObject().put("state", "ABSENT");
         } catch (Exception error) {
-            return new JSONObject().put("state", "UNKNOWN").put("reason", "STORE_UNAVAILABLE")
+            return new JSONObject().put("state", "UNKNOWN").put("reason", error instanceof Busy ? "STORE_BUSY" : "STORE_UNAVAILABLE")
                     .put("recovery_required", true).put("restored", false);
         }
     }
@@ -210,7 +213,7 @@ public final class NetworkChangeTransaction {
     static void token(String taskId) throws IOException {
         if (taskId == null || !taskId.matches("[a-zA-Z0-9-]{1,64}")) throw new IOException("任务编号无效");
     }
-    private static boolean settled(String state) {
+    static boolean settled(String state) {
         return "CONFIRMED".equals(state) || "ROLLED_BACK".equals(state)
                 || "UNCHANGED".equals(state) || "ORIGINAL_OBSERVED".equals(state) || "ABORTED".equals(state);
     }
@@ -218,7 +221,7 @@ public final class NetworkChangeTransaction {
         if (!all.has(taskId)) throw new IOException("任务不存在");
         return all.getJSONObject(taskId);
     }
-    private static JSONObject records(Store.Session s) throws Exception {
+    static JSONObject records(Store.Session s) throws Exception {
         JSONObject root = s.read();
         if (root.getInt("schema_version") != 1) throw new IOException("事务日志版本不支持");
         JSONObject all = root.getJSONObject("records");

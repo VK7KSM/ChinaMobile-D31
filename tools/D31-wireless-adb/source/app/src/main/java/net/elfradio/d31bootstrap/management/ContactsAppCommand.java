@@ -5,10 +5,11 @@ import java.io.IOException;
 import net.elfradio.d31bootstrap.RemoteContactsAccess;
 import org.json.JSONObject;
 
-/** 现有root_exec入口，仅输出绑定元数据；公共维护接线缺失时失败关闭。 */
+/** 现有root_exec入口；显式区分绑定探测与启动原厂LOCAL读取，均不输出个人内容。 */
 public final class ContactsAppCommand {
     static String validate(String[] args) throws IOException {
-        if (args == null || args.length != 2 || !"metadata".equals(args[0])) throw new IOException("CONTACTS_ARGUMENTS_INVALID");
+        if (args == null || args.length != 2 || !("metadata".equals(args[0]) || "read-local-metadata".equals(args[0])))
+            throw new IOException("CONTACTS_ARGUMENTS_INVALID");
         return ContactsAppContract.digest(args[1]);
     }
 
@@ -24,16 +25,20 @@ public final class ContactsAppCommand {
                 Object thread = type.getMethod("systemMain").invoke(null);
                 Context context = (Context) type.getMethod("getSystemContext").invoke(thread);
                 try (ContactsAppBridge bridge = new ContactsAppBridge(context)) {
-                    result = bridge.checkBinding(digest, new SystemManagement.Control() {
+                    SystemManagement.Control control = new SystemManagement.Control() {
                         public void check() throws Exception { if (Thread.currentThread().isInterrupted()) throw new InterruptedException(); }
                         public void before(JSONObject value) throws Exception { throw new IOException("CONTACTS_WRITES_FORBIDDEN"); }
-                    }).put("maintenanceGatePassed", true).put("activeApkHashMatched", true);
+                    };
+                    result = ("read-local-metadata".equals(args[0]) ? bridge.readLocalMetadata(digest, control)
+                            : bridge.checkBinding(digest, control)).put("maintenanceGatePassed", true).put("activeApkHashMatched", true);
                 }
             }
         } catch (Exception failed) {
             try {
-                result = ContactsAppContract.metadata(ContactsAppContract.code(failed)).put("remoteOutcomeKnown", false)
-                        .put("unbindConfirmed", JSONObject.NULL);
+                result = args != null && args.length > 0 && "read-local-metadata".equals(args[0])
+                        ? ContactsLocalRead.unknown(ContactsAppContract.code(failed), true)
+                        : ContactsAppContract.metadata(ContactsAppContract.code(failed)).put("remoteOutcomeKnown", false)
+                            .put("unbindConfirmed", JSONObject.NULL);
             } catch (Exception impossible) { result = new JSONObject(); }
         }
         System.out.println(result.toString());

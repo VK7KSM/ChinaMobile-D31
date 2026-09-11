@@ -7,13 +7,16 @@ import org.json.JSONObject;
 
 /** APP进程唯一会话状态；准备和原生调用不持控制锁，stop/query不排在它们后面。 */
 final class AppMediaController {
-    interface Session { void start()throws Exception; void stop(); JSONObject snapshot()throws Exception; }
+    interface Session { void start()throws Exception; void stop(); JSONObject snapshot()throws Exception; default void tick(){} }
     interface Backend {
         JSONObject prepare(String hash,Cancellation cancel)throws Exception;
         Session create(String hash,RtcOffer offer,Cancellation cancel)throws Exception;
         URI origin()throws Exception;
         default LocalAudioCapture localCapture(String hash,String id,int duration,Cancellation cancel)throws Exception {
             throw new IOException("MEDIA_LOCAL_AUDIO_NOT_CONFIGURED");
+        }
+        default LocalAudioCapture localCapture(String hash,String id,int duration,Cancellation cancel,String requestId)throws Exception {
+            return localCapture(hash,id,duration,cancel);
         }
     }
     private volatile Backend backend;
@@ -50,7 +53,7 @@ final class AppMediaController {
                 if(used.contains(id))throw new IOException("MEDIA_SESSION_ALREADY_USED");
                 if(used.size()>=128)throw new IOException("MEDIA_SESSION_HISTORY_FULL");
                 // 此构造仅登记工厂；实际前检、AudioRecord及等待均在锁外run中执行。
-                current=backend.localCapture(command.getString("apk_sha256"),id,command.getInt("duration_ms"),cancel);
+                current=backend.localCapture(command.getString("apk_sha256"),id,command.getInt("duration_ms"),cancel,requestId);
                 used.add(id);diagnostic=current;diagnosticOwner=callerOwner;diagnosticRequest=requestId;
             }
             return current.run(replyDeadline);
@@ -104,7 +107,10 @@ final class AppMediaController {
     }
     synchronized void cancelRequest(String id){if(id.equals(diagnosticRequest)&&diagnostic!=null&&diagnostic.active())diagnostic.cancel();if(id.equals(pendingRequest)&&pendingCancellation!=null)pendingCancellation.cancel();if(id.equals(startRequest)&&session!=null)session.stop();}
     synchronized void ownerDied(Object dead){if(diagnosticOwner!=null&&diagnosticOwner.equals(dead)&&diagnostic!=null&&diagnostic.active())diagnostic.cancel();if(pendingOwner!=null&&pendingOwner.equals(dead)&&pendingCancellation!=null)pendingCancellation.cancel();if(owner!=null&&owner.equals(dead)&&session!=null)session.stop();}
-    synchronized void tick(){if(session!=null&&clock.elapsed()-renewed>=AppMediaContract.LEASE_MS)session.stop();}
+    synchronized void tick(){
+        if(diagnostic!=null&&diagnostic.active())diagnostic.tick();
+        if(session!=null){session.tick();if(clock.elapsed()-renewed>=AppMediaContract.LEASE_MS)session.stop();}
+    }
     synchronized boolean hasActive(){try{return active();}catch(Exception failure){return true;}}
     synchronized boolean owns(Object value){return diagnosticOwner!=null&&diagnosticOwner.equals(value)&&diagnostic!=null&&diagnostic.active()||pendingOwner!=null&&pendingOwner.equals(value)||owner!=null&&owner.equals(value)&&hasActive();}
     synchronized void serviceDestroyed(){if(diagnostic!=null&&diagnostic.active())diagnostic.cancel();if(pendingCancellation!=null)pendingCancellation.cancel();if(session!=null)session.stop();}

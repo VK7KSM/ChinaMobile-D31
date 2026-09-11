@@ -13,6 +13,8 @@ public final class AudioCaptureLifecycleSession implements AppMediaController.Se
     public interface Source {
         /** 只返回可信来源已有的不可变快照，禁止在此启动dumpsys或阻塞采集。 */
         AudioCaptureLifecycle.Evidence cached();
+        default void start(AudioCaptureLifecycleSession session) throws Exception { }
+        default void close() throws Exception { }
     }
     public interface Driver {
         /** 只启动本次输入；实际调用前及可取消等待中检查取消，不发布声音或启动网络。 */
@@ -56,6 +58,7 @@ public final class AudioCaptureLifecycleSession implements AppMediaController.Se
                     } finally { tick(); }
                 }
             });
+            source.start(this);
         } catch (Exception failure) {
             stop(); throw failure;
         }
@@ -90,8 +93,14 @@ public final class AudioCaptureLifecycleSession implements AppMediaController.Se
         try {
             worker.execute(new Runnable() {
                 @Override public void run() {
-                    try { lifecycle.confirmRelease(driver.stopAndRelease()); }
-                    catch (Exception | LinkageError failure) { lifecycle.releaseFailed(); }
+                    try {
+                        AudioCaptureLifecycle.Release release = driver.stopAndRelease();
+                        source.close();
+                        lifecycle.confirmRelease(release);
+                    } catch (Exception | LinkageError failure) {
+                        lifecycle.releaseFailed();
+                        try { source.close(); } catch (Exception | LinkageError ignored) { }
+                    }
                     finally { worker.shutdown(); }
                 }
             });
@@ -103,6 +112,7 @@ public final class AudioCaptureLifecycleSession implements AppMediaController.Se
         AudioCaptureLifecycle.Snapshot value = lifecycle.snapshot();
         return new JSONObject().put("session_id", lifecycle.sessionId())
                 .put("state", value.phase.name().toLowerCase(Locale.US)).put("reason", value.reason)
+                .put("stop_reason", value.stopReason)
                 .put("continuation_eligible", value.continuationEligible).put("stop_required", value.stopRequired)
                 .put("release_confirmed", value.releaseConfirmed).put("io_bound", value.ioBound)
                 .put("managed_media", false).put("atomic_reservation", false)

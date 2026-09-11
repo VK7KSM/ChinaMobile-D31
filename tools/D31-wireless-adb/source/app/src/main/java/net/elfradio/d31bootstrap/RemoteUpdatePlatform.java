@@ -75,11 +75,16 @@ final class RemoteUpdatePlatform implements RemoteUpdateEngine.Platform {
 
     JSONObject preserve(File source) throws Exception {
         JSONObject actual = inspect(source);
-        File folder = new File(ROOT, "releases/" + actual.getString("sha256"));
-        if (!folder.isDirectory() && !folder.mkdirs()) throw new IOException("版本目录不可用");
+        RemoteReleaseFiles files = new RemoteReleaseFiles();
+        files.requireRoot(ROOT);
+        File releases = new File(ROOT, "releases"); files.directory(releases);
+        File folder = new File(releases, actual.getString("sha256")); files.directory(folder);
         File apk = new File(folder, "remote.apk");
-        if (!apk.exists()) { File part = new File(folder, "remote.apk.part"); RemoteUpdateFiles.copy(source, part);
+        if (!files.exists(apk)) { File part = new File(folder, "remote.apk.part");
+            files.requireNewPart(part);
+            RemoteUpdateFiles.copy(source, part); files.file(part);
             if (!part.renameTo(apk)) throw new IOException("版本提交失败"); }
+        files.file(apk);
         JSONObject preserved = inspect(apk);
         if (!RemoteUpdatePolicy.matches(actual, preserved)) throw new SecurityException("版本目录存在冲突制品");
         return preserved;

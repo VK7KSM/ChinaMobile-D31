@@ -6,7 +6,8 @@ param(
     [Parameter(Mandatory=$true)][ValidatePattern('^net\.elfradio\.d31bootstrap\.[A-Za-z0-9_.]+$')][string]$EntryClass,
     [Parameter(Mandatory=$true)][string]$CapturePath,
     [ValidateSet('app_process','app_process32')][string]$AppProcess='app_process',
-    [string[]]$Arguments = @()
+    [string[]]$Arguments = @(),
+    [ValidateNotNullOrEmpty()][string]$ChangeDescription = '仅新增独立诊断JAR，不安装APK或修改系统设置；原件保留'
 )
 $ErrorActionPreference='Stop'
 $adb='C:/Dev/android-sdk/platform-tools/adb.exe'
@@ -75,10 +76,10 @@ $baseline | Out-File -LiteralPath (Join-Path $capture 'baseline-private.txt') -E
 if(-not(Read-Device "busybox sha256sum '$remote'").StartsWith($sha)){throw '诊断JAR实际摘要不符'}
 $command="CLASSPATH='$($remote):$apk' /system/bin/$AppProcess /system/bin $EntryClass " + ($Arguments -join ' ')
 [ordered]@{time=[DateTimeOffset]::Now.ToString('o');serial=$Serial;command=$command;helperSha256=$sha;
-    change='仅新增独立诊断JAR，不安装APK或修改系统设置；原件保留'} |
+    change=$ChangeDescription} |
     ConvertTo-Json | Out-File -LiteralPath (Join-Path $capture 'invocation-private.json') -Encoding utf8 -NoClobber
 $output=Read-Device $command
 $output | Out-File -LiteralPath (Join-Path $capture 'output-private.txt') -Encoding utf8 -NoClobber
 [ordered]@{exitCode=0;deviceExitMarkerVerified=$true;helperSha256=$sha;activeSha256=$ActiveSha256} |
     ConvertTo-Json | Out-File -LiteralPath (Join-Path $capture 'result.json') -Encoding utf8 -NoClobber
-'只读诊断完成，原始输出已保存。'
+'诊断完成，实际操作范围及原始输出已保存。'

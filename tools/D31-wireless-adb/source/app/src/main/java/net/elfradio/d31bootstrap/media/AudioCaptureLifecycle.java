@@ -61,11 +61,14 @@ public final class AudioCaptureLifecycle {
     public static final class Snapshot {
         public final Phase phase;
         public final String reason;
+        public final String stopReason;
         public final boolean continuationEligible, stopRequired, releaseConfirmed;
         public final boolean managedMedia = false, atomicReservation = false;
         public final boolean ioBound;
-        private Snapshot(Phase phase, String reason, boolean ioBound) {
-            this.phase = phase; this.reason = reason; this.ioBound = ioBound;
+        public final int inputIoHandle;
+        private Snapshot(Phase phase, String reason, String stopReason, int inputIoHandle) {
+            this.phase = phase; this.reason = reason; this.stopReason = stopReason;
+            this.inputIoHandle = inputIoHandle; this.ioBound = inputIoHandle > 0;
             continuationEligible = phase == Phase.ACTIVE;
             stopRequired = phase == Phase.STOPPING || phase == Phase.RELEASE_UNCONFIRMED;
             releaseConfirmed = phase == Phase.CLOSED;
@@ -81,6 +84,7 @@ public final class AudioCaptureLifecycle {
     private boolean startInFlight, clockInvalid;
     private Phase phase = Phase.NEW;
     private String reason = "NOT_STARTED";
+    private String stopReason = "";
 
     public AudioCaptureLifecycle(Identity identity, String requestId, String sessionId, Clock clock) {
         if (identity == null || clock == null || requestId == null || !requestId.matches("[A-Za-z0-9_-]{1,96}")
@@ -189,9 +193,9 @@ public final class AudioCaptureLifecycle {
     }
     private void stop(String why, long now) {
         if (phase == Phase.CLOSED || phase == Phase.STOPPING || phase == Phase.RELEASE_UNCONFIRMED) return;
-        phase = Phase.STOPPING; reason = why; stopping = now; validFrom = -1;
+        phase = Phase.STOPPING; reason = why; stopReason = why; stopping = now; validFrom = -1;
     }
-    private Snapshot snapshotValue() { return new Snapshot(phase, reason, inputHandle != 0); }
+    private Snapshot snapshotValue() { return new Snapshot(phase, reason, stopReason, inputHandle); }
 
     private Analysis inspect(Evidence evidence, long now) {
         if (evidence == null || !identity.same(evidence.identity) || !requestId.equals(evidence.requestId)

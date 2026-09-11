@@ -99,6 +99,7 @@ public final class ContactsAppService extends Service {
     private final class Endpoint extends Binder {
         final String id, boot; final long started; final ResultReceiver receiver;
         final AtomicBoolean used = new AtomicBoolean(), finished = new AtomicBoolean(), cancelled = new AtomicBoolean();
+        volatile boolean localRead;
         volatile IBinder owner;
         final IBinder.DeathRecipient ownerDeath = new IBinder.DeathRecipient() { public void binderDied() { cancel(); } };
         Endpoint(String id, String boot, long started, ResultReceiver receiver) {
@@ -115,8 +116,9 @@ public final class ContactsAppService extends Service {
             try {
                 data.enforceInterface(ContactsAppContract.DESCRIPTOR);
                 if (code == ContactsAppContract.CANCEL) { cancel(); return true; }
-                if (code != ContactsAppContract.EXECUTE) return false;
+                if (code != ContactsAppContract.EXECUTE && code != ContactsAppContract.EXECUTE_LOCAL) return false;
                 if (finished.get() || !used.compareAndSet(false, true)) return true;
+                localRead = code == ContactsAppContract.EXECUTE_LOCAL;
                 ContactsAppContract.request(id, boot, started, SystemClock.elapsedRealtime(), ContactsAppContract.WORK_MS);
                 final String digest = ContactsAppContract.digest(data.readString());
                 owner = data.readStrongBinder();
@@ -133,14 +135,19 @@ public final class ContactsAppService extends Service {
         void execute(String digest) {
             JSONObject result;
             try {
-                result = ContactsBindingProbe.run(new ContactsBindingAndroid(getApplicationContext(), digest),
-                        new ContactsBindingProbe.Control() { public void check() throws Exception {
+                ContactsBindingProbe.Control control = new ContactsBindingProbe.Control() { public void check() throws Exception {
                             if (cancelled.get() || Thread.currentThread().isInterrupted()) throw new IOException("CONTACTS_CANCELLED");
-                        } }, new ContactsBindingProbe.Clock() {
+                        } };
+                ContactsBindingProbe.Clock clock = new ContactsBindingProbe.Clock() {
                             public long now() { return SystemClock.elapsedRealtime(); }
                             public void pause() throws Exception { Thread.sleep(25); }
-                        }, started + ContactsAppContract.WORK_MS);
-            } catch (Exception failed) { result = failure(ContactsAppContract.code(failed), true); }
+                        };
+                result = localRead ? ContactsLocalRead.run(new ContactsLocalReadAndroid(getApplicationContext(), digest), control, clock, started + ContactsAppContract.WORK_MS)
+                        : ContactsBindingProbe.run(new ContactsBindingAndroid(getApplicationContext(), digest), control, clock, started + ContactsAppContract.WORK_MS);
+            } catch (Exception failed) {
+                try { result = localRead ? ContactsLocalRead.unknown(ContactsAppContract.code(failed), true) : failure(ContactsAppContract.code(failed), true); }
+                catch (Exception invalid) { result = failure("CONTACTS_LOCAL_READ_FAILED", true); }
+            }
             finish(result);
         }
 
@@ -148,8 +155,10 @@ public final class ContactsAppService extends Service {
             if (!finished.compareAndSet(false, true)) return;
             if (owner != null) try { owner.unlinkToDeath(ownerDeath, 0); } catch (Exception ignored) { }
             try {
+                if (localRead && !"NEXUI_APP_LOCAL_METADATA".equals(result.optString("kind")))
+                    result = ContactsLocalRead.unknown(result.optString("state", "CONTACTS_LOCAL_READ_FAILED"), !result.optBoolean("remoteOutcomeKnown", false));
                 if (result.optBoolean("ok") && (cancelled.get() || SystemClock.elapsedRealtime() - started >= ContactsAppContract.WORK_MS))
-                    result.put("ok", false).put("state", cancelled.get() ? "CONTACTS_CANCELLED" : "CONTACTS_TIMEOUT");
+                    result.put("ok", false).put("listComplete", false).put("state", cancelled.get() ? "CONTACTS_CANCELLED" : "CONTACTS_TIMEOUT");
                 result.put("app_pid", android.os.Process.myPid()).put("app_uid", android.os.Process.myUid());
                 receiver.send(ContactsAppContract.RESULT, envelope(result));
             } catch (Exception ignored) { }

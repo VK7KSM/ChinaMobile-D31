@@ -17,9 +17,14 @@ final class LocalAudioCapture {
         int read(short[] samples,int count)throws Exception;
         void stop()throws Exception;
         void release()throws Exception;
+        default void tick() { }
+        default boolean releasePending() { return false; }
+        default boolean completionAllowed() { return true; }
+        default JSONObject lifecycleSnapshot() throws Exception { return null; }
     }
     interface Factory {
         Recorder open(Cancellation cancellation)throws Exception;
+        default boolean releasePending(){return false;}
         default JSONObject preflight(){return new JSONObject();}
         default void requireCallsIdle()throws Exception { }
     }
@@ -45,7 +50,9 @@ final class LocalAudioCapture {
         this.factory=factory;this.requestCancellation=cancellation;this.clock=clock;
     }
     String id(){return id;}
-    boolean active(){return finished.getCount()!=0||(created&&(!released||afterState!=0||afterRecording!=1))||(stopOnce.get()&&stopFinished.getCount()!=0);}
+    boolean active(){return finished.getCount()!=0||(created&&(!released||afterState!=0||afterRecording!=1))||(stopOnce.get()&&stopFinished.getCount()!=0)
+            ||(recorder!=null&&recorder.releasePending())||factory.releasePending();}
+    void tick(){Recorder value=recorder;if(value!=null)value.tick();}
     void cancel(){
         cancellation.cancel();Thread current=worker;if(current!=null)current.interrupt();
         final Recorder value=recorder;
@@ -62,6 +69,7 @@ final class LocalAudioCapture {
             while(!finished.await(10,TimeUnit.MILLISECONDS)){
                 if(clock.elapsed()>=deadline){outcome="TIMED_OUT";cancel();break;}
                 if(cancellation.isCancelled()||requestCancellation.isCancelled()){outcome="CANCELLED";cancel();break;}
+                tick();
                 if(captureBegan>=0&&!captureFinished&&clock.elapsed()>=captureBegan+durationMs){durationEnded=true;cancel();break;}
             }
         }catch(InterruptedException cancelled){interrupted=true;outcome="CANCELLED";cancel();}
@@ -115,6 +123,9 @@ final class LocalAudioCapture {
                 while(stopOnce.get()&&stopFinished.getCount()!=0){try{stopFinished.await();}catch(InterruptedException ignored){interrupted=true;}}
                 try{value.release();released=true;}catch(Exception|LinkageError failure){releaseError=failure.getClass().getSimpleName();}
                 try{afterState=value.state();afterRecording=value.recordingState();}catch(Exception|LinkageError ignored){}
+                if("COMPLETED".equals(outcome)&&!value.completionAllowed()){
+                    outcome="FAILED";error="MEDIA_INPUT_LIFECYCLE_REVOKED";
+                }
                 if(interrupted)Thread.currentThread().interrupt();
             }
             ended=clock.elapsed();finished.countDown();
@@ -123,7 +134,7 @@ final class LocalAudioCapture {
     JSONObject snapshot()throws Exception {
         String state=outcome;
         if(returned&&active())state="RELEASE_UNCONFIRMED";
-        return new JSONObject().put("schemaVersion",1).put("operation","local_audio_capture").put("diagnostic_id",id).put("state",state)
+        JSONObject result=new JSONObject().put("schemaVersion",1).put("operation","local_audio_capture").put("diagnostic_id",id).put("state",state)
                 .put("app_pid",pid).put("app_uid",uid).put("audio_session_id",sessionId)
                 .put("duration_ms",durationMs).put("sample_rate_hz",RATE).put("channels",1).put("encoding","PCM_16BIT")
                 .put("duration_deadline_reached",durationEnded)
@@ -136,5 +147,8 @@ final class LocalAudioCapture {
                 .put("worker_finished",finished.getCount()==0).put("started_elapsed_ms",began).put("capture_started_elapsed_ms",captureBegan)
                 .put("finished_elapsed_ms",ended).put("preflight",factory.preflight())
                 .put("managed_media",false).put("audio_persisted",false).put("network_started",false);
+        result.put("factory_release_pending",factory.releasePending());
+        Recorder value=recorder;if(value!=null){JSONObject lifecycle=value.lifecycleSnapshot();if(lifecycle!=null)result.put("input_lifecycle",lifecycle);}
+        return result;
     }
 }

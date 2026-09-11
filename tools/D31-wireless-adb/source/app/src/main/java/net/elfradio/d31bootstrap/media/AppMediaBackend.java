@@ -73,10 +73,15 @@ final class AppMediaBackend implements AppMediaController.Backend,AutoCloseable 
         result.put("audio_occupancy_snapshot",snapshot);
     }
     public LocalAudioCapture localCapture(final String hash,String id,int duration,Cancellation cancel)throws Exception {
+        return localCapture(hash,id,duration,cancel,id);
+    }
+    public LocalAudioCapture localCapture(final String hash,final String id,int duration,final Cancellation cancel,final String requestId)throws Exception {
         return new LocalAudioCapture(id,duration,android.os.Process.myPid(),android.os.Process.myUid(),new LocalAudioCapture.Factory(){
             private volatile JSONObject evidence=new JSONObject();
+            private volatile boolean constructionReleasePending;
             private AndroidAudioOccupancy occupancyGuard;
             public JSONObject preflight(){return evidence;}
+            public boolean releasePending(){return constructionReleasePending;}
             public void requireCallsIdle()throws Exception {
                 if(occupancyGuard==null)throw new IOException("MEDIA_LOCAL_AUDIO_CALL_STATE_UNKNOWN");
                 requireDiagnosticCallsIdle(occupancyGuard.snapshot());
@@ -87,7 +92,25 @@ final class AppMediaBackend implements AppMediaController.Backend,AutoCloseable 
                 cancellation.check();JSONObject value=MediaReadiness.snapshot(app,AppMediaContract.PACKAGE,current);
                 appendGuardSnapshot(value,current);evidence=value;
                 requireDiagnosticPreconditions(value);
-                current.requireIdle();requireCallsIdle();cancellation.check();return new LocalAudioCaptureAndroid();
+                current.requireIdle();requireCallsIdle();cancellation.check();
+                final AudioCaptureLifecycle.Clock clock=()->android.os.SystemClock.elapsedRealtime();
+                AndroidAudioCaptureObservation reader=new AndroidAudioCaptureObservation(app);
+                AudioCaptureObservation.Sample initial=reader.read(cancellation);
+                AudioCaptureObservation.requireEmpty(initial,android.os.Process.myPid(),clock.elapsed());
+                cancellation.check();LocalAudioCaptureAndroid record=new LocalAudioCaptureAndroid();
+                constructionReleasePending=true;
+                AudioCaptureObservation observation=null;
+                try {
+                    AudioCaptureLifecycle.Identity identity=new AudioCaptureLifecycle.Identity(AppMediaContract.PACKAGE,hash,
+                            AppMediaContract.bootId(),android.os.Process.myUid(),android.os.Process.myPid(),record.sessionId());
+                    observation=new AudioCaptureObservation(identity,requestId,id,clock,reader,initial);
+                    AudioCaptureDriver driver=new AudioCaptureDriver(record,identity,requestId,id,clock,observation,cancel);
+                    constructionReleasePending=false;return driver;
+                }catch(Exception|LinkageError failure){
+                    try{record.release();}finally{if(observation!=null)observation.close();}
+                    constructionReleasePending=record.state()!=0||record.recordingState()!=1;
+                    throw failure;
+                }
             }
         },cancel,AndroidMediaDevice.CLOCK);
     }

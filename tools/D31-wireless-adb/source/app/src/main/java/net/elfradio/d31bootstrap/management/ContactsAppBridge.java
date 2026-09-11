@@ -20,10 +20,18 @@ public final class ContactsAppBridge implements AutoCloseable {
     public ContactsAppBridge(Context rootSystemContext) { context = rootSystemContext; }
 
     public JSONObject checkBinding(String verifiedApkSha256, SystemManagement.Control control) throws Exception {
+        return execute(verifiedApkSha256, control, false);
+    }
+
+    public JSONObject readLocalMetadata(String verifiedApkSha256, SystemManagement.Control control) throws Exception {
+        return execute(verifiedApkSha256, control, true);
+    }
+
+    private JSONObject execute(String verifiedApkSha256, SystemManagement.Control control, boolean localRead) throws Exception {
         ContactsAppContract.digest(verifiedApkSha256);
         if (control == null) throw new IOException("CONTACTS_CONTROL_REQUIRED");
         if (!active.compareAndSet(false, true)) throw new IOException("CONTACTS_BRIDGE_BUSY");
-        Call call = new Call(); current = call;
+        Call call = new Call(localRead); current = call;
         try {
             if (closed) throw new IOException("CONTACTS_BRIDGE_CLOSED");
             return call.run(verifiedApkSha256, control);
@@ -32,6 +40,8 @@ public final class ContactsAppBridge implements AutoCloseable {
 
     private final class Call {
         final String id = UUID.randomUUID().toString();
+        final boolean localRead;
+        Call(boolean localRead) { this.localRead = localRead; }
         String boot;
         long started;
         IBinder endpoint;
@@ -90,7 +100,7 @@ public final class ContactsAppBridge implements AutoCloseable {
                     try {
                         parcel.writeInterfaceToken(ContactsAppContract.DESCRIPTOR); parcel.writeString(digest); parcel.writeStrongBinder(owner);
                         executed = true;
-                        if (!endpoint.transact(ContactsAppContract.EXECUTE, parcel, null, IBinder.FLAG_ONEWAY))
+                        if (!endpoint.transact(localRead ? ContactsAppContract.EXECUTE_LOCAL : ContactsAppContract.EXECUTE, parcel, null, IBinder.FLAG_ONEWAY))
                             throw new IOException("CONTACTS_EXECUTE_FAILED");
                     } finally { parcel.recycle(); }
                 }
@@ -109,18 +119,22 @@ public final class ContactsAppBridge implements AutoCloseable {
                     if (interrupted || failed instanceof InterruptedException) Thread.currentThread().interrupt();
                     if (result != null) {
                         JSONObject known = decorate(result, digest);
-                        return known.put("ok", false).put("bridgeFailure", reason);
+                        return known.put("ok", false).put("listComplete", false).put("bridgeFailure", reason);
                     }
-                    return decorate(ContactsAppContract.metadata(reason).put("bindingRequested", executed ? JSONObject.NULL : Boolean.FALSE)
-                            .put("unbindConfirmed", JSONObject.NULL).put("remoteOutcomeKnown", !executed), digest);
+                    JSONObject unknown = localRead ? ContactsLocalRead.unknown(reason, executed)
+                            : ContactsAppContract.metadata(reason).put("bindingRequested", executed ? JSONObject.NULL : Boolean.FALSE)
+                            .put("unbindConfirmed", JSONObject.NULL).put("remoteOutcomeKnown", !executed);
+                    return decorate(unknown, digest);
                 }
             }
         }
 
         private JSONObject decorate(JSONObject value, String digest) throws Exception {
             if (value == null) throw new IOException("CONTACTS_REPLY_MISSING");
+            if (localRead && !"NEXUI_APP_LOCAL_METADATA".equals(value.optString("kind")))
+                value = ContactsLocalRead.unknown(value.optString("state", "CONTACTS_REPLY_INVALID"), executed);
             return value.put("appServiceStartRequested", appStarted).put("bridgeHandshake", handshake)
-                    .put("expectedApkSha256", digest).put("contacts_requested", false);
+                    .put("expectedApkSha256", digest);
         }
 
         private void await(boolean hello, SystemManagement.Control control, long deadline) throws Exception {

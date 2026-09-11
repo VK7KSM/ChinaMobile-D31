@@ -18,7 +18,7 @@ final class ContactsAppContract {
     static final String SERVICE = PACKAGE + ".management.ContactsAppService";
     static final String ACTION = PACKAGE + ".management.CONTACTS_BIND_CHECK";
     static final String DESCRIPTOR = PACKAGE + ".management.IContactsBindCheck";
-    static final int EXECUTE = 1, CANCEL = 2, HELLO = 1, RESULT = 2, MAX_BYTES = 8192;
+    static final int EXECUTE = 1, CANCEL = 2, EXECUTE_LOCAL = 3, HELLO = 1, RESULT = 2, MAX_BYTES = 8192;
     static final long HANDSHAKE_MS = 3000, WORK_MS = 10000, REPLY_MS = 12000, BIND_MS = 5000;
 
     static void request(String id, String boot, long started, long now, long window) throws IOException {
