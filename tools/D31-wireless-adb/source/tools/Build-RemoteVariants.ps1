@@ -2,12 +2,14 @@ param(
     [ValidateSet('Static', 'Build', 'Verify')][string]$Mode = 'Static',
     [string]$CapturePath,
     [ValidateRange(91, 2099999999)][int]$BaseVersionCode = 91,
+    [ValidateRange(90, 2099999998)][int]$PreviousVerifiedFullVersionCode = 90,
     [ValidatePattern('^[0-9A-Za-z][0-9A-Za-z._-]{0,79}$')][string]$VersionName = '1.19.0-candidate',
     [string]$SdkPath = 'C:/Dev/android-sdk',
     [string]$BuildToolsVersion = '34.0.0'
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+if ($PreviousVerifiedFullVersionCode -ge $BaseVersionCode) { throw '候选版本必须高于明确的已验证完整版' }
 $project = Split-Path $PSScriptRoot -Parent
 
 # 默认只读静态核查；只有父任务显式指定Build才启动Gradle。
@@ -144,7 +146,7 @@ foreach ($variant in @('basic', 'full')) {
 [ordered]@{
     schema = 1; status = 'candidate-offline-verified'; createdUtc = [DateTime]::UtcNow.ToString('o')
     basicVersionCode = $BaseVersionCode; fullVersionCode = $BaseVersionCode + 1
-    previousVerifiedFullVersionCode = 90; artifacts = $records
+    previousVerifiedFullVersionCode = $PreviousVerifiedFullVersionCode; artifacts = $records
     deviceAcceptance = '未执行；系统副本优先级、核心交接及功能须独立验收'
 } | ConvertTo-Json -Depth 6 | Out-File -LiteralPath $index -Encoding UTF8 -NoClobber
 Write-Output "双制品离线身份、签名、依赖和版本检查通过；索引：$index"

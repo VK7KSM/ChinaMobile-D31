@@ -47,7 +47,10 @@ public final class RemoteSip {
             if(Os.getuid()!=0||args.length!=1)throw new IOException();ensure();Context c=context();
             if("snapshot".equals(args[0])){System.out.println(snapshot(c));System.exit(0);return;}
             if(!args[0].matches("[a-f0-9]{64}"))throw new IOException();
-            try(RandomAccessFile lock=new RandomAccessFile(new File(ROOT,"configure.lock"),"rw");FileLock held=RemoteFileLocks.tryExclusive(lock.getChannel())){
+            try(RemoteMaintenance.Lease maintenance=RemoteMaintenance.acquire();
+                RandomAccessFile lock=new RandomAccessFile(new File(ROOT,"configure.lock"),"rw");FileLock held=RemoteFileLocks.tryExclusive(lock.getChannel())){
+                if(maintenance==null)throw new IOException("设备维护进行中");
+                RemoteMaintenance.requireUnreserved();
                 if(held==null)throw new IOException("另一账号事务进行中");
                 File f=new File(ROOT,args[0]+".request.json");JSONObject request=new JSONObject(RescueFiles.read(f,16000));
                 JSONObject p=RemoteSipConfig.validate(request.getJSONObject("params"));

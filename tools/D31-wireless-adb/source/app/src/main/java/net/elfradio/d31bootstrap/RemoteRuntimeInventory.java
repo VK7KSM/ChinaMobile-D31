@@ -9,6 +9,30 @@ import org.json.JSONObject;
 
 /** 按需分别读取安装副本、系统原件和活动声明，不用版本登记代替实际原件。 */
 public final class RemoteRuntimeInventory {
+    public static final int MAPS_LIMIT = 2 * 1024 * 1024;
+
+    /** 沿用迁移检查的六列maps及路径编码合同；只证明映射对应，摘要和进程身份须另验。 */
+    public static boolean mapsArchive(String maps, String apkPath) {
+        if (maps == null || apkPath == null || !apkPath.matches("/[A-Za-z0-9._/-]+\\.apk")) return false;
+        for (String part : apkPath.substring(1).split("/", -1)) {
+            if (part.isEmpty() || part.equals(".") || part.equals("..")) return false;
+        }
+        String encoded = apkPath.substring(1).replace('/', '@') + "@classes.dex";
+        String cache = "/data/dalvik-cache/";
+        for (String line : maps.split("\n")) {
+            String[] columns = line.trim().split("\\s+", 6);
+            if (columns.length != 6) continue;
+            String file = columns[5];
+            if (file.equals(apkPath)) return true;
+            if (!file.startsWith(cache)) continue;
+            String relative = file.substring(cache.length());
+            int slash = relative.indexOf('/');
+            if (slash > 0 && relative.substring(0, slash).matches("[A-Za-z0-9_]+")
+                    && relative.substring(slash + 1).equals(encoded)) return true;
+        }
+        return false;
+    }
+
     interface Access {
         JSONObject installed() throws Exception;
         JSONObject systemArchive() throws Exception;

@@ -300,6 +300,7 @@ public final class RemoteDaemon {
             JSONObject rescue = RemoteHttp.local("/health", null);
             RescueFiles.write(new File(root, "health.json"), new JSONObject().put("instance", instance)
                     .put("version_code", BuildConfig.VERSION_CODE).put("apk_sha256", apkHash)
+                    .put("maintenance_protocol", RemoteMaintenance.PROTOCOL).put("pid", Os.getpid())
                     .put("uid", Os.getuid()).put("time_ms", System.currentTimeMillis())
                     .put("local_ready", rescue != null && rescue.optInt("uid", -1) == 0)
                     .put("report_acknowledged", reportAcknowledged).toString());

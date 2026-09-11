@@ -109,6 +109,25 @@ function Get-DeviceValue {
     return ((Invoke-Adb -s $Serial shell $Command) -join "`n").Trim()
 }
 
+function Assert-NoActiveRepair {
+    $command = '[ "$(id -u)" = 0 ] || exit 70; p=/data/local; for n in d31-remote runtime maintenance repair.json; do [ -d "$p" ] && [ ! -L "$p" ] || exit 71; names=$(busybox ls -a "$p") || exit 72; printf ''%s\n'' "$names" | busybox grep -Fx "$n" >/dev/null; r=$?; if [ "$r" = 1 ]; then echo D31_MAINTENANCE_ABSENT_V1; exit 0; fi; [ "$r" = 0 ] || exit 73; p="$p/$n"; done; echo D31_MAINTENANCE_PRESENT_V1'
+    if ((Get-DeviceValue $command) -ne 'D31_MAINTENANCE_ABSENT_V1') { throw 'D31修复未结束或状态无法读取，禁止刷写交接' }
+}
+
+function Enter-FlashMaintenance {
+    Assert-NoActiveRepair
+    $health = (Get-DeviceValue 'if [ -f /data/local/d31-remote/runtime/state/health.json ]; then cat /data/local/d31-remote/runtime/state/health.json; else echo "{}"; fi') | ConvertFrom-Json
+    if ([int]$health.version_code -lt 96) { return $null }
+    if ([int]$health.maintenance_protocol -ne 1) { throw '新版核心尚未提供维护协议，禁止绕过' }
+    $active = (Get-DeviceValue 'cat /data/local/d31-remote/runtime/active.json') | ConvertFrom-Json
+    $apk = [string]$active.path
+    if ($apk -notmatch '^/data/local/d31-remote/releases/[a-f0-9]{64}/remote\.apk$' -and $apk -ne '/system/priv-app/D31ElfRemote/D31ElfRemote.apk') { throw '维护载荷路径无效' }
+    $id = [guid]::NewGuid().ToString('N')
+    $prefix = "CLASSPATH='$apk' /system/bin/app_process /system/bin net.elfradio.d31bootstrap.RemoteWindowsMaintenance"
+    if ((Get-DeviceValue "$prefix reserve $id") -ne 'D31_WINDOWS_RESERVED_V1') { throw '未取得Windows刷机维护预留' }
+    return @{ Prefix=$prefix; Id=$id }
+}
+
 function Convert-AndroidSizeToBytes {
     param([string]$Text)
     $valueText = $Text.Trim()
@@ -371,7 +390,8 @@ function Wait-ForAndroid {
                 $health = Invoke-D31Probe '/health'
                 if ($health.service -eq 'd31-root-rescue' -and $health.uid -eq 0 -and -not $health.busy) {
                     $id = [guid]::NewGuid().ToString()
-                    $command = 'if [ "$(getprop sys.boot_completed)" = 1 ]; then if [ "$(getprop init.svc.adbd)" != running ] || [ "$(getprop service.adb.tcp.port)" != 5555 ]; then setprop service.adb.tcp.port 5555; stop adbd; start adbd; echo ADB_RESTORED; fi; fi'
+                    $command = 'if [ "$(getprop sys.boot_completed)" = 1 ]; then if [ "$(getprop init.svc.adbd)" != running ] || [ "$(getprop service.adb.tcp.port)" != __PORT__ ]; then setprop service.adb.tcp.port __PORT__; stop adbd; sleep 1; start adbd; echo ADB_RESTORED; fi; fi'
+                    $command = $command.Replace('__PORT__', [string]$DeviceAdbPort)
                     $result = Invoke-D31Probe '/exec' @{id=$id; command=$command; timeout=5}
                     if ($result.state -eq 'running') { $result = Invoke-D31Probe ("/jobs/" + $id) }
                     if ($result.output -match 'ADB_RESTORED') { Write-Step '已通过独立探针恢复D31机内ADB监听。' }
@@ -387,7 +407,7 @@ function Wait-ForAndroid {
             if ($bootResult.ExitCode -eq 0 -and $boot -eq "1") { return }
         }
     } while ((Get-Date) -lt $deadline)
-    throw "Recovery刷写触发后，D31未在$TimeoutSeconds秒内恢复TCP ADB。请查看D31屏幕；不要盲目断电或重复刷写。"
+    throw "Recovery刷写触发后，D31未在${TimeoutSeconds}秒内恢复TCP ADB。请查看D31屏幕；不要盲目断电或重复刷写。"
 }
 
 function Invoke-D31Probe {
@@ -432,9 +452,11 @@ if ($PackagePreflightOnly) {
     return
 }
 if (-not (Test-Path -LiteralPath $Adb -PathType Leaf)) { throw "刷机目录缺少ADB：$Adb" }
-if ($Serial -notmatch '^\d{1,3}(\.\d{1,3}){3}:5555$' -or $AdbPort -ne 5042) {
-    throw 'D31必须指定完整IPv4:5555序列号，并使用电脑ADB端口5042'
+if ($Serial -notmatch '^(\d{1,3}(?:\.\d{1,3}){3}):([1-9][0-9]{0,4})$' -or $AdbPort -ne 5042) {
+    throw 'D31必须指定完整IPv4与实际ADB端口，并使用电脑ADB端口5042'
 }
+$DeviceAdbPort = [int]$Matches[2]
+if ($DeviceAdbPort -gt 65535 -or @($Matches[1].Split('.') | Where-Object { [int]$_ -gt 255 }).Count) { throw 'D31的IP或端口超出有效范围' }
 $DeviceIp = $Serial.Substring(0, $Serial.LastIndexOf(':'))
 
 Write-Host $(if ($DevicePreflightOnly) { "[1/3] 连接D31并核对root、构建和网络。" } else { "[2/8] 连接D31并核对root、构建和有线网卡。" })
@@ -443,6 +465,7 @@ $state = ((Invoke-Adb -s $Serial get-state) -join "`n").Trim()
 if ($state -ne "device") { throw "D31 ADB状态不是device：$state" }
 $identity = Get-DeviceValue "id"
 if ($identity -notmatch 'uid=0\(root\)') { throw "D31 ADB shell不是root：$identity" }
+Assert-NoActiveRepair
 $fingerprint = Get-DeviceValue "getprop ro.build.fingerprint"
 if ($fingerprint -ne $ExpectedFingerprint) { throw "构建指纹不匹配：$fingerprint" }
 $ethernet = Get-DeviceValue "ip -4 addr show dev eth0"
@@ -518,12 +541,20 @@ $remotePackageHash = Get-RemoteSha256 $RemotePackage
 if ($remotePackageHash -ne $ExpectedPackageHash) { throw "D31内的ZIP SHA-256不匹配" }
 
 Write-Step "[7/8] 写入Recovery安装命令并重启；从此步骤开始会清空userdata。"
-$recoveryCommand = "mkdir -p /cache/recovery; printf '%s\n' '--update_package=$RemotePackage' '--locale=zh_CN' > /cache/recovery/command; chmod 0600 /cache/recovery/command; cat /cache/recovery/command; sync"
+$flashMaintenance = Enter-FlashMaintenance
+$recoveryCommand = "set -e; mkdir -p /cache/recovery; printf '%s\n' '--update_package=$RemotePackage' '--locale=zh_CN' > /cache/recovery/command; chmod 0600 /cache/recovery/command; cat /cache/recovery/command; sync"
+try {
 $commandResult = Get-DeviceValue $recoveryCommand
 if ($commandResult -notmatch [regex]::Escape("--update_package=$RemotePackage")) {
     throw "Recovery命令回读不一致，尚未重启"
 }
 Invoke-Adb -s $Serial reboot recovery | Out-Null
+} catch {
+    if ($flashMaintenance) {
+        Write-Step 'Recovery交接结果不确定，保留本次维护预留。先核对设备与Recovery命令，再用日志中的原编号处理；禁止盲目重复刷写。'
+    }
+    throw
+}
 
 Write-Step "[8/8] 等待Recovery安装和D31首次启动，最长30分钟。"
 Wait-ForAndroid

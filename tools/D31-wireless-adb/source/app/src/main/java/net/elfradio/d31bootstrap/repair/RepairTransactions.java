@@ -170,8 +170,11 @@ public final class RepairTransactions {
             current = observe(job, change.path);
         }
         catch (Exception error) { return advanceRollback(job, index, true, "ROLLBACK_READ_FAILED", now); }
-        if (current.matches(change.originalSha256, change.originalBytes))
-            return advanceRollback(job, index, false, "ORIGINAL_ALREADY_PRESENT", now);
+        if (current.matches(change.originalSha256, change.originalBytes)) {
+            boolean restored;
+            try { restored = platform.verifyRestored(change); } catch (Exception failure) { restored = false; }
+            return advanceRollback(job, index, !restored, restored ? "ORIGINAL_ALREADY_PRESENT" : "ORIGINAL_METADATA_UNCONFIRMED", now);
+        }
         if (!current.matches(change.targetSha256, change.targetBytes))
             return advanceRollback(job, index, true, "FOREIGN_CONTENT_PRESERVED", now);
         File backup = artifact(job, "backup", index);
@@ -189,7 +192,8 @@ public final class RepairTransactions {
         boolean restored;
         try {
             checkRollbackEnvironment(job.plan, change.path);
-            restored = observe(job, change.path).matches(change.originalSha256, change.originalBytes);
+            restored = observe(job, change.path).matches(change.originalSha256, change.originalBytes)
+                    && platform.verifyRestored(change);
         }
         catch (Exception unavailable) { restored = false; }
         return advanceRollback(job, index, !restored, restored ? "ROLLBACK_READBACK_VERIFIED" : "ROLLBACK_UNCONFIRMED_NO_REPLAY", now);
@@ -201,7 +205,10 @@ public final class RepairTransactions {
         // 全部目标重新只读核验；未尝试文件绝不由恢复路径改写。
         for (int i = 0; i < job.plan.changes.size(); i++) {
             RepairPlan.Change c = job.plan.changes.get(i);
-            try { if (!observe(job, c.path).matches(c.originalSha256, c.originalBytes)) job.state.put("attention", true); }
+            try {
+                if (!observe(job, c.path).matches(c.originalSha256, c.originalBytes)
+                        || (i <= job.state.getInt("attempted") && !platform.verifyRestored(c))) job.state.put("attention", true);
+            }
             catch (Exception unavailable) { job.state.put("attention", true); }
         }
         return transition(job, job.state.getBoolean("attention") ? "NEEDS_ATTENTION" : "ROLLED_BACK", 0, reason, now);

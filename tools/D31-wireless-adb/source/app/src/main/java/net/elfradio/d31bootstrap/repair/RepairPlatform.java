@@ -40,4 +40,6 @@ public interface RepairPlatform {
     void replace(String path, File content, FileState expected) throws Exception;
     /** 可重复的只读生效检查；不得发命令、重载服务或把差异报告直接当根因或成功。 */
     boolean verify(RepairPlan plan) throws Exception;
+    /** 原像内容之外的恢复核验；有元数据的平台必须确认元数据同样恢复。 */
+    default boolean verifyRestored(RepairPlan.Change change) throws Exception { return true; }
 }

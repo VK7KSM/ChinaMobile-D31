@@ -8,6 +8,39 @@ import org.json.JSONObject;
 
 /** 固定系统基线里的独立监督进程，不随应用覆盖安装退出。 */
 public final class RemoteSupervisor {
+    interface Cycle {
+        AutoCloseable acquire() throws Exception;
+        boolean packagesReady() throws Exception;
+        boolean reserved() throws Exception;
+        boolean manualTick() throws Exception;
+        void ensureCore() throws Exception;
+        void update() throws Exception;
+        void failed(Exception failure) throws Exception;
+        void pause(long millis) throws InterruptedException;
+    }
+
+    /** 每轮仅尝试一次维护租约；所有分支统一在释放后让出维护窗口。 */
+    static void runCycle(Cycle cycle) throws Exception {
+        long delay = 2000;
+        try (AutoCloseable maintenance = cycle.acquire()) {
+            if (maintenance != null && cycle.packagesReady()) {
+                if (cycle.reserved()) {
+                    cycle.ensureCore();
+                } else if (!cycle.manualTick()) {
+                    cycle.ensureCore();
+                    cycle.update();
+                }
+            }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw interrupted;
+        } catch (Exception failure) {
+            delay = 7000;
+            cycle.failed(failure);
+        }
+        cycle.pause(delay);
+    }
+
     public static void main(String[] args) throws Exception {
         if (android.system.Os.getuid() != 0 || android.os.Build.VERSION.SDK_INT != 23
                 || !"hct6735_66_m0".equals(android.os.Build.DEVICE)
@@ -30,15 +63,17 @@ public final class RemoteSupervisor {
             heartbeat.scheduleWithFixedDelay(() -> {
                 try { RescueFiles.write(new File(root, "supervisor.json"), new JSONObject().put("uid", 0)
                         .put("pid", android.os.Process.myPid()).put("time_ms", System.currentTimeMillis())
-                        .put("version_code", BuildConfig.VERSION_CODE).toString()); }
+                        .put("version_code", BuildConfig.VERSION_CODE)
+                        .put("maintenance_protocol", RemoteMaintenance.PROTOCOL).toString()); }
                 catch (Exception error) { System.err.println("监督心跳写入失败"); }
             }, 0, 5, TimeUnit.SECONDS);
-            try {
-                while (!new File(root, "stop-supervisor").exists()) {
-                    try {
-                        if (!platform.packagesReady()) { Thread.sleep(1000); continue; }
-                        if(manual.tick(System.currentTimeMillis())) { Thread.sleep(1000); continue; }
-                        platform.ensureCore(android.os.SystemClock.elapsedRealtime());
+            Cycle cycle = new Cycle() {
+                    public AutoCloseable acquire() throws Exception { return RemoteMaintenance.acquire(); }
+                    public boolean packagesReady() { return platform.packagesReady(); }
+                    public boolean reserved() throws Exception { return RemoteMaintenance.reserved(); }
+                    public boolean manualTick() throws Exception { return manual.tick(System.currentTimeMillis()); }
+                    public void ensureCore() throws Exception { platform.ensureCore(android.os.SystemClock.elapsedRealtime()); }
+                    public void update() throws Exception {
                         File jobs = new File(root, "jobs"); File[] entries = jobs.listFiles();
                         if (entries != null) for (File dir : entries) {
                             if (!dir.getName().matches("[a-f0-9]{64}") || !new File(dir, "offer.json").isFile()) continue;
@@ -47,7 +82,8 @@ public final class RemoteSupervisor {
                             engine.step(System.currentTimeMillis());
                             if (!RemoteUpdateEngine.terminal(engine.state().getString("phase"))) break;
                         }
-                    } catch (Exception failure) {
+                    }
+                    public void failed(Exception failure) throws Exception {
                         StringBuilder stack = new StringBuilder();
                         for (StackTraceElement frame : failure.getStackTrace()) {
                             if (stack.length() >= 4000) break;
@@ -55,9 +91,12 @@ public final class RemoteSupervisor {
                         }
                         RescueFiles.write(new File(root, "last-error.json"), new JSONObject().put("time_ms", System.currentTimeMillis())
                                 .put("error", failure.getClass().getSimpleName()).put("stack", stack.toString()).toString());
-                        Thread.sleep(5000);
                     }
-                    Thread.sleep(2000);
+                    public void pause(long millis) throws InterruptedException { Thread.sleep(millis); }
+            };
+            try {
+                while (!new File(root, "stop-supervisor").exists()) {
+                    runCycle(cycle);
                 }
             } finally { heartbeat.shutdownNow(); platform.stopCore(); }
         }

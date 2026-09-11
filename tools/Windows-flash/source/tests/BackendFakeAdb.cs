@@ -23,9 +23,31 @@ class BackendFakeAdb
         string remote = "/data/local/tmp/D31-factory-v" + metadata["version"] + ".zip";
         var files = json.Deserialize<Dictionary<string, object>[]>(File.ReadAllText(Path.Combine(root, "installed-files.json")));
         string result;
-        if (command.Contains(" connect ")) result = "connected to 192.0.2.31:5555";
+        if (command.Contains(" connect ")) result = "connected to " + args[args.Length - 1];
         else if (command.EndsWith(" get-state")) result = "device";
         else if (command.EndsWith(" shell id")) result = "uid=0(root) gid=0(root)";
+        else if (command.Contains("D31_MAINTENANCE_ABSENT_V1")) {
+            int checks = state.ContainsKey("maintenanceChecks") ? Int32.Parse(state["maintenanceChecks"]) : 0;
+            state["maintenanceChecks"] = (++checks).ToString();
+            if (mode == "repair-read-failed") return 72;
+            result = mode == "repair-unknown" ? "" :
+                (mode == "repair-present" || (mode == "repair-late" && checks > 1)) ?
+                "D31_MAINTENANCE_PRESENT_V1" : "D31_MAINTENANCE_ABSENT_V1";
+        }
+        else if (command.Contains("runtime/state/health.json")) {
+            result = mode == "health-invalid" ? "invalid-json" : mode == "legacy95" ? "{\"version_code\":95}" :
+                mode.StartsWith("full96-") ? json.Serialize(new {version_code=96, maintenance_protocol=mode == "full96-no-protocol" ? 0 : 1}) : "{}";
+        }
+        else if (command.Contains("runtime/active.json")) {
+            result = json.Serialize(new {path=mode == "full96-bad-path" ? "/data/local/tmp/not-approved.apk" :
+                mode == "full96-system" ? "/system/priv-app/D31ElfRemote/D31ElfRemote.apk" :
+                "/data/local/d31-remote/releases/" + new string('a',64) + "/remote.apk"});
+        }
+        else if (command.Contains("RemoteWindowsMaintenance reserve ")) {
+            if (mode == "full96-reserve-failed") return 73;
+            result = mode == "full96-reserve-unknown" ? "UNKNOWN" : "D31_WINDOWS_RESERVED_V1";
+        }
+        else if (command.Contains("RemoteWindowsMaintenance release ")) result = "D31_WINDOWS_RELEASED_V1";
         else if (command.EndsWith("getprop ro.build.fingerprint")) result = "alps/full_hct6737t_66_m0/hct6737t_66_m0:6.0/MRA58K/1583081804:userdebug/test-keys";
         else if (command.Contains("ip -4 addr show dev eth0")) result = "inet " + (mode == "wrong-network" ? "192.0.2.32" : "192.0.2.31") + "/24";
         else if (command.Contains("busybox 2>/dev/null")) result = "BusyBox v1.22.1";
@@ -74,8 +96,11 @@ class BackendFakeAdb
         else if (command.Contains("shell rm -f " + remote) || command.Contains("shell mv " + remote + ".partial")) result = "";
         else if (command.EndsWith("shell getprop")) result = "[sys.boot_completed]: [1]";
         else if (command.Contains("shell ls -l")) result = "测试分区映射";
-        else if (command.Contains("mkdir -p /cache/recovery")) result = "--update_package=" + remote;
-        else if (command.EndsWith("reboot recovery")) result = "";
+        else if (command.Contains("mkdir -p /cache/recovery")) result = mode == "full96-command-mismatch" ? "UNKNOWN" : "--update_package=" + remote;
+        else if (command.EndsWith("reboot recovery")) {
+            if (mode == "full96-reboot-failed") return 74;
+            result = "";
+        }
         else if (command.EndsWith("getprop sys.boot_completed")) result = "1";
         else if (command.Contains("shell pm path ")) {
             string pkg = command.Substring(command.LastIndexOf(' ') + 1);

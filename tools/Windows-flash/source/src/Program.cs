@@ -23,12 +23,31 @@ namespace D31FlashTool
             }
             catch (Exception exception)
             {
+                if (args.Length > 0)
+                {
+                    Console.Error.WriteLine("运行资源初始化失败：" + exception.Message);
+                    return 1;
+                }
                 MessageBox.Show(
                     "无法初始化刷机工具运行文件。\r\n\r\n" + exception.Message,
                     "D31刷机工具启动失败",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
                 return 1;
+            }
+
+            if (args.Length == 3 && args[0] == "--export-basic-probe")
+            {
+                using (StreamWriter writer = new StreamWriter(args[2], false, new UTF8Encoding(false)))
+                {
+                    try
+                    {
+                        string exported = RuntimeAssets.ExportBasicProbe(args[1]);
+                        writer.WriteLine("基础探针导出通过：{0}；SHA-256={1}", exported, RuntimeAssets.BasicProbe().Sha256);
+                        return 0;
+                    }
+                    catch (Exception exception) { writer.WriteLine("基础探针导出失败：" + exception.Message); return 1; }
+                }
             }
 
             if (args.Length >= 3 && args[0] == "--self-test")
@@ -123,7 +142,6 @@ namespace D31FlashTool
                 "approved-package.json", "installed-files.json",
                 "create_d31_rescue.ps1",
                 Path.Combine("首次引导工具", "D31-setup-probe.apk"),
-                Path.Combine("首次引导工具", "D31-wireless-adb-v1.11.6.apk"),
                 Path.Combine("tools", "adb.exe"),
                 Path.Combine("tools", "AdbWinApi.dll"),
                 Path.Combine("tools", "AdbWinUsbApi.dll"),
@@ -139,6 +157,9 @@ namespace D31FlashTool
                     throw new InvalidDataException("工具包缺少文件：" + relative);
                 }
             }
+
+            string basicProbe = RuntimeAssets.ValidateBasicProbe(root);
+            output.WriteLine("通过：内置基础探针{0}，SHA-256匹配。", Path.GetFileName(basicProbe));
 
             string script = File.ReadAllText(Path.Combine(root, "flash_d31_recovery.ps1"), Encoding.UTF8);
             string[] markers = new string[]
@@ -425,6 +446,16 @@ namespace D31FlashTool
             info.Power = (level.Success ? level.Groups[1].Value + "%" : "未知") +
                 (ac ? "，外部供电" : (usb ? "，USB供电" : "，未检测到外部供电"));
             return info;
+        }
+
+        internal static void AssertNoMaintenance(string toolRoot, string serial)
+        {
+            ValidateSerial(serial, serial);
+            string adb = Path.Combine(toolRoot, "tools", "adb.exe");
+            MaintenanceGuard.AssertAbsent(delegate(string command)
+            {
+                return RunAdb(adb, DedicatedAdbPort, serial, "shell " + Quote(command));
+            });
         }
 
         private static string RunOptional(string adb, string arguments)

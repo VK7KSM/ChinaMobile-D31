@@ -7,13 +7,24 @@ final class RemoteUpdates {
     static final File ROOT = new File(RemoteUpdatePlatform.RUNTIME, "updates");
     static boolean ready() {
         try {
-            if (!new File(ROOT, "enabled").isFile()) return false;
+            if (!new File(ROOT, "enabled").isFile() || new File(ROOT, "stop-supervisor").exists()) return false;
             JSONObject health = RemoteUpdateFiles.read(new File(ROOT, "supervisor.json"));
-            return health.optInt("uid", -1) == 0 && System.currentTimeMillis() - health.optLong("time_ms") < 20000;
+            long age = System.currentTimeMillis() - health.optLong("time_ms");
+            int pid = health.optInt("pid", -1);
+            return health.optInt("uid", -1) == 0 && age >= 0 && age < 20000 && pid > 0
+                    && new File("/proc/" + pid).isDirectory();
         } catch (Exception unavailable) { return false; }
     }
 
     static void enqueue(JSONObject offer) throws Exception {
+        try (RemoteMaintenance.Lease lease = RemoteMaintenance.acquire()) {
+            if (lease == null) throw new IOException("维护正在进行，稍后重试更新");
+            RemoteMaintenance.requireUnreserved();
+            enqueueLocked(offer);
+        }
+    }
+
+    private static void enqueueLocked(JSONObject offer) throws Exception {
         if (!ready()) throw new IOException("独立更新器未启用");
         String id = offer.optString("task_id");
         if (!id.matches("update-[a-zA-Z0-9-]{1,80}")) throw new IOException("需要v2独立更新任务");
