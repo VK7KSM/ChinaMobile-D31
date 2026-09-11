@@ -6,6 +6,29 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class AppMediaContractTest {
+    static JSONObject diagnostic()throws Exception {
+        return new JSONObject().put("operation","local_audio_capture").put("apk_sha256",HASH)
+                .put("diagnostic_id","local-1").put("duration_ms",2500);
+    }
+    @Test public void onlyValidatedDiagnosticGetsLongerExecutionWindow()throws Exception {
+        assertEquals(10000,AppMediaContract.executionWindow(diagnostic()));
+        assertEquals(6000,AppMediaContract.executionWindow(new JSONObject().put("operation","prepare").put("apk_sha256",HASH)));
+        assertEquals(6000,AppMediaContract.executionWindow(new JSONObject().put("operation","query").put("session_id","")));
+        for(Object duration:new Object[]{0,5001,"2500",2500.5,JSONObject.NULL}){
+            JSONObject invalid=diagnostic().put("duration_ms",duration);
+            MediaCaptureTest.rejects("ARGUMENT",()->AppMediaContract.executionWindow(invalid));
+        }
+        MediaCaptureTest.rejects("ARGUMENT",()->AppMediaContract.executionWindow(diagnostic().put("diagnostic_id","../bad")));
+        MediaCaptureTest.rejects("APK_HASH",()->AppMediaContract.executionWindow(diagnostic().put("apk_sha256","")));
+    }
+    @Test public void handshakeStaysSixSecondsAndDiagnosticReplyExpiresAtTen()throws Exception {
+        final String body=new JSONObject().put("request_id",ID).put("boot_id",BOOT).put("started_elapsed_ms",100).toString();
+        MediaCaptureTest.rejects("EXPIRED",()->AppMediaContract.request(ID,BOOT,100,6101));
+        MediaCaptureTest.rejects("EXPIRED",()->AppMediaContract.reply(10042,10042,ID,BOOT,100,6101,body));
+        AppMediaContract.reply(10042,10042,ID,BOOT,100,10100,body,AppMediaContract.executionWindow(diagnostic()));
+        MediaCaptureTest.rejects("EXPIRED",()->AppMediaContract.reply(10042,10042,ID,BOOT,100,10101,body,AppMediaContract.executionWindow(diagnostic())));
+        MediaCaptureTest.rejects("IDENTITY",()->AppMediaContract.reply(0,10042,ID,BOOT,100,9100,body,AppMediaContract.executionWindow(diagnostic())));
+    }
     static final String ID="11111111-1111-1111-1111-111111111111",BOOT="22222222-2222-2222-2222-222222222222";
     static final String HASH=new String(new char[64]).replace('\0','a');
     public interface ThreadStub{}

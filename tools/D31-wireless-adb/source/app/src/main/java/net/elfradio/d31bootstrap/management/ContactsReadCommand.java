@@ -18,6 +18,24 @@ public final class ContactsReadCommand {
                 }
                 public void before(JSONObject unused) throws Exception { throw new IOException("只读入口禁止修改"); }
             };
+            if ("nexui-metadata".equals(action)) {
+                final Context systemContext = context();
+                final String source = args[1];
+                new Thread(new Runnable() {
+                    public void run() {
+                        try (ContactsNexui.Snapshot snapshot = ContactsNexui.read(systemContext, source, control)) {
+                            JSONObject metadata = snapshot.metadata();
+                            System.out.println(metadata.toString());
+                            System.exit(metadata.getBoolean("ok") ? 0 : 1);
+                        } catch (Exception error) {
+                            System.err.println("原厂通讯录元数据验收失败：" + SystemManagement.root(error).getClass().getSimpleName());
+                            System.exit(1);
+                        }
+                    }
+                }, "d31-contacts-command").start();
+                android.os.Looper.loop();
+                return;
+            }
             JSONObject result;
             if ("inventory".equals(action)) result = ContactsRead.inventory(context());
             else if ("android".equals(action)) result = ContactsRead.readAndroid(control);
@@ -31,9 +49,10 @@ public final class ContactsReadCommand {
     }
 
     static String validateArgs(String[] args) throws IOException {
-        if (args == null || args.length == 0) throw new IOException("必须指定inventory、android或nexui-lookup");
+        if (args == null || args.length == 0) throw new IOException("必须指定只读取证子命令");
         if (args.length == 1 && ("inventory".equals(args[0]) || "android".equals(args[0]))) return args[0];
         if (args.length == 2 && "nexui-lookup".equals(args[0])) { ContactsRead.validateLookup(args[1]); return args[0]; }
+        if (args.length == 2 && "nexui-metadata".equals(args[0])) { ContactsNexui.validateSource(args[1]); return args[0]; }
         throw new IOException("只读取证参数无效");
     }
 

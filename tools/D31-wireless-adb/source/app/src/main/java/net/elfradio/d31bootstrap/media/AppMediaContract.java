@@ -11,24 +11,41 @@ final class AppMediaContract {
     static final String ACTION=PACKAGE+".media.CONTROL";
     static final String DESCRIPTOR=PACKAGE+".media.IAppMediaControl";
     static final int EXECUTE=1,CANCEL=2,HELLO=1,RESULT=2,MAX_BYTES=16384;
-    static final long WAIT_MS=6000,LEASE_MS=15000;
+    static final long WAIT_MS=6000,DIAGNOSTIC_WAIT_MS=10000,LEASE_MS=15000;
     static void request(String id,String boot,long started,long now)throws IOException {
+        request(id,boot,started,now,WAIT_MS);
+    }
+    static void request(String id,String boot,long started,long now,long window)throws IOException {
         if(id==null||!id.matches("[a-f0-9-]{36}")||boot==null||!boot.matches("[a-f0-9-]{36}")
-                ||started<0||now<started||now-started>WAIT_MS)throw new IOException("MEDIA_BRIDGE_EXPIRED_OR_INVALID");
+                ||(window!=WAIT_MS&&window!=DIAGNOSTIC_WAIT_MS)||started<0||now<started||now-started>window)
+            throw new IOException("MEDIA_BRIDGE_EXPIRED_OR_INVALID");
     }
     static void caller(int actualUid)throws IOException {if(actualUid!=0)throw new IOException("MEDIA_BRIDGE_ROOT_REQUIRED");}
     static JSONObject command(String json)throws Exception {
         if(json==null||json.length()>MAX_BYTES||json.getBytes("UTF-8").length>MAX_BYTES)throw new IOException("MEDIA_BRIDGE_SIZE");
         JSONObject value=new JSONObject(json);String op=value.getString("operation");
-        if(!"prepare".equals(op)&&!"start".equals(op)&&!"stop".equals(op)&&!"query".equals(op))throw new IOException("MEDIA_BRIDGE_OPERATION");
-        if(("prepare".equals(op)||"start".equals(op))&&!value.optString("apk_sha256").matches("[a-f0-9]{64}"))throw new IOException("MEDIA_BRIDGE_APK_HASH");
+        if(!"prepare".equals(op)&&!"start".equals(op)&&!"stop".equals(op)&&!"query".equals(op)&&!"local_audio_capture".equals(op))throw new IOException("MEDIA_BRIDGE_OPERATION");
+        if(("prepare".equals(op)||"start".equals(op)||"local_audio_capture".equals(op))&&!value.optString("apk_sha256").matches("[a-f0-9]{64}"))throw new IOException("MEDIA_BRIDGE_APK_HASH");
+        if("local_audio_capture".equals(op)){
+            Object duration=value.opt("duration_ms");
+            if(!value.optString("diagnostic_id").matches("[A-Za-z0-9_-]{1,96}")||!(duration instanceof Integer)
+                    ||((Integer)duration)<1||((Integer)duration)>LocalAudioCapture.MAX_DURATION_MS)
+                throw new IOException("MEDIA_LOCAL_AUDIO_ARGUMENT");
+        }
         if("stop".equals(op)&&!value.optString("session_id").matches("[A-Za-z0-9_-]{1,96}"))throw new IOException("MEDIA_BRIDGE_SESSION_ID");
         if("query".equals(op)&&!value.optString("session_id").matches("[A-Za-z0-9_-]{0,96}"))throw new IOException("MEDIA_BRIDGE_SESSION_ID");
         if("start".equals(op)&&!"microphone".equals(value.getJSONObject("offer").optString("mode")))throw new IOException("MEDIA_MODE_NOT_IMPLEMENTED");
         return value;
     }
+    static long executionWindow(JSONObject validatedCommand)throws Exception {
+        JSONObject checked=command(validatedCommand.toString());
+        return "local_audio_capture".equals(checked.getString("operation"))?DIAGNOSTIC_WAIT_MS:WAIT_MS;
+    }
     static void reply(int sender,int expected,String id,String boot,long started,long now,String json)throws Exception {
-        request(id,boot,started,now);
+        reply(sender,expected,id,boot,started,now,json,WAIT_MS);
+    }
+    static void reply(int sender,int expected,String id,String boot,long started,long now,String json,long window)throws Exception {
+        request(id,boot,started,now,window);
         if(expected<10000||sender!=expected||json==null||json.length()>MAX_BYTES||json.getBytes("UTF-8").length>MAX_BYTES)
             throw new IOException("MEDIA_BRIDGE_REPLY_IDENTITY_OR_SIZE");
         JSONObject value=new JSONObject(json);

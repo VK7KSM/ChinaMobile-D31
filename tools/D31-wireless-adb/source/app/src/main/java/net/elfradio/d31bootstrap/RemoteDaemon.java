@@ -210,6 +210,8 @@ public final class RemoteDaemon {
                     .put("managed_file_delete",ready)
                     .put("managed_adb_session",true)
                     .put("managed_adbd_tasks",ready)
+                    .put("managed_media", false)
+                    .put("managed_media_modes", new org.json.JSONArray())
                     .put("managed_system_settings", false)
                     .put("maintenance", new JSONObject().put("ready", ready)
                             .put("state", ready ? "ready" : "unavailable"))

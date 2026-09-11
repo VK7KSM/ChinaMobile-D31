@@ -10,7 +10,6 @@ import android.system.StructStat;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.FileDescriptor;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -50,19 +49,48 @@ public final class AndroidCollectionAccess implements CollectionAccess {
 
     @Override public Handle openRegular(String absolutePath, Stat expected) throws IOException {
         if (expected == null || !expected.type.equals("file")) throw new Failure("NOT_REGULAR_FILE");
-        final FileDescriptor fd = open(absolutePath, expected, false);
-        final FileInputStream stream = new FileInputStream(fd);
-        return new Handle() {
-            @Override public Stat stat() throws IOException {
-                try { return AndroidCollectionAccess.stat(Os.fstat(fd)); }
-                catch (ErrnoException error) { throw failure(error); }
-            }
-            @Override public int read(byte[] bytes, int offset, int length) throws IOException {
-                try { return stream.read(bytes, offset, length); }
-                catch (IOException failure) { throw new Failure("READ_ERROR"); }
-            }
-            @Override public void close() throws IOException { stream.close(); }
-        };
+        return new OwnedHandle(open(absolutePath, expected, false), DESCRIPTORS);
+    }
+
+    interface DescriptorIo {
+        Stat stat(FileDescriptor fd) throws IOException;
+        int read(FileDescriptor fd, byte[] bytes, int offset, int length) throws IOException;
+        void close(FileDescriptor fd) throws IOException;
+    }
+    private static final DescriptorIo DESCRIPTORS = new DescriptorIo() {
+        @Override public Stat stat(FileDescriptor fd) throws IOException {
+            try { return AndroidCollectionAccess.stat(Os.fstat(fd)); }
+            catch (ErrnoException error) { throw failure(error); }
+        }
+        @Override public int read(FileDescriptor fd, byte[] bytes, int offset, int length) throws IOException {
+            try { return Os.read(fd, bytes, offset, length); }
+            catch (ErrnoException error) { throw new Failure("READ_ERROR"); }
+        }
+        @Override public void close(FileDescriptor fd) throws IOException { closeFd(fd); }
+    };
+
+    // API23的FileInputStream(FileDescriptor)不拥有传入FD；Os.open的结果必须由本Handle显式关闭。
+    static final class OwnedHandle implements Handle {
+        private final FileDescriptor fd;
+        private final DescriptorIo io;
+        private boolean closed;
+        OwnedHandle(FileDescriptor fd, DescriptorIo io) { this.fd = fd; this.io = io; }
+        @Override public synchronized Stat stat() throws IOException { checkOpen(); return io.stat(fd); }
+        @Override public synchronized int read(byte[] bytes, int offset, int length) throws IOException {
+            checkOpen();
+            if (bytes == null) throw new NullPointerException();
+            if (offset < 0 || length < 0 || offset > bytes.length - length) throw new IndexOutOfBoundsException();
+            if (length == 0) return 0;
+            int count = io.read(fd, bytes, offset, length);
+            return count == 0 ? -1 : count;
+        }
+        @Override public synchronized void close() throws IOException {
+            if (closed) return;
+            // 即使close报告错误，也不能重试关闭已被系统复用的整数FD。
+            closed = true;
+            io.close(fd);
+        }
+        private void checkOpen() throws IOException { if (closed) throw new Failure("HANDLE_CLOSED"); }
     }
 
     @Override public Listing list(String absolutePath, Stat expected, int maximumNames,
@@ -70,9 +98,7 @@ public final class AndroidCollectionAccess implements CollectionAccess {
         if (expected == null || !expected.type.equals("directory") || maximumNames < 0 || maximumNames > 4096
                 || maximumBytes < 0 || timeoutMs < 1) throw new Failure("INVALID_LIST_REQUEST");
         FileDescriptor fd = open(absolutePath, expected, true);
-        ParcelFileDescriptor pinned;
-        try { pinned = ParcelFileDescriptor.dup(fd); }
-        finally { closeFd(fd); }
+        ParcelFileDescriptor pinned = pinAndCloseOriginal(fd);
         List<String> names = new ArrayList<String>();
         long consumed = 0;
         java.lang.Process process = null;
@@ -139,11 +165,14 @@ public final class AndroidCollectionAccess implements CollectionAccess {
 
     private static FileDescriptor open(String absolutePath, Stat expected, boolean directory) throws IOException {
         FileDescriptor fd = null;
-        try (Parent parent = parent(absolutePath)) {
-            int flags = OsConstants.O_RDONLY | OsConstants.O_NOFOLLOW | OsConstants.O_NONBLOCK;
-            fd = Os.open(parent.leaf(), flags, 0);
-            Stat actual = stat(Os.fstat(fd));
-            if (!expected.same(actual) || (directory && !actual.type.equals("directory"))) throw new Failure("UNSTABLE_FILE");
+        try {
+            try (Parent parent = parent(absolutePath)) {
+                int flags = OsConstants.O_RDONLY | OsConstants.O_NOFOLLOW | OsConstants.O_NONBLOCK;
+                fd = Os.open(parent.leaf(), flags, 0);
+                Stat actual = stat(Os.fstat(fd));
+                if (!expected.same(actual) || (directory && !actual.type.equals("directory"))) throw new Failure("UNSTABLE_FILE");
+            }
+            // 父目录关闭成功后才移交叶FD，避免父目录close异常时丢失所有权。
             FileDescriptor result = fd; fd = null; return result;
         } catch (ErrnoException error) { throw failure(error); }
         finally { if (fd != null) closeFd(fd); }
@@ -152,10 +181,15 @@ public final class AndroidCollectionAccess implements CollectionAccess {
     static FileDescriptor createArtifact(String directory, String name) throws IOException {
         CollectionSupport.id(name);
         String target = CollectionSupport.child(CollectionSupport.path(directory), name);
-        try (Parent parent = parent(target)) {
-            return Os.open(parent.leaf(), OsConstants.O_WRONLY | OsConstants.O_CREAT | OsConstants.O_EXCL
-                    | OsConstants.O_NOFOLLOW, 0600);
+        FileDescriptor fd = null;
+        try {
+            try (Parent parent = parent(target)) {
+                fd = Os.open(parent.leaf(), OsConstants.O_WRONLY | OsConstants.O_CREAT | OsConstants.O_EXCL
+                        | OsConstants.O_NOFOLLOW, 0600);
+            }
+            FileDescriptor result = fd; fd = null; return result;
         } catch (ErrnoException error) { throw new Failure(error.errno == OsConstants.EEXIST ? "ARTIFACT_EXISTS" : "STORE_OPEN_FAILED"); }
+        finally { if (fd != null) closeFd(fd); }
     }
 
     private static Parent parent(String absolutePath) throws IOException {
@@ -179,10 +213,12 @@ public final class AndroidCollectionAccess implements CollectionAccess {
             Stat before = stat(Os.lstat(path));
             if (!before.type.equals("directory")) throw new Failure("DIRECTORY_REQUIRED");
             FileDescriptor fd = Os.open(path, OsConstants.O_RDONLY | OsConstants.O_NONBLOCK | OsConstants.O_NOFOLLOW, 0);
+            boolean handedOff = false;
             try {
                 if (!before.same(stat(Os.fstat(fd)))) throw new Failure("UNSTABLE_DIRECTORY");
-                return ParcelFileDescriptor.dup(fd);
-            } finally { closeFd(fd); }
+                handedOff = true;
+                return pinAndCloseOriginal(fd);
+            } finally { if (!handedOff) closeFd(fd); }
         } catch (ErrnoException error) { throw failure(error); }
     }
 
@@ -208,6 +244,20 @@ public final class AndroidCollectionAccess implements CollectionAccess {
     }
     private static void closeFd(FileDescriptor fd) throws IOException {
         try { Os.close(fd); } catch (ErrnoException error) { throw failure(error); }
+    }
+    private static ParcelFileDescriptor pinAndCloseOriginal(FileDescriptor fd) throws IOException {
+        ParcelFileDescriptor pinned = null;
+        try { pinned = ParcelFileDescriptor.dup(fd); }
+        finally {
+            try { closeFd(fd); }
+            catch (IOException closeFailure) {
+                if (pinned != null) {
+                    try { pinned.close(); } catch (IOException duplicateFailure) { closeFailure.addSuppressed(duplicateFailure); }
+                }
+                throw closeFailure;
+            }
+        }
+        return pinned;
     }
     private static void closeQuietly(Closeable closeable) { try { closeable.close(); } catch (IOException ignored) { } }
 }

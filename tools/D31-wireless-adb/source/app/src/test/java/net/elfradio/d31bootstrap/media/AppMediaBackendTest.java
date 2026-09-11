@@ -10,6 +10,25 @@ import org.json.JSONObject;
 import static org.junit.Assert.*;
 
 public class AppMediaBackendTest {
+    @Test public void diagnosticStartsOnlyWithIdentityPermissionAndThreeIdleSources()throws Exception {
+        JSONObject snapshot=new JSONObject().put("cellular","IDLE").put("sip","IDLE").put("other","IDLE");
+        JSONObject readiness=new JSONObject().put("record_permission","GRANTED").put("process_package_match",true)
+                .put("framework_package_match",true).put("record_appop","ALLOWED").put("audio_occupancy_snapshot",snapshot);
+        AppMediaBackend.requireDiagnosticPreconditions(readiness);
+        for(String source:new String[]{"cellular","sip","other"})for(String state:new String[]{"BUSY","UNKNOWN",""}){
+            snapshot.put(source,state);MediaCaptureTest.rejects("PRECONDITIONS",()->AppMediaBackend.requireDiagnosticPreconditions(readiness));snapshot.put(source,"IDLE");
+        }
+        for(String field:new String[]{"record_permission","record_appop","process_package_match","framework_package_match"}){
+            Object before=readiness.remove(field);MediaCaptureTest.rejects("PRECONDITIONS",()->AppMediaBackend.requireDiagnosticPreconditions(readiness));readiness.put(field,before);
+        }
+    }
+    @Test public void diagnosticOngoingGateRejectsPhoneUnknownWithoutClaimingGlobalOwnership()throws Exception {
+        JSONObject value=new JSONObject().put("cellular","IDLE").put("sip","IDLE").put("other","BUSY");
+        AppMediaBackend.requireDiagnosticCallsIdle(value);
+        for(String source:new String[]{"cellular","sip"})for(String state:new String[]{"BUSY","UNKNOWN",""}){
+            value.put(source,state);MediaCaptureTest.rejects("CALL_STATE_CHANGED",()->AppMediaBackend.requireDiagnosticCallsIdle(value));value.put(source,"IDLE");
+        }
+    }
     // Windows File不解析目录联接；用宿主真实路径解析复现Android File的父级链接语义。
     private File androidFile(File file){
         return new File(file.getAbsolutePath()){

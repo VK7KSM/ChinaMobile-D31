@@ -10,7 +10,7 @@ import {PackageVerifier} from './PackageVerifier.mjs';
 import {WebTransport} from './WebTransport.mjs';
 
 const ROOT = fileURLToPath(new URL('./', import.meta.url));
-const RUN = fs.mkdtempSync(path.join(ROOT, 'offline-test-' + new Date().toISOString().replace(/[:.]/g, '-') + '-'));
+const RUN = fs.mkdtempSync(path.join(ROOT, 'batch7-offline-test-' + new Date().toISOString().replace(/[:.]/g, '-') + '-'));
 const TARGET = {deviceName: 'SYNTHETIC_D31', expectedVersion: 'test', activeApk: `/data/local/d31-remote/releases/${'c'.repeat(64)}/remote.apk`};
 const ID = 'a'.repeat(64);
 const CLOCK = () => {
@@ -55,10 +55,13 @@ class FakeTransport {
       const args = request.params.command.split('FaultCommand ')[1].split(' ');
       let value;
       if (args[0] === 'index') value = {schemaVersion: 1, events: [{eventId: ID, category: 'TOMBSTONE', state: {phase: 'PARTIAL', capture: 'PARTIAL'}}], nextAfter: ID, hasMore: false};
+      if (args[0] === 'pending') value = pendingPage([{eventId: ID, category: 'TOMBSTONE', phase: 'PARTIAL', captureState: 'PARTIAL',
+        exportState: 'RECEIPT_RECORDED_UNVERIFIED', archiveState: 'ACK_RECORDED_UNVERIFIED'}], false);
       if (args[0] === 'export') value = receipt;
       if (args[0] === 'archive') value = {eventId: ID, state: 'ARCHIVED', sha256: receipt.sha256, bytes: receipt.bytes,
         manifestSha256: receipt.manifestSha256, originalsDeleted: false, releasedBytes: 0, activeSlotReleased: true};
-      if (args[0] === 'query') value = {eventId: ID, export: {state: 'EXPORTED', archived: true, receipt}};
+      if (args[0] === 'query') value = {schemaVersion: 1, eventId: ID, category: 'TOMBSTONE', state: {phase: 'PARTIAL', capture: 'PARTIAL'},
+        export: {state: 'EXPORTED', archived: true, receipt}};
       result = {text: JSON.stringify(value), exit_code: 0, truncated: false};
     }
     const task = {id: request.id, type: request.type, state: 'success', result};
@@ -74,10 +77,26 @@ class FakeTransport {
   stageSends(stage) { return this.sends.filter(r => stage === 'get_file' ? r.type === stage : r.params.command?.includes(`FaultCommand ${stage} `)); }
 }
 
-function context(name, transport = new FakeTransport()) {
+function pendingPage(events, hasMore) {
+  return {schemaVersion: 1, kind: 'FAULT_PENDING_INDEX', verificationScope: 'METADATA_ONLY', selection: 'ALL_RETAINED_HOST_SELECTS_PENDING',
+    events, nextAfter: events.at(-1)?.eventId || '', hasMore};
+}
+
+function context(name, transport = new FakeTransport(), pending = false) {
   const directory = path.join(RUN, name);
   const options = {store: new QueueStore(directory), transport, verifier: new PackageVerifier(), target: TARGET, clock: CLOCK()};
-  return {directory, options, transport, run: extras => runRound({...options, ...extras}),
+  let initialized = false;
+  return {directory, options, transport, run: async extras => {
+    // 原40项使用纯合成第六批状态，继续验证旧目录合同，不读取生产110证据。
+    if (!initialized) {
+      initialized = true;
+      if (!pending) await options.store.withLock(async () => {
+        options.store.load(); options.store.save({schemaVersion: 1, target: TARGET, deviceId: 'SYNTHETIC_DEVICE',
+          cursor: '', events: [], index: {}, nextAt: 0, failures: 0});
+      });
+    }
+    return runRound({...options, ...extras});
+  },
     state: () => options.store.withLock(async () => options.store.load())};
 }
 
@@ -339,6 +358,231 @@ test('本地容量上限拒绝新增且保留已有文件', async () => {
     assert.equal(fs.existsSync(path.join(directory, 'too-large.bin')), false);
     assert.ok(fs.existsSync(path.join(directory, 'state-000001.json')));
   });
+});
+
+test('新目录pending16后先详细query；未验证归档标记不跳过包保全', async () => {
+  const c = context('pending-complete', new FakeTransport(), true);
+  const result = await c.run(); assert.equal(result.archived, 1); assert.equal(result.candidatesChecked, 1);
+  assert.equal(result.discovery, 'pending16');
+  assert.deepEqual(c.transport.sends.map(r => r.type === 'get_file' ? 'get_file' : r.params.command.split('FaultCommand ')[1].split(' ')[0]),
+    ['pending', 'query', 'export', 'get_file', 'archive', 'query']);
+  const state = await c.state(); assert.equal(state.events[0].summary.sourceLogComplete, false);
+  assert.ok(state.events[0].inspectionFile); assert.equal(c.transport.stageSends('index').length, 0);
+});
+
+test('discovery-only只发现与query；后续普通轮次复用已验候选再导出', async () => {
+  const c = context('discovery-only', new FakeTransport(), true);
+  const first = await c.run({discoveryOnly: true});
+  assert.equal(first.candidatesChecked, 1); assert.equal(first.archived, 0); assert.equal(first.pending, 1);
+  assert.equal(c.transport.downloads, 0);
+  assert.equal(c.transport.stageSends('export').length, 0); assert.equal(c.transport.stageSends('get_file').length, 0);
+  assert.equal(c.transport.stageSends('archive').length, 0);
+  const id = (await c.state()).events[0].tasks.inspect.request.id;
+  const result = await c.run(); assert.equal(result.archived, 1);
+  assert.equal((await c.state()).events[0].tasks.inspect.request.id, id); assert.equal(c.transport.stageSends('query').length, 2);
+});
+
+for (const point of ['intent:index', 'after-send:index', 'index-consumed', 'page-entry-consumed',
+  'intent:inspect', 'after-send:inspect', 'task-result:inspect', 'candidate-confirmed']) {
+  test(`新发现崩溃窗口 ${point} 保留页内进度和原任务号`, async () => {
+    const c = context('p7-' + point.replaceAll(':', '-'), new FakeTransport(), true);
+    await assert.rejects(c.run({checkpoint: label => { if (label === point) throw CRASH; }}), error => error === CRASH);
+    const previous = await c.state(); const indexId = previous.index.index?.request.id;
+    const inspectionId = previous.events[0]?.tasks.inspect?.request.id;
+    c.options.store = new QueueStore(c.directory);
+    const result = await c.run(); assert.equal(result.archived, 1); assert.equal(result.blocked, false);
+    if (indexId) assert.equal(c.transport.stageSends('pending')[0].id, indexId);
+    if (inspectionId) assert.equal((await c.state()).events[0].tasks.inspect.request.id, inspectionId);
+    assert.equal(c.transport.stageSends('pending').length, 1);
+    assert.equal(c.transport.stageSends('query').length, 2); assert.equal(c.transport.stageSends('export').length, 1);
+  });
+}
+
+test('旧目录未决index原号恢复，不改成pending或重复旧DONE', async () => {
+  const c = context('legacy-live-index');
+  await assert.rejects(c.run({checkpoint: label => { if (label === 'after-send:index') throw CRASH; }}));
+  const id = (await c.state()).index.index.request.id;
+  assert.equal((await c.run()).archived, 1);
+  assert.ok(c.transport.queries.includes(id)); assert.equal(c.transport.stageSends('index').length, 1);
+  await c.run(); assert.equal(c.transport.stageSends('export').length, 1); assert.equal(c.transport.stageSends('pending').length, 0);
+  const snapshotsBefore = fs.readdirSync(c.directory).filter(n => n.startsWith('state-')).length;
+  await assert.rejects(c.run({discoveryOnly: true}), /DISCOVERY_ONLY_REQUIRES_PENDING_STATE/);
+  assert.equal(fs.readdirSync(c.directory).filter(n => n.startsWith('state-')).length, snapshotsBefore);
+});
+
+test('新候选query结果未知仍查原号；过期不换号，也不导出', async () => {
+  for (const accepted of [true, false]) {
+    const c = context('pending-unknown-' + accepted, new FakeTransport(), true);
+    const original = c.transport.enqueue.bind(c.transport); let attempted;
+    c.transport.enqueue = async request => {
+      if (!attempted && request.params.command?.includes('FaultCommand query ')) {
+        attempted = structuredClone(request);
+        if (accepted) await original(request);
+        throw new QueueError('NETWORK_UNAVAILABLE', true);
+      }
+      return original(request);
+    };
+    await c.run({limits: {maxRetries: 1}, discoveryOnly: true});
+    if (accepted) {
+      assert.equal((await c.run({discoveryOnly: true})).candidatesChecked, 1);
+      assert.equal(c.transport.stageSends('query').length, 1);
+      assert.equal((await c.state()).events[0].tasks.inspect.request.id, attempted.id);
+    } else {
+      c.options.clock.advance(600001);
+      assert.equal((await c.run({discoveryOnly: true})).stop, 'TASK_ABSENT_AFTER_EXPIRY');
+      assert.equal(c.transport.stageSends('query').length, 0);
+    }
+    assert.equal(c.transport.stageSends('export').length, 0);
+  }
+});
+
+class CatalogTransport extends FakeTransport {
+  constructor(ids, detail = id => ({schemaVersion: 1, eventId: id, state: {phase: 'CAPTURING'}})) {
+    super(); this.ids = ids; this.detail = detail;
+  }
+  async enqueue(request) {
+    const task = await super.enqueue(request);
+    if (request.type !== 'root_exec') return task;
+    const args = request.params.command.split('FaultCommand ')[1].split(' ');
+    if (args[0] === 'pending') {
+      const candidates = this.ids.filter(id => id > (args[2] || ''));
+      task.result.text = JSON.stringify(pendingPage(candidates.slice(0, 16).map(eventId => ({eventId, category: 'TOMBSTONE', phase: 'PARTIAL',
+        captureState: 'PARTIAL', archiveState: 'ACK_RECORDED_UNVERIFIED', exportState: 'RECEIPT_RECORDED_UNVERIFIED'})), candidates.length > 16));
+    }
+    if (args[0] === 'query' && args[1] !== ID) task.result.text = JSON.stringify(this.detail(args[1]));
+    return task;
+  }
+}
+
+test('32条未验证ACK跨8轮小预算推进到尾部，不因头部详情非终态而饥饿', async () => {
+  const ids = [...Array.from({length: 31}, (_, i) => (i + 1).toString(16).padStart(64, '0')), ID];
+  const c = context('catalog32', new CatalogTransport(ids), true);
+  let checked = 0, deferred = 0;
+  for (let round = 0; round < 8; round++) {
+    c.options.store = new QueueStore(c.directory);
+    const result = await c.run({limits: {maxCandidates: 4, maxIndexPages: 1}});
+    assert.equal(result.blocked, false); checked += result.candidatesChecked; deferred += result.candidatesDeferred;
+  }
+  assert.equal(checked, 32); assert.equal(deferred, 31); assert.equal((await c.state()).events[0].phase, 'DONE');
+  assert.equal(c.transport.stageSends('pending').length, 2); assert.equal(c.transport.stageSends('export').length, 1);
+  for (const id of ids.slice(0, -1)) assert.equal(c.transport.stageSends('query').filter(r => r.params.command.endsWith(id)).length, 1);
+});
+
+test('128条中的127个本地DONE不占满扫描准入，尾部在第8页可达', async () => {
+  const ids = [...Array.from({length: 127}, (_, i) => (i + 1).toString(16).padStart(64, '0')), ID];
+  const c = context('catalog128', new CatalogTransport(ids), true);
+  // 构造最小合法旧完成记录；这里只验证遍历，不把合成记录称作生产验包证明。
+  await c.options.store.withLock(async () => {
+    c.options.store.load(); c.options.store.save({schemaVersion: 1, discovery: 'pending16', target: TARGET, deviceId: 'SYNTHETIC_DEVICE',
+      cursor: '', index: {}, events: ids.slice(0, -1).map(eventId => ({eventId, phase: 'DONE', tasks: {},
+        summary: {gapCount: 1, sourceLogComplete: false}})), nextAt: 0, failures: 0});
+  });
+  for (let round = 0; round < 8; round++) {
+    const result = await c.run({discoveryOnly: true, limits: {maxIndexPages: 1}});
+    assert.equal(result.blocked, false);
+    if (round < 7) assert.equal(result.candidatesChecked, 0); else assert.equal(result.candidatesChecked, 1);
+  }
+  assert.equal((await c.state()).events.length, 128); assert.equal(c.transport.stageSends('pending').length, 8);
+  assert.equal(c.transport.stageSends('query').length, 1);
+  // 128条已知记录后仍可再次完整扫描；只在真正新增第129条时限制容量。
+  const next = await c.run({discoveryOnly: true}); assert.equal(next.blocked, false);
+  assert.equal(c.transport.stageSends('query').length, 1); assert.equal(c.transport.stageSends('export').length, 0);
+});
+
+test('发现结束后新增的小ID在下一遍可见，不永久丢在游标之前', async () => {
+  const lower = '0'.repeat(63) + '1'; const transport = new CatalogTransport([ID]);
+  const c = context('new-low-id', transport, true);
+  await c.run({discoveryOnly: true}); transport.ids = [lower, ID];
+  const result = await c.run({discoveryOnly: true}); assert.equal(result.candidatesChecked, 1); assert.equal(result.candidatesDeferred, 1);
+  assert.equal(transport.stageSends('query').filter(r => r.params.command.endsWith(lower)).length, 1);
+});
+
+test('整页已接收后预算停止，第二轮不重取页、不漏掉页内候选', async () => {
+  const lower = '0'.repeat(63) + '1'; const transport = new CatalogTransport([lower, ID]);
+  const c = context('page-buffer', transport, true);
+  const first = await c.run({discoveryOnly: true, limits: {maxRequests: 3}});
+  assert.equal(first.stop, 'ROUND_REQUEST_BUDGET');
+  const state = await c.state(); assert.equal(state.page.offset, 1); assert.equal(state.page.entries.length, 2);
+  const taskId = state.events[0].tasks.inspect.request.id;
+  const result = await c.run({discoveryOnly: true}); assert.equal(result.candidatesChecked, 2);
+  assert.ok(transport.queries.includes(taskId)); assert.equal(transport.stageSends('pending').length, 1);
+  assert.equal((await c.state()).events[0].eventId, ID);
+});
+
+test('候选在详细query时已消失，本轮略过但下一遍仍重新检查', async () => {
+  const id = '0'.repeat(63) + '1'; const c = context('disappeared', new CatalogTransport([id], eventId => ({eventId, state: 'NOT_FOUND'})), true);
+  assert.equal((await c.run({discoveryOnly: true})).candidatesDeferred, 1);
+  assert.equal((await c.state()).events.length, 0);
+  assert.equal((await c.run({discoveryOnly: true})).candidatesDeferred, 1);
+  assert.equal(c.transport.stageSends('query').length, 2); assert.equal(c.transport.stageSends('export').length, 0);
+});
+
+test('pending重复路径身份、倒序、游标失配或非元数据合同拒绝', async () => {
+  const changes = [p => p.events.push({...p.events[0]}), p => { p.nextAfter = 'b'.repeat(64); },
+    p => { p.events.unshift({...p.events[0], eventId: 'b'.repeat(64)}); }, p => { p.verificationScope = 'VERIFIED'; }];
+  for (let i = 0; i < changes.length; i++) {
+    const c = context('bad-pending-' + i, new FakeTransport(), true); const original = c.transport.enqueue.bind(c.transport);
+    c.transport.enqueue = async request => {
+      const task = await original(request);
+      if (request.params.command?.includes('FaultCommand pending ')) { const value = JSON.parse(task.result.text); changes[i](value); task.result.text = JSON.stringify(value); }
+      return task;
+    };
+    assert.equal((await c.run({discoveryOnly: true})).blocked, true);
+    assert.equal(c.transport.stageSends('query').length, 0); assert.equal(c.transport.stageSends('export').length, 0);
+  }
+});
+
+test('详细query的另一事件身份不能授权本候选导出', async () => {
+  const c = context('wrong-detail', new FakeTransport(), true); const original = c.transport.enqueue.bind(c.transport);
+  c.transport.enqueue = async request => {
+    const task = await original(request);
+    if (request.params.command?.includes('FaultCommand query ')) task.result.text = JSON.stringify({schemaVersion: 1, eventId: 'b'.repeat(64), state: {phase: 'COMPLETE'}});
+    return task;
+  };
+  assert.equal((await c.run()).stop, 'CANDIDATE_IDENTITY_MISMATCH'); assert.equal(c.transport.stageSends('export').length, 0);
+});
+
+test('发现模式遇到既有导出未决任务时不发其它命令', async () => {
+  const c = context('discovery-active-transfer', new FakeTransport(), true);
+  await assert.rejects(c.run({checkpoint: label => { if (label === 'intent:export') throw CRASH; }}));
+  const before = c.transport.sends.length;
+  assert.equal((await c.run({discoveryOnly: true})).stop, 'DISCOVERY_TRANSFER_PENDING');
+  assert.equal(c.transport.sends.length, before);
+});
+
+test('生产建议4请求停止再同目录1事件恢复，沿用原pending任务', async () => {
+  const c = context('budget4-resume1', new FakeTransport(), true);
+  const first = await c.run({limits: {maxRequests: 4, maxEvents: 1}});
+  assert.equal(first.stop, 'ROUND_REQUEST_BUDGET'); assert.equal(first.events, 0);
+  assert.equal(c.transport.stageSends('export').length, 0);
+  const firstId = c.transport.stageSends('pending')[0].id;
+  const candidateId = (await c.state()).events[0].tasks.inspect.request.id;
+  const second = await c.run({limits: {maxEvents: 1, maxCandidates: 4, maxIndexPages: 2, maxRequests: 96, maxMs: 180000, maxBytes: 8388608}});
+  assert.equal(second.stop, 'ROUND_EVENT_BUDGET'); assert.equal(second.events, 1);
+  assert.equal(c.transport.stageSends('pending').length, 1); assert.equal(c.transport.stageSends('pending')[0].id, firstId);
+  assert.equal((await c.state()).events[0].tasks.inspect.request.id, candidateId);
+});
+
+test('跨客户端版本或活动APK变化不改写旧意图且不发网络请求', async () => {
+  const c = context('no-retarget', new FakeTransport(), true);
+  await assert.rejects(c.run({checkpoint: label => { if (label === 'intent:index') throw CRASH; }}));
+  const originalState = JSON.stringify(await c.state());
+  c.transport.resolveTarget = async () => { throw Error('不应联网'); };
+  for (const target of [{...TARGET, expectedVersion: 'new'}, {...TARGET, activeApk: TARGET.activeApk.replace('c'.repeat(64), 'd'.repeat(64))}]) {
+    await assert.rejects(c.run({target}), /STATE_TARGET_MISMATCH/);
+    assert.equal(JSON.stringify(await c.state()), originalState);
+  }
+});
+
+test('pending原正文超过8000字节即使只有额外空白也拒绝', async () => {
+  const c = context('pending-byte-limit', new FakeTransport(), true); const original = c.transport.enqueue.bind(c.transport);
+  c.transport.enqueue = async request => {
+    const task = await original(request);
+    if (request.params.command?.includes('FaultCommand pending ')) task.result.text += ' '.repeat(8001 - Buffer.byteLength(task.result.text));
+    return task;
+  };
+  assert.equal((await c.run({discoveryOnly: true})).stop, 'PENDING_INVALID');
+  assert.equal(c.transport.stageSends('query').length, 0);
 });
 
 console.log('离线合成证据目录：' + RUN);

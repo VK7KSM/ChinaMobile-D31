@@ -28,6 +28,11 @@ public final class AppMediaBridge implements AutoCloseable {
         try{submit(new JSONObject().put("operation","start").put("apk_sha256",verifiedApkSha256).put("offer",offer),callback);}
         catch(Exception failure){fail(callback,"MEDIA_BRIDGE_REQUEST_INVALID");}
     }
+    public void captureLocalAudio(String verifiedApkSha256,String diagnosticId,int durationMs,Callback callback){
+        try{submit(new JSONObject().put("operation","local_audio_capture").put("apk_sha256",verifiedApkSha256)
+                .put("diagnostic_id",diagnosticId).put("duration_ms",durationMs),callback);}
+        catch(Exception failure){fail(callback,"MEDIA_BRIDGE_REQUEST_INVALID");}
+    }
     public void stop(String sessionId,Callback callback){
         try{submit(new JSONObject().put("operation","stop").put("session_id",sessionId),callback);}
         catch(Exception failure){fail(callback,"MEDIA_BRIDGE_REQUEST_INVALID");}
@@ -50,7 +55,8 @@ public final class AppMediaBridge implements AutoCloseable {
         private volatile IBinder endpoint;
         private final CountDownLatch hello=new CountDownLatch(1),completed=new CountDownLatch(1);
         private final AtomicReference<JSONObject> result=new AtomicReference<JSONObject>();
-        Call(String command,Callback callback){this.command=command;this.callback=callback;}
+        private final long executionWindow;
+        Call(String command,Callback callback)throws Exception{this.command=command;this.callback=callback;executionWindow=AppMediaContract.executionWindow(new JSONObject(command));}
         public void run(){
             try{
                 if(cancelled.get())throw new IOException("MEDIA_BRIDGE_CANCELLED");
@@ -68,7 +74,8 @@ public final class AppMediaBridge implements AutoCloseable {
                         try{
                             if(data==null||!boot.equals(AppMediaContract.bootId()))throw new IOException();
                             String encoded=data.getString("envelope");
-                            AppMediaContract.reply(sender,expectedUid,id,boot,started,SystemClock.elapsedRealtime(),encoded);
+                            AppMediaContract.reply(sender,expectedUid,id,boot,started,SystemClock.elapsedRealtime(),encoded,
+                                    code==AppMediaContract.RESULT?executionWindow:AppMediaContract.WAIT_MS);
                             if(code==AppMediaContract.HELLO){
                                 IBinder control=data.getBinder("control");if(control==null)throw new IOException();
                                 if(endpoint==null){endpoint=control;hello.countDown();}
@@ -85,12 +92,12 @@ public final class AppMediaBridge implements AutoCloseable {
                 Object actual=AppMediaContract.start(Class.forName("android.app.IActivityManager"),manager,
                         Class.forName("android.app.IApplicationThread"),Intent.class,intent);
                 if(!target.equals(actual))throw new IOException("MEDIA_BRIDGE_SERVICE_START_FAILED");
-                await(hello,started);if(endpoint==null||cancelled.get())throw new IOException("MEDIA_BRIDGE_HANDSHAKE_FAILED");
+                await(hello,started,AppMediaContract.WAIT_MS);if(endpoint==null||cancelled.get())throw new IOException("MEDIA_BRIDGE_HANDSHAKE_FAILED");
                 Parcel data=Parcel.obtain();try{
                     data.writeInterfaceToken(AppMediaContract.DESCRIPTOR);data.writeString(command);data.writeStrongBinder(owner);
                     if(!endpoint.transact(AppMediaContract.EXECUTE,data,null,IBinder.FLAG_ONEWAY))throw new IOException("MEDIA_BRIDGE_TRANSACT_FAILED");
                 }finally{data.recycle();}
-                await(completed,started);JSONObject body=result.get();
+                await(completed,started,executionWindow);JSONObject body=result.get();
                 if(body==null||cancelled.get())throw new IOException("MEDIA_BRIDGE_REPLY_UNKNOWN");
                 if(body.has("error")){fail(callback,body.optString("error","MEDIA_BRIDGE_FAILED"));return;}
                 JSONObject request=new JSONObject(command);
@@ -107,8 +114,8 @@ public final class AppMediaBridge implements AutoCloseable {
                 if(failure instanceof InterruptedException)Thread.currentThread().interrupt();
             }finally{done.set(true);command=null;calls.remove(this);}
         }
-        private void await(CountDownLatch latch,long started)throws Exception {
-            long remaining=AppMediaContract.WAIT_MS-(SystemClock.elapsedRealtime()-started);
+        private void await(CountDownLatch latch,long started,long window)throws Exception {
+            long remaining=window-(SystemClock.elapsedRealtime()-started);
             if(remaining<=0||!latch.await(remaining,TimeUnit.MILLISECONDS)||cancelled.get())throw new IOException("MEDIA_BRIDGE_TIMEOUT_OR_CANCELLED");
         }
         void cancel(){

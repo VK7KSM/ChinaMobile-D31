@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {spawn} from 'node:child_process';
 
 const root = fileURLToPath(new URL('./', import.meta.url));
-const output = fs.mkdtempSync(path.join(root, 'test-log-' + new Date().toISOString().replace(/[:.]/g, '-') + '-'));
+const output = fs.mkdtempSync(path.join(root, 'batch7-test-log-' + new Date().toISOString().replace(/[:.]/g, '-') + '-'));
 const stdout = fs.openSync(path.join(output, 'stdout.log'), 'wx');
 const stderr = fs.openSync(path.join(output, 'stderr.log'), 'wx');
 const files = fs.readdirSync(root).filter(name => name.endsWith('.test.mjs')).sort().map(name => path.join(root, name));

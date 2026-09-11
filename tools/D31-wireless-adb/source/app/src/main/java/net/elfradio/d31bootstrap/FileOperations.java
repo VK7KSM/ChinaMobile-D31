@@ -1,5 +1,6 @@
 package net.elfradio.d31bootstrap;
 
+import android.os.ParcelFileDescriptor;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
@@ -26,19 +27,42 @@ final class FileOperations {
             }
         }
         InputStream read(File file) throws IOException {
+            FileDescriptor fd=null; ParcelFileDescriptor owner=null;
             try {
-                FileDescriptor fd=Os.open(file.getPath(),OsConstants.O_RDONLY|OsConstants.O_NOFOLLOW|OsConstants.O_NONBLOCK,0);
-                try {
-                    if(!OsConstants.S_ISREG(Os.fstat(fd).st_mode))throw new IOException("仅支持普通文件");
-                    return new FileInputStream(fd);
-                } catch(Exception error) { Os.close(fd);throw error; }
+                fd=Os.open(file.getPath(),OsConstants.O_RDONLY|OsConstants.O_NOFOLLOW|OsConstants.O_NONBLOCK,0);
+                if(!OsConstants.S_ISREG(Os.fstat(fd).st_mode))throw new IOException("仅支持普通文件");
+                owner=ParcelFileDescriptor.dup(fd);
+                FileDescriptor original=fd; fd=null; Os.close(original);
+                // API23的FileInputStream(fd)只借用描述符；关闭责任交给AutoClose流。
+                InputStream result=new ParcelFileDescriptor.AutoCloseInputStream(owner); owner=null; return result;
             } catch(ErrnoException error) { throw new IOException("打开源文件失败",error); }
+            finally { if(owner!=null)owner.close();if(fd!=null)try{Os.close(fd);}catch(ErrnoException error){throw new IOException("关闭源文件描述符失败",error);} }
         }
         FileOutputStream create(File file) throws IOException {
+            FileDescriptor fd=null; ParcelFileDescriptor owner=null;
+            boolean created=false;Info createdInfo=null;IOException failure=null;
             try {
-                return new FileOutputStream(Os.open(file.getPath(),OsConstants.O_WRONLY|OsConstants.O_CREAT
-                        |OsConstants.O_EXCL|OsConstants.O_NOFOLLOW,0600));
-            } catch(ErrnoException error) { throw new IOException("创建临时文件失败，未覆盖已有路径",error); }
+                fd=Os.open(file.getPath(),OsConstants.O_WRONLY|OsConstants.O_CREAT|OsConstants.O_EXCL|OsConstants.O_NOFOLLOW,0600);
+                created=true;
+                StructStat s=Os.fstat(fd);
+                createdInfo=new Info(false,OsConstants.S_ISREG(s.st_mode),false,s.st_size,s.st_mtime*1000,
+                        s.st_dev+":"+s.st_ino,s.st_mode&07777,s.st_uid,s.st_gid);
+                owner=ParcelFileDescriptor.dup(fd);
+                FileDescriptor original=fd; fd=null; Os.close(original);
+                FileOutputStream result=new ParcelFileDescriptor.AutoCloseOutputStream(owner);owner=null;return result;
+            } catch(Exception error) {
+                failure=created?new CreatedFileException(file,createdInfo,error):new IOException("创建临时文件失败，未覆盖已有路径",error);
+                throw failure;
+            } finally {
+                IOException cleanup=null;
+                if(owner!=null)try{owner.close();}catch(IOException error){cleanup=error;}
+                if(fd!=null)try{Os.close(fd);}catch(ErrnoException error){
+                    IOException closing=new IOException("关闭临时文件描述符失败",error);
+                    if(cleanup==null)cleanup=closing;else cleanup.addSuppressed(closing);
+                }
+                if(cleanup!=null){if(failure!=null)failure.addSuppressed(cleanup);
+                    else throw created?new CreatedFileException(file,createdInfo,cleanup):cleanup;}
+            }
         }
         void hardLink(File source,File target)throws IOException {
             try { Os.link(source.getPath(),target.getPath()); }
@@ -83,6 +107,19 @@ final class FileOperations {
         PublishedException(File source,File target,IOException cause) {
             super("目标已发布，但旧名称未清理；目标："+target.getPath()+"；旧名称："+source.getPath(),cause);
             this.target=target;
+        }
+    }
+    static final class CreatedFileException extends IOException {
+        final File createdPath;
+        final Info createdInfo;
+        File retainedRoot;
+        CreatedFileException(File path,Info info,Throwable cause){
+            super("创建文件后流初始化失败",cause);createdPath=path;createdInfo=info;retainedRoot=path;
+        }
+        @Override public String getMessage(){
+            return super.getMessage()+"；创建路径："+createdPath.getPath()+"；创建身份："
+                    +(createdInfo==null||createdInfo.key==null?"未知":createdInfo.key)
+                    +"；保留复制现场："+retainedRoot.getPath()+"；未自动删除现场，请核对后使用新任务重试";
         }
     }
     static final class Info {
@@ -187,6 +224,7 @@ final class FileOperations {
             if(error instanceof PublishedException&&((PublishedException)error).target.equals(target))
                 throw new IOException(error.getMessage()+(backed?"；原目标备份："+backup.getPath():""),error);
             String extra="";
+            if(error instanceof CreatedFileException)((CreatedFileException)error).retainedRoot=stage;
             if(staged)try { remove(stage,null,0,0,fs); }catch(Exception cleanup) { extra+="；临时复制现场保留于："+stage.getPath();error.addSuppressed(cleanup); }
             if(backed) {
                 try {
@@ -248,6 +286,8 @@ final class FileOperations {
             }else throw new IOException("仅复制普通文件或目录");
             check(cancel,start,fs);
         } catch(Exception error) {
+            // 包括祖先目录在内均保留；路径可能已被其他进程替换，不能按名字递归删除。
+            if(error instanceof CreatedFileException)throw error;
             if(created)try { remove(to,null,0,0,fs); }catch(Exception cleanup) {
                 error.addSuppressed(cleanup);throw new IOException(error.getMessage()+"；临时复制文件待清理："+to.getPath(),error);
             }

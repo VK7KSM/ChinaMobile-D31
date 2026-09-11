@@ -38,7 +38,7 @@ public final class AppMediaService extends Service {
     private int lastStart;
     private final Runnable tick=new Runnable(){public void run(){
         if(destroyed)return;controller.tick();
-        for(Endpoint endpoint:pending.values())if(SystemClock.elapsedRealtime()-endpoint.started>AppMediaContract.WAIT_MS)endpoint.cancel();
+        for(Endpoint endpoint:pending.values())if(SystemClock.elapsedRealtime()-endpoint.started>endpoint.executionWindow)endpoint.cancel();
         synchronized(owners){Iterator<Map.Entry<IBinder,IBinder.DeathRecipient>> it=owners.entrySet().iterator();
             while(it.hasNext()){Map.Entry<IBinder,IBinder.DeathRecipient> entry=it.next();
                 if(!controller.owns(entry.getKey())&&!hasPendingOwner(entry.getKey())){entry.getKey().unlinkToDeath(entry.getValue(),0);it.remove();}}}
@@ -82,6 +82,7 @@ public final class AppMediaService extends Service {
         final String id,boot;final long started;final ResultReceiver receiver;
         final AtomicBoolean used=new AtomicBoolean(),finished=new AtomicBoolean();final Cancellation cancellation=new Cancellation();
         volatile IBinder rootOwner;volatile Future<?> job;
+        volatile long executionWindow=AppMediaContract.WAIT_MS;
         Endpoint(String id,String boot,long started,ResultReceiver receiver){this.id=id;this.boot=boot;this.started=started;this.receiver=receiver;}
         void hello()throws Exception {Bundle data=envelope(null);data.putBinder("control",this);receiver.send(AppMediaContract.HELLO,data);}
         private Bundle envelope(JSONObject result)throws Exception {
@@ -100,8 +101,9 @@ public final class AppMediaService extends Service {
                 AppMediaContract.request(id,boot,started,SystemClock.elapsedRealtime());
                 final JSONObject command=AppMediaContract.command(data.readString());rootOwner=data.readStrongBinder();
                 if(rootOwner==null||!boot.equals(AppMediaContract.bootId()))throw new IOException("MEDIA_BRIDGE_OWNER_INVALID");
+                executionWindow=AppMediaContract.executionWindow(command);
                 String op=command.getString("operation");
-                if("start".equals(op))watchOwner(rootOwner);
+                if("start".equals(op)||"local_audio_capture".equals(op))watchOwner(rootOwner);
                 if("stop".equals(op)||"query".equals(op)){run(command);return true;}
                 try{job=worker.submit(new Runnable(){public void run(){Endpoint.this.run(command);}});}
                 catch(RejectedExecutionException busy){finish(AppMediaBridge.error("MEDIA_APP_BUSY"));}
@@ -110,9 +112,9 @@ public final class AppMediaService extends Service {
         }
         void run(JSONObject command){
             try{
-                AppMediaContract.request(id,boot,started,SystemClock.elapsedRealtime());cancellation.check();
-                JSONObject result=controller.execute(id,command,rootOwner,cancellation);
-                AppMediaContract.request(id,boot,started,SystemClock.elapsedRealtime());cancellation.check();finish(result);
+                AppMediaContract.request(id,boot,started,SystemClock.elapsedRealtime(),executionWindow);cancellation.check();
+                JSONObject result=controller.execute(id,command,rootOwner,cancellation,started+executionWindow);
+                AppMediaContract.request(id,boot,started,SystemClock.elapsedRealtime(),executionWindow);cancellation.check();finish(result);
             }catch(Exception failure){
                 cancellation.cancel();controller.cancelRequest(id);
                 String code=failure.getMessage();finish(AppMediaBridge.error(code!=null&&code.matches("MEDIA_[A-Z0-9_]{1,80}")?code:"MEDIA_APP_COMMAND_FAILED"));

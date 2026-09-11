@@ -4,9 +4,9 @@ import {QueueError, requireThat} from './QueueStore.mjs';
 
 const HEX = /^[a-f0-9]{64}$/;
 const TERMINAL = ['success', 'failed', 'rejected', 'expired', 'cancelled'];
-const PHASES = ['EXPORT', 'GET_FILE', 'DOWNLOAD', 'VERIFY', 'ARCHIVE', 'CONFIRM', 'DONE'];
+const PHASES = ['CHECK', 'EXPORT', 'GET_FILE', 'DOWNLOAD', 'VERIFY', 'ARCHIVE', 'CONFIRM', 'DONE'];
 export const DEFAULT_LIMITS = Object.freeze({maxEvents: 2, maxBytes: 16777216, maxMs: 180000,
-  maxRequests: 96, maxIndexPages: 8, maxRetries: 3, requestMs: 20000, pollMs: 1000, maxBackoffMs: 10000});
+  maxRequests: 96, maxIndexPages: 8, maxCandidates: 16, maxRetries: 3, requestMs: 20000, pollMs: 1000, maxBackoffMs: 10000});
 export const systemClock = {now: () => Date.now(), monotonic: () => performance.now(), sleep: ms => new Promise(r => setTimeout(r, ms))};
 
 export function validateTarget(target) {
@@ -25,7 +25,7 @@ export function commandParams(activeApk, args) {
 function limitsFor(input) {
   const limits = {...DEFAULT_LIMITS, ...input};
   const ceilings = {maxEvents: 3, maxBytes: 25165824, maxMs: 300000, maxRequests: 256,
-    maxIndexPages: 32, maxRetries: 8, requestMs: 60000, pollMs: 10000, maxBackoffMs: 60000};
+    maxIndexPages: 32, maxCandidates: 128, maxRetries: 8, requestMs: 60000, pollMs: 10000, maxBackoffMs: 60000};
   for (const [key, value] of Object.entries(limits)) requireThat(Number.isSafeInteger(value) && value >= 1 && value <= ceilings[key], 'ROUND_LIMIT_INVALID');
   return limits;
 }
@@ -42,6 +42,16 @@ function checkState(state, target) {
   requireThat(state.schemaVersion === 1 && JSON.stringify(state.target) === JSON.stringify(target), 'STATE_TARGET_MISMATCH');
   requireThat(typeof state.deviceId === 'string' && /^[A-Za-z0-9_-]{1,96}$/.test(state.deviceId), 'STATE_DEVICE_INVALID');
   requireThat(state.cursor === '' || HEX.test(state.cursor), 'STATE_CURSOR_INVALID');
+  requireThat(state.discovery === undefined || state.discovery === 'pending16', 'STATE_DISCOVERY_INVALID');
+  if (state.page) {
+    requireThat(state.discovery === 'pending16' && Array.isArray(state.page.entries) && state.page.entries.length <= 16
+      && Number.isSafeInteger(state.page.offset) && state.page.offset >= 0 && state.page.offset <= state.page.entries.length, 'STATE_PAGE_INVALID');
+    let previous = '';
+    for (const entry of state.page.entries) {
+      requireThat(HEX.test(entry.eventId) && entry.eventId > previous, 'STATE_PAGE_ORDER'); previous = entry.eventId;
+    }
+    requireThat(!previous || previous === state.cursor, 'STATE_PAGE_CURSOR');
+  }
   requireThat(Array.isArray(state.events) && state.events.length <= 128, 'QUEUE_ENTRY_LIMIT');
   const ids = new Set();
   for (const event of state.events) {
@@ -52,15 +62,18 @@ function checkState(state, target) {
 }
 
 // 一轮有界执行。transport必须遵守signal；不在模块导入时读取会话或启动任何任务。
-export async function runRound({store, transport, verifier, target, limits: inputLimits = {}, clock = systemClock, checkpoint = () => {}}) {
+export async function runRound({store, transport, verifier, target, limits: inputLimits = {}, discoveryOnly = false,
+  clock = systemClock, checkpoint = () => {}}) {
   target = validateTarget(target);
+  requireThat(typeof discoveryOnly === 'boolean', 'DISCOVERY_ONLY_INVALID');
   const limits = limitsFor(inputLimits);
   return store.withLock(async () => {
     let state = store.load();
     if (state) checkState(state, target);
+    requireThat(!discoveryOnly || !state || state.discovery === 'pending16', 'DISCOVERY_ONLY_REQUIRES_PENDING_STATE');
     const started = clock.monotonic();
     const count = {events: 0, requests: 0, indexPages: 0, retries: 0, reservedDownloadBytes: 0, receivedDownloadBytes: 0,
-      indexGaps: 0, nonTerminalSkipped: 0, alreadyArchivedSkipped: 0};
+      indexGaps: 0, nonTerminalSkipped: 0, alreadyArchivedSkipped: 0, candidatesChecked: 0, candidatesDeferred: 0};
     let active = null, stop = 'ROUND_COMPLETE';
     const remaining = () => limits.maxMs - (clock.monotonic() - started);
     const save = label => { store.save(state); checkpoint(label, structuredClone(state)); };
@@ -142,7 +155,22 @@ export async function runRound({store, transport, verifier, target, limits: inpu
       const id = event.eventId;
       while (event.phase !== 'DONE') {
         budget();
-        if (event.phase === 'EXPORT') {
+        if (event.phase === 'CHECK') {
+          if (count.candidatesChecked >= limits.maxCandidates) throw new QueueError('ROUND_CANDIDATE_BUDGET', true);
+          const detail = await command(event.tasks, 'inspect', ['query', id]);
+          requireThat(detail?.eventId === id, 'CANDIDATE_IDENTITY_MISMATCH');
+          event.inspectionFile = store.artifact(`inspection-${id}`, detail); count.candidatesChecked++;
+          // 目录已删除或尚未终态的候选只跳过本次遍历，下次从头扫描仍会重新检查。
+          if (detail.state === 'NOT_FOUND' || detail.state === 'INDEX_CORRUPT'
+              || (detail.state && typeof detail.state === 'object' && !['COMPLETE', 'PARTIAL'].includes(detail.state.phase))) {
+            count.candidatesDeferred++;
+            state.events.splice(state.events.indexOf(event), 1); save('candidate-deferred'); return false;
+          }
+          requireThat(detail.schemaVersion === 1 && ['COMPLETE', 'PARTIAL'].includes(detail.state?.phase), 'CANDIDATE_DETAIL_INVALID');
+          event.captureState = detail.state.capture; event.category = detail.category;
+          event.phase = 'EXPORT'; save('candidate-confirmed');
+          if (discoveryOnly) return false;
+        } else if (event.phase === 'EXPORT') {
           const receipt = await command(event.tasks, 'export', ['export', id]); checkReceipt(receipt, id);
           event.receipt = receipt; event.receiptFile = store.artifact(`receipt-${id}`, receipt);
           event.phase = 'GET_FILE'; save('exported');
@@ -205,6 +233,7 @@ export async function runRound({store, transport, verifier, target, limits: inpu
           event.phase = 'DONE'; save('done');
         }
       }
+      return true;
     };
     try {
       if (state?.blocked) { stop = state.blocked.code; }
@@ -213,22 +242,57 @@ export async function runRound({store, transport, verifier, target, limits: inpu
         const device = await call(options => transport.resolveTarget(target, options));
         if (state) requireThat(device.id === state.deviceId, 'TARGET_DEVICE_CHANGED');
         else {
-          state = {schemaVersion: 1, target, deviceId: device.id, cursor: '', events: [], index: {}, nextAt: 0, failures: 0};
+          state = {schemaVersion: 1, target, deviceId: device.id, discovery: 'pending16',
+            cursor: '', events: [], index: {}, nextAt: 0, failures: 0};
           save('initialized');
         }
         while (count.events < limits.maxEvents) {
           budget();
           try {
-            active = state.events.find(e => e.phase !== 'DONE') || null;
+            if (discoveryOnly && state.events.some(e => !['CHECK', 'EXPORT', 'DONE'].includes(e.phase)
+                || (e.phase === 'EXPORT' && e.tasks.export))) { stop = 'DISCOVERY_TRANSFER_PENDING'; break; }
+            active = state.events.find(e => discoveryOnly ? e.phase === 'CHECK' : e.phase !== 'DONE') || null;
             if (active) {
-              await processEvent(active); count.events++; active = null;
+              if (await processEvent(active)) count.events++;
+              active = null;
               state.failures = 0; state.nextAt = 0; save('event-complete');
-              if (state.endOfScan) { state.endOfScan = false; state.cursor = ''; save('scan-complete'); break; }
               continue;
             }
-            if (state.endOfScan) { state.endOfScan = false; state.cursor = ''; save('scan-complete'); break; }
-            requireThat(state.events.length < 128, 'QUEUE_ENTRY_LIMIT');
+            if (count.candidatesChecked >= limits.maxCandidates) { stop = 'ROUND_CANDIDATE_BUDGET'; break; }
+            if (state.page && state.page.offset < state.page.entries.length) {
+              const entry = state.page.entries[state.page.offset];
+              const known = state.events.some(e => e.eventId === entry.eventId);
+              if (!known && ['COMPLETE', 'PARTIAL'].includes(entry.phase)) {
+                requireThat(state.events.length < 128, 'QUEUE_ENTRY_LIMIT');
+                // ACK_RECORDED_UNVERIFIED不是本机保全证明；仍走详细查询和正常导出核验。
+                state.events.push({eventId: entry.eventId, category: entry.category, captureState: entry.captureState,
+                  phase: 'CHECK', tasks: {}});
+              } else if (!known) {
+                if (entry.phase === 'INDEX_CORRUPT' || entry.phase === 'UNKNOWN' || typeof entry.phase !== 'string') count.indexGaps++;
+                else count.nonTerminalSkipped++;
+              }
+              state.page.offset++; save('page-entry-consumed'); continue;
+            }
+            if (state.endOfScan) { state.endOfScan = false; state.cursor = ''; delete state.page; save('scan-complete'); break; }
             if (count.indexPages >= limits.maxIndexPages) { stop = 'ROUND_INDEX_BUDGET'; break; }
+            if (state.discovery === 'pending16') {
+              const index = await command(state.index, 'index', state.cursor ? ['pending', '16', state.cursor] : ['pending', '16']);
+              requireThat(index.schemaVersion === 1 && index.kind === 'FAULT_PENDING_INDEX' && index.verificationScope === 'METADATA_ONLY'
+                && index.selection === 'ALL_RETAINED_HOST_SELECTS_PENDING' && Array.isArray(index.events)
+                && index.events.length <= 16 && typeof index.hasMore === 'boolean'
+                && Buffer.byteLength(state.index.index.task.result.text, 'utf8') <= 8000
+                && Buffer.byteLength(JSON.stringify(index), 'utf8') <= 8000, 'PENDING_INVALID');
+              let previous = state.cursor;
+              for (const entry of index.events) {
+                requireThat(entry && HEX.test(entry.eventId) && entry.eventId > previous, 'PENDING_CURSOR_INVALID'); previous = entry.eventId;
+              }
+              requireThat(index.events.length ? index.nextAfter === previous : !index.hasMore && index.nextAfter === '', 'PENDING_CURSOR_INVALID');
+              state.lastIndexFile = store.artifact('pending', index);
+              state.page = {entries: index.events, offset: 0};
+              state.cursor = index.nextAfter || state.cursor; state.endOfScan = !index.hasMore;
+              state.index = {}; count.indexPages++; save('index-consumed'); continue;
+            }
+            // 没有discovery标记的旧目录仍使用原index合同及原任务，不静默迁移未决请求。
             const index = await command(state.index, 'index', state.cursor ? ['index', '1', state.cursor] : ['index', '1']);
             requireThat(index.schemaVersion === 1 && Array.isArray(index.events) && index.events.length <= 1 && typeof index.hasMore === 'boolean', 'INDEX_INVALID');
             if (index.events.length) requireThat(HEX.test(index.nextAfter) && index.nextAfter > state.cursor && index.events[0].eventId === index.nextAfter, 'INDEX_CURSOR_INVALID');
@@ -241,6 +305,7 @@ export async function runRound({store, transport, verifier, target, limits: inpu
               if (event.export?.archived === true) count.alreadyArchivedSkipped++;
               if (['COMPLETE', 'PARTIAL'].includes(event.state?.phase) && event.export?.archived !== true
                   && !state.events.some(e => e.eventId === event.eventId)) {
+                requireThat(state.events.length < 128, 'QUEUE_ENTRY_LIMIT');
                 state.events.push({eventId: event.eventId, category: event.category, captureState: event.state.capture,
                   phase: 'EXPORT', tasks: {}});
               }
@@ -275,6 +340,8 @@ export async function runRound({store, transport, verifier, target, limits: inpu
       }
     }
     const summary = {schemaVersion: 1, stop, ...count,
+      discovery: state?.discovery || 'index1', discoveryOnly,
+      bufferedEntries: state?.page ? state.page.entries.length - state.page.offset : 0,
       pending: state ? state.events.filter(e => e.phase !== 'DONE').length : 0,
       archived: state ? state.events.filter(e => e.phase === 'DONE').length : 0,
       preservedWithGaps: state ? state.events.filter(e => e.phase === 'DONE' && (e.summary.gapCount > 0 || !e.summary.sourceLogComplete)).length : 0,

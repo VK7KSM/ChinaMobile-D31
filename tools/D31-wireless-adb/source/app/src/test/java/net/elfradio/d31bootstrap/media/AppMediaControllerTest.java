@@ -7,6 +7,49 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class AppMediaControllerTest {
+    @Test public void diagnosticOwnerDeathCancellationAndServiceExitReleaseAndKeepIdleQuery()throws Exception {
+        for(int action=0;action<3;action++){
+            LocalAudioCaptureTest.Recorder record=new LocalAudioCaptureTest.Recorder();
+            record.reading=new CountDownLatch(1);record.unblock=new CountDownLatch(1);
+            Backend backend=new Backend(){@Override public LocalAudioCapture localCapture(String hash,String id,int ms,Cancellation cancel)throws Exception{
+                return new LocalAudioCapture(id,ms,123,10001,c->record,cancel,LocalAudioCaptureTest.CLOCK);}};
+            AppMediaController controller=new AppMediaController(backend,LocalAudioCaptureTest.CLOCK);
+            ExecutorService worker=Executors.newSingleThreadExecutor();
+            try{
+                Future<JSONObject> job=worker.submit(()->controller.execute("diag-request",AppMediaContractTest.diagnostic(),owner,new Cancellation()));
+                assertTrue(record.reading.await(1,TimeUnit.SECONDS));
+                assertEquals("diagnosing",controller.query("",owner).getString("state"));
+                controller.ownerDied(new Object());assertEquals(0,record.stops);
+                if(action==0)controller.ownerDied(owner);else if(action==1)controller.cancelRequest("diag-request");else controller.serviceDestroyed();
+                assertEquals("CANCELLED",job.get(2,TimeUnit.SECONDS).getString("state"));
+                assertEquals(1,record.releases);assertFalse(controller.hasActive());
+                JSONObject query=controller.query("",new Object());assertEquals("idle",query.getString("state"));
+                assertTrue(query.getJSONObject("last_diagnostic").getBoolean("release_completed"));assertFalse(query.getBoolean("managed_media"));
+            }finally{record.unblock.countDown();controller.serviceDestroyed();worker.shutdownNow();}
+        }
+    }
+    @Test public void diagnosticCanBeStoppedBySeparateRequestAndCannotBeReplayed()throws Exception {
+        LocalAudioCaptureTest.Recorder record=new LocalAudioCaptureTest.Recorder();record.reading=new CountDownLatch(1);record.unblock=new CountDownLatch(1);
+        Backend backend=new Backend(){@Override public LocalAudioCapture localCapture(String hash,String id,int ms,Cancellation cancel)throws Exception{
+            return new LocalAudioCapture(id,ms,1,10001,c->record,cancel,LocalAudioCaptureTest.CLOCK);}};
+        AppMediaController controller=new AppMediaController(backend,LocalAudioCaptureTest.CLOCK);ExecutorService worker=Executors.newSingleThreadExecutor();
+        try{
+            Future<JSONObject> job=worker.submit(()->controller.execute("diag-request",AppMediaContractTest.diagnostic(),owner,new Cancellation()));
+            assertTrue(record.reading.await(1,TimeUnit.SECONDS));
+            MediaCaptureTest.rejects("BUSY",()->controller.execute("other",AppMediaContractTest.diagnostic().put("diagnostic_id","other"),new Object(),new Cancellation()));
+            controller.execute("stop-request",command("stop").put("session_id","local-1"),new Object(),new Cancellation());
+            assertEquals("CANCELLED",job.get(2,TimeUnit.SECONDS).getString("state"));assertEquals(1,record.releases);
+            MediaCaptureTest.rejects("ALREADY_USED",()->controller.execute("replay",AppMediaContractTest.diagnostic(),owner,new Cancellation()));
+        }finally{record.unblock.countDown();controller.serviceDestroyed();worker.shutdownNow();}
+    }
+    @Test public void diagnosticReleaseFailurePreventsAnotherCapture()throws Exception {
+        LocalAudioCaptureTest.Recorder record=new LocalAudioCaptureTest.Recorder();record.releaseFails=true;
+        Backend backend=new Backend(){@Override public LocalAudioCapture localCapture(String hash,String id,int ms,Cancellation cancel)throws Exception{
+            return new LocalAudioCapture(id,ms,1,10001,c->record,cancel,LocalAudioCaptureTest.CLOCK);}};
+        AppMediaController controller=new AppMediaController(backend,LocalAudioCaptureTest.CLOCK);
+        assertEquals("RELEASE_UNCONFIRMED",controller.execute("diag",AppMediaContractTest.diagnostic(),owner,new Cancellation()).getString("state"));
+        assertTrue(controller.hasActive());MediaCaptureTest.rejects("BUSY",()->controller.execute("other",AppMediaContractTest.diagnostic().put("diagnostic_id","other"),owner,new Cancellation()));
+    }
     final MediaCaptureTest.Clock clock=new MediaCaptureTest.Clock();
     final Object owner=new Object();
     class Session implements AppMediaController.Session {

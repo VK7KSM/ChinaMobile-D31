@@ -72,6 +72,36 @@ final class AppMediaBackend implements AppMediaController.Backend,AutoCloseable 
                 .put("reason",current==null?"GUARD_UNAVAILABLE":"SNAPSHOT_NOT_SUPPORTED").put("read_only",true);
         result.put("audio_occupancy_snapshot",snapshot);
     }
+    public LocalAudioCapture localCapture(final String hash,String id,int duration,Cancellation cancel)throws Exception {
+        return new LocalAudioCapture(id,duration,android.os.Process.myPid(),android.os.Process.myUid(),new LocalAudioCapture.Factory(){
+            private volatile JSONObject evidence=new JSONObject();
+            private AndroidAudioOccupancy occupancyGuard;
+            public JSONObject preflight(){return evidence;}
+            public void requireCallsIdle()throws Exception {
+                if(occupancyGuard==null)throw new IOException("MEDIA_LOCAL_AUDIO_CALL_STATE_UNKNOWN");
+                requireDiagnosticCallsIdle(occupancyGuard.snapshot());
+            }
+            public LocalAudioCapture.Recorder open(Cancellation cancellation)throws Exception {
+                cancellation.check();verifiedApk(hash);cancellation.check();AudioGuard current=guard();
+                if(current instanceof AndroidAudioOccupancy){occupancyGuard=(AndroidAudioOccupancy)current;occupancyGuard.awaitFirstSample(1500);}
+                cancellation.check();JSONObject value=MediaReadiness.snapshot(app,AppMediaContract.PACKAGE,current);
+                appendGuardSnapshot(value,current);evidence=value;
+                requireDiagnosticPreconditions(value);
+                current.requireIdle();requireCallsIdle();cancellation.check();return new LocalAudioCaptureAndroid();
+            }
+        },cancel,AndroidMediaDevice.CLOCK);
+    }
+    static void requireDiagnosticPreconditions(JSONObject value)throws IOException {
+        JSONObject occupancy=value.optJSONObject("audio_occupancy_snapshot");
+        if(!"GRANTED".equals(value.optString("record_permission"))||!value.optBoolean("process_package_match")
+                ||!value.optBoolean("framework_package_match")||!"ALLOWED".equals(value.optString("record_appop"))||occupancy==null
+                ||!"IDLE".equals(occupancy.optString("cellular"))||!"IDLE".equals(occupancy.optString("sip"))
+                ||!"IDLE".equals(occupancy.optString("other")))throw new IOException("MEDIA_LOCAL_AUDIO_PRECONDITIONS");
+    }
+    static void requireDiagnosticCallsIdle(JSONObject value)throws IOException {
+        if(value==null||!"IDLE".equals(value.optString("cellular"))||!"IDLE".equals(value.optString("sip")))
+            throw new IOException("MEDIA_LOCAL_AUDIO_CALL_STATE_CHANGED");
+    }
     public AppMediaController.Session create(String hash,RtcOffer offer,Cancellation cancel)throws Exception {
         cancel.check();File apk=verifiedApk(hash);final AudioGuard current=guard();current.requireIdle();cancel.check();
         File files=appDirectory(app.getFilesDir()),codeCache=appDirectory(app.getCodeCacheDir());
