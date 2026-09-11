@@ -7,6 +7,7 @@ import android.content.Intent;
 public final class VendorNetworkReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
+        if (RemoteDeployment.systemManaged()) return;
         SipNetworkMonitor.onVendorNetworkBroadcast(context, intent);
     }
 }

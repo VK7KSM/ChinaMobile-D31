@@ -30,6 +30,7 @@ public final class BootReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        if (RemoteDeployment.systemManaged()) return;
         String action = intent.getAction();
         context.startService(new Intent(intent).setClass(context, ProbeService.class));
         ProbeLog.append(context, "收到系统广播：" + action);

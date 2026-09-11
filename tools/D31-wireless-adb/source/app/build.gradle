@@ -4,6 +4,68 @@ def d31SigningReady = ['D31_SIGNING_KEYSTORE', 'D31_SIGNING_STORE_PASSWORD',
                        'D31_SIGNING_KEY_ALIAS', 'D31_SIGNING_KEY_PASSWORD']
         .every { System.getenv(it) }
 
+// 同一发布序列：基础包在前，完整包紧随其后；90版历史制品保持不变。
+def remoteBaseVersionCode = (findProperty('remoteBaseVersionCode') ?: '91').toString()
+if (!(remoteBaseVersionCode ==~ /[0-9]+/) || remoteBaseVersionCode.toLong() < 91L
+        || remoteBaseVersionCode.toLong() > 2099999999L) {
+    throw new GradleException('remoteBaseVersionCode必须为91..2099999999；正式发布序号由父任务确定')
+}
+def remoteFullCode = (remoteBaseVersionCode.toLong() + 1L).intValue()
+def remoteVersionName = (findProperty('remoteVersionName') ?: '1.19.0-candidate').toString()
+if (!(remoteVersionName ==~ /[0-9A-Za-z][0-9A-Za-z._-]{0,79}/)) {
+    throw new GradleException('remoteVersionName格式无效')
+}
+def localSources = ['AdbControl', 'DeviceInfo', 'ProbeLog', 'RemoteDeployment',
+                    'RescueDaemon', 'RescueFiles', 'RescueHttpServer', 'RescueInstaller',
+                    'RescueJobs', 'RootTransport', 'TcpListenerState']
+        .collect { "net/elfradio/d31bootstrap/${it}.java" }
+def localTests = ['AdbControlTest', 'DeviceInfoTest', 'RescueTest', 'RootTransportTest',
+                  'TcpListenerStateTest'].collect { "net/elfradio/d31bootstrap/${it}.java" }
+
+if (findProperty('remoteBuildDirectory')) {
+    layout.buildDirectory.set(file(findProperty('remoteBuildDirectory')))
+}
+
+def remoteSourceRoot = layout.buildDirectory.dir('generated/remote-variants')
+def syncRemoteVariantSources = tasks.register('syncRemoteVariantSources', Sync) {
+    into remoteSourceRoot
+    includeEmptyDirs = false
+    duplicatesStrategy = DuplicatesStrategy.FAIL
+    from('src/main/java') {
+        include localSources
+        into 'main/java'
+    }
+    from('src/main/java') {
+        include '**/*.java'
+        exclude localSources
+        into 'full/java'
+    }
+    from('src/test/java') {
+        include localTests
+        into 'test/java'
+    }
+    from('src/test/java') {
+        include '**/*.java'
+        exclude localTests
+        into 'testFull/java'
+    }
+    doFirst {
+        if (!fileTree('src') { include '**/*.kt', '**/*.kts' }.isEmpty()) {
+            throw new GradleException('发现Kotlin源码，必须先扩展双制品源码合同，不能静默排除')
+        }
+        localSources.each { source ->
+            if (!file("src/main/java/${source}").isFile()) {
+                throw new GradleException("共享源码缺失：${source}")
+            }
+        }
+        localTests.each { source ->
+            if (!file("src/test/java/${source}").isFile()) {
+                throw new GradleException("共享测试缺失：${source}")
+            }
+        }
+    }
+}
+
 android {
     buildFeatures { buildConfig true }
     namespace 'net.elfradio.d31bootstrap'
@@ -13,8 +75,55 @@ android {
         applicationId 'net.elfradio.d31bootstrap'
         minSdk 21
         targetSdk 27
-        versionCode 60
-        versionName '1.11.6-local-rescue-routing'
+        versionCode remoteFullCode
+        versionName remoteVersionName
+    }
+
+    flavorDimensions 'delivery'
+    productFlavors {
+        basic {
+            dimension 'delivery'
+            versionCode remoteFullCode - 1
+            versionNameSuffix '-basic'
+            buildConfigField 'String', 'REMOTE_ARTIFACT', '"basic"'
+        }
+        full {
+            dimension 'delivery'
+            buildConfigField 'String', 'REMOTE_ARTIFACT', '"full"'
+        }
+    }
+
+    // lint按目录扫描而不遵循Java过滤器；使用受控副本让编译与lint看到相同源码。
+    sourceSets {
+        main {
+            manifest.srcFile 'src/full/AndroidManifest.xml'
+            java.setSrcDirs([remoteSourceRoot.get().dir('main/java').asFile])
+            assets.srcDirs = []
+            resources.srcDirs = []
+        }
+        basic {
+            manifest.srcFile 'src/basic/AndroidManifest.xml'
+        }
+        full {
+            manifest.srcFile 'src/main/AndroidManifest.xml'
+            java.setSrcDirs(['src/full/java', remoteSourceRoot.get().dir('full/java').asFile])
+            assets.srcDir 'src/main/assets'
+            resources.srcDir 'src/main/resources'
+        }
+        test {
+            java.setSrcDirs([remoteSourceRoot.get().dir('test/java').asFile])
+        }
+        testFull {
+            java.setSrcDirs(['src/testFull/java', remoteSourceRoot.get().dir('testFull/java').asFile])
+        }
+        testBasic {
+            java.srcDir 'src/basic/tests/java'
+        }
+    }
+
+    // AGP即使未应用Kotlin插件也默认登记原始Java目录，lint会将其并入分析。
+    sourceSets.configureEach {
+        kotlin.setSrcDirs([])
     }
 
     signingConfigs {
@@ -45,11 +154,36 @@ android {
 
     lint {
         disable 'ExpiredTargetSdkVersion'
+        checkGeneratedSources true
+    }
+}
+
+// 直接调用lint或生成lint模型时也必须先准备源码，不能依赖此前碰巧编译过。
+tasks.configureEach {
+    if (name == 'preBuild' || name.startsWith('lint')
+            || (name.startsWith('generate') && name.contains('Lint'))) {
+        dependsOn(syncRemoteVariantSources)
     }
 }
 
 dependencies {
     implementation 'org.nanohttpd:nanohttpd:2.3.1'
+    fullImplementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
+    fullImplementation 'org.java-websocket:Java-WebSocket:1.5.7'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20240303'
+}
+
+// 仅输出依赖坐标，供离线制品检查核对；不解析或打印签名凭据。
+tasks.register('writeRemoteVariantDependencies') {
+    doLast {
+        ['basic', 'full'].each { flavor ->
+            def target = layout.buildDirectory.file("remote-variants/${flavor}-dependencies.txt").get().asFile
+            target.parentFile.mkdirs()
+            target.text = configurations.getByName("${flavor}ReleaseRuntimeClasspath")
+                    .resolvedConfiguration.resolvedArtifacts.collect {
+                        it.moduleVersion.id.toString()
+                    }.sort().join('\n') + '\n'
+        }
+    }
 }

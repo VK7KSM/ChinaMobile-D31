@@ -164,7 +164,22 @@ namespace D31FlashTool
             disconnectButton.Click += async delegate { await DisconnectAdbAsync(); };
             addressPanel.Controls.Add(disconnectButton);
             rescueButton = CreateButton("设备急救", "\uE90F", Color.FromArgb(23, 92, 211), 498, 7, 132);
-            rescueButton.Click += delegate { using (var dialog = new RescueForm(toolRoot, ipInput.Text.Trim())) { dialog.Icon = Icon; dialog.ShowDialog(this); } };
+            rescueButton.Click += delegate
+            {
+                using (var dialog = new RescueForm(toolRoot, ipInput.Text.Trim()))
+                {
+                    dialog.Icon = Icon;
+                    dialog.ShowDialog(this);
+                    if (dialog.RecoveryAttempted)
+                    {
+                        ResetDevice();
+                        connectedSerial = null;
+                        SetStatus("急救后请重新连接并核验D31，旧刷机预检已失效。", Color.FromArgb(71, 84, 103));
+                    }
+                    if (dialog.ConnectedEndpoint != null) ipInput.Text = dialog.ConnectedEndpoint;
+                    UpdateControls();
+                }
+            };
             addressPanel.Controls.Add(rescueButton);
             Label portLabel = new Label
             {
@@ -452,7 +467,7 @@ namespace D31FlashTool
             UpdateControls();
             string address = ipInput.Text.Trim();
             SetStatus("正在连接指定IP的D31 ADB。", Color.FromArgb(23, 92, 211));
-            AppendLog("开始连接ADB目标" + address + ":5555；电脑端使用专用ADB服务器端口5042。");
+            AppendLog("开始识别ADB端口并连接目标" + address + "；电脑端使用专用ADB服务器端口5042。可填写IPv4:端口。");
             try
             {
                 if (!adbPrepared)
@@ -573,7 +588,7 @@ namespace D31FlashTool
             if (packageBusy || adbPrepared) { return; }
             packageBusy = true;
             UpdateControls();
-            SetStatus("正在清理D31专用ADB端口5042的旧连接。", Color.FromArgb(23, 92, 211));
+            SetStatus("正在初始化D31专用ADB端口5042，保留已有连接。", Color.FromArgb(23, 92, 211));
             try
             {
                 string result = await Task.Run(delegate
@@ -582,7 +597,7 @@ namespace D31FlashTool
                 });
                 AppendLog(result);
                 adbPrepared = true;
-                SetStatus("ADB端口5042已清理。填写D31的IP并点击“连接ADB”。", Color.FromArgb(2, 122, 72));
+                SetStatus("ADB服务器5042已就绪。填写D31的IP或IPv4:端口并连接。", Color.FromArgb(2, 122, 72));
             }
             catch (Exception exception)
             {

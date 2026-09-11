@@ -38,6 +38,7 @@ final class RescueInstaller {
     }
 
     static synchronized String ensure(Context context) {
+        if (RemoteDeployment.systemManaged()) return "系统已独立部署远程和救援核心，不覆盖启动载荷";
         if (healthy()) return "独立命令服务已运行";
         try {
             File dir = directory(context);

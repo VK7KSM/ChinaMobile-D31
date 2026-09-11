@@ -290,21 +290,24 @@ namespace D31FlashTool
             if (!File.Exists(adb)) { throw new FileNotFoundException("工具包缺少adb.exe", adb); }
 
             StringBuilder log = new StringBuilder();
-            log.AppendLine("重置前D31专用ADB端口5042的设备列表：");
-            log.AppendLine(RunOptional(adb, "-P 5042 devices -l"));
-            RunOptional(adb, "-P 5042 kill-server");
-            Thread.Sleep(500);
             ProcessRunner.Run(adb, "-P 5042 start-server", 20000);
-            log.AppendLine(RunOptional(adb, "-P 5042 disconnect"));
-            log.AppendLine("重置后D31专用ADB端口5042的设备列表：");
+            log.AppendLine("D31专用ADB端口5042已就绪，保留已有设备连接：");
             log.AppendLine(ProcessRunner.Run(adb, "-P 5042 devices -l", 20000));
             return log.ToString().Trim();
         }
 
-        private static string NormalizeAddress(string address)
+        internal static string NormalizeAddress(string address)
         {
+            string input = (address ?? String.Empty).Trim();
+            int colon = input.IndexOf(':');
+            if (colon >= 0)
+            {
+                if (RescueClient.ValidPort(input.Substring(colon + 1)) == 0)
+                    throw new InvalidOperationException("ADB端口必须是1至65535的十进制整数。");
+                input = input.Substring(0, colon);
+            }
             IPAddress parsed;
-            if (!IPAddress.TryParse((address ?? String.Empty).Trim(), out parsed) ||
+            if (!IPAddress.TryParse(input, out parsed) ||
                 parsed.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
             {
                 throw new InvalidOperationException("请输入D31的有效IPv4地址，例如192.168.2.62。");
@@ -314,31 +317,71 @@ namespace D31FlashTool
 
         internal static string Connect(string toolRoot, string address)
         {
-            string ip = NormalizeAddress(address);
-            string serial = ip + ":5555";
             string adb = Path.Combine(toolRoot, "tools", "adb.exe");
             if (!File.Exists(adb)) { throw new FileNotFoundException("工具包缺少adb.exe", adb); }
-            Exception firstError = null;
-            for (int attempt = 0; attempt < 2; ++attempt)
-            {
-                try
-                {
-                    if (attempt > 0) { PrepareDedicatedServer(toolRoot); }
-                    RunOptional(adb, "-P 5042 disconnect " + Quote(serial));
-                    ProcessRunner.Run(adb, "-P 5042 connect " + Quote(serial), 20000);
-                    string state = RunAdb(adb, DedicatedAdbPort, serial, "get-state").Trim();
-                    if (state != "device") { throw new InvalidOperationException("ADB状态不是device：" + state); }
-                    return serial;
-                }
-                catch (Exception exception)
-                {
-                    if (firstError == null) { firstError = exception; }
-                }
-            }
+            return ConnectCore(address, arguments => ProcessRunner.Run(adb, arguments, 20000), RescueClient.ReadAdbPort);
+        }
 
-            throw new InvalidOperationException(
-                "无法通过ADB连接" + serial + "。请确认电脑能访问该IP，并在D31无线ADB程序中启动5555。" +
-                (firstError == null ? String.Empty : "\r\n" + firstError.Message));
+        internal static int ResolvePort(string address, Func<string, int> readPort, Func<string> devices)
+        {
+            string ip = NormalizeAddress(address);
+            string input = address.Trim();
+            int colon = input.IndexOf(':');
+            if (colon >= 0) return RescueClient.ValidPort(input.Substring(colon + 1));
+            try
+            {
+                int observed = readPort(ip);
+                if (observed > 0 && observed <= 65535) return observed;
+            }
+            catch (Exception) { /* 旧设备可能没有8765；只查询已有目标，不扫描网络端口。 */ }
+            int found = 0;
+            foreach (string line in devices().Split('\n'))
+            {
+                Match match = Regex.Match(line.Trim(), "^" + Regex.Escape(ip) + @":([0-9]+)\s+(device|offline|unauthorized)(\s|$)");
+                int port = match.Success ? RescueClient.ValidPort(match.Groups[1].Value) : 0;
+                if (port == 0) continue;
+                if (found != 0 && found != port)
+                    throw new InvalidOperationException("该IP存在多个ADB端口记录，请在IP框填写IPv4:端口，不自动猜测。");
+                found = port;
+            }
+            // 仅作旧设备的连接候选，不写入设备、不声称已确认其配置。
+            return found == 0 ? 5555 : found;
+        }
+
+        internal static string ConnectCore(string address, Func<string, string> run, Func<string, int> readPort)
+        {
+            string ip = NormalizeAddress(address);
+            int port = ResolvePort(address, readPort, () => run("-P 5042 devices -l"));
+            string serial = ip + ":" + port;
+            try
+            {
+                // adbd重启后清理该目标的陈旧会话，不能全局断开其他D31。
+                try { run("-P 5042 disconnect " + Quote(serial)); } catch (Exception) { }
+                run("-P 5042 connect " + Quote(serial));
+                string state = run("-P 5042 -s " + Quote(serial) + " get-state").Trim();
+                if (state != "device") throw new IOException("ADB状态不是device：" + state);
+                return serial;
+            }
+            catch (Exception ex)
+            {
+                throw new IOException("ADB握手未通过，目标" + serial + "。属性或恢复命令不代表连接成功；旧uptool不能回传实际端口，必要时在IP框填写IPv4:端口。", ex);
+            }
+        }
+
+        internal static void ValidateSerial(string serial, string address)
+        {
+            string ip = NormalizeAddress(address);
+            string prefix = ip + ":";
+            if (serial == null || !serial.StartsWith(prefix, StringComparison.Ordinal) ||
+                RescueClient.ValidPort(serial.Substring(prefix.Length)) == 0 ||
+                (address.Trim().Contains(":") && NormalizeEndpoint(address) != serial))
+                throw new InvalidOperationException("当前ADB连接与IP输入框不一致，请先断开后重新连接。");
+        }
+
+        private static string NormalizeEndpoint(string address)
+        {
+            string input = address.Trim();
+            return NormalizeAddress(input) + ":" + RescueClient.ValidPort(input.Substring(input.IndexOf(':') + 1));
         }
 
         internal static string Disconnect(string toolRoot, string serial)
@@ -351,10 +394,7 @@ namespace D31FlashTool
         internal static DeviceInfo Inspect(string toolRoot, string serial, string address)
         {
             string ip = NormalizeAddress(address);
-            if (!String.Equals(serial, ip + ":5555", StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException("当前ADB连接与IP输入框不一致，请先断开后重新连接。");
-            }
+            ValidateSerial(serial, address);
             string adb = Path.Combine(toolRoot, "tools", "adb.exe");
             if (!File.Exists(adb)) { throw new FileNotFoundException("工具包缺少adb.exe", adb); }
             string state = RunAdb(adb, DedicatedAdbPort, serial, "get-state").Trim();

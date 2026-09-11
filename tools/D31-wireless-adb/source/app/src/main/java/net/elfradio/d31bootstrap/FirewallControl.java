@@ -133,6 +133,7 @@ final class FirewallControl {
 
     private static RuleInputs collectInputs(Context context) throws Exception {
         RuleInputs inputs = new RuleInputs();
+        inputs.adbPort = AdbControl.currentPort();
         collectLocalNetworks(inputs);
         collectSipAddresses(context, inputs);
         return inputs;
@@ -232,6 +233,8 @@ final class FirewallControl {
     }
 
     static List<String> buildApplyCommands(RuleInputs inputs) {
+        if (inputs.adbPort < 1 || inputs.adbPort > 65535)
+            throw new IllegalArgumentException("ADB端口无效");
         List<String> commands = new ArrayList<>(clearCommands());
         commands.add("iptables -N " + CHAIN4);
         commands.add("iptables -A " + CHAIN4 + " -i lo -j RETURN");
@@ -240,7 +243,7 @@ final class FirewallControl {
         commands.add("iptables -A " + CHAIN4 + " -p icmp -j RETURN");
         commands.add("iptables -A " + CHAIN4
                 + " -p udp --sport 67 --dport 68 -j RETURN");
-        appendManagementRules(commands, "iptables", CHAIN4, inputs.localIpv4);
+        appendManagementRules(commands, "iptables", CHAIN4, inputs.localIpv4, inputs.adbPort);
         appendSipAndMediaRules(commands, "iptables", CHAIN4, inputs.sipIpv4);
         commands.add("iptables -A " + CHAIN4 + " -j DROP");
 
@@ -252,10 +255,10 @@ final class FirewallControl {
         commands.add("ip6tables -A " + CHAIN6
                 + " -p udp --sport 547 --dport 546 -j RETURN");
         commands.add("ip6tables -A " + CHAIN6
-                + " -s fe80::/10 -p tcp --dport 5555 -j RETURN");
+                + " -s fe80::/10 -p tcp --dport " + inputs.adbPort + " -j RETURN");
         commands.add("ip6tables -A " + CHAIN6
                 + " -s fe80::/10 -p tcp --dport 8765 -j RETURN");
-        appendManagementRules(commands, "ip6tables", CHAIN6, inputs.localIpv6);
+        appendManagementRules(commands, "ip6tables", CHAIN6, inputs.localIpv6, inputs.adbPort);
         appendSipAndMediaRules(commands, "ip6tables", CHAIN6, inputs.sipIpv6);
         commands.add("ip6tables -A " + CHAIN6 + " -j DROP");
 
@@ -265,10 +268,10 @@ final class FirewallControl {
     }
 
     private static void appendManagementRules(
-            List<String> commands, String tool, String chain, Set<String> networks) {
+            List<String> commands, String tool, String chain, Set<String> networks, int adbPort) {
         for (String network : networks) {
             commands.add(tool + " -A " + chain + " -s " + network
-                    + " -p tcp --dport 5555 -j RETURN");
+                    + " -p tcp --dport " + adbPort + " -j RETURN");
             commands.add(tool + " -A " + chain + " -s " + network
                     + " -p tcp --dport 8765 -j RETURN");
         }
@@ -310,6 +313,7 @@ final class FirewallControl {
     }
 
     static final class RuleInputs {
+        int adbPort = AdbControl.DEFAULT_PORT;
         final Set<String> localIpv4 = new LinkedHashSet<>();
         final Set<String> localIpv6 = new LinkedHashSet<>();
         final Set<String> sipIpv4 = new LinkedHashSet<>();

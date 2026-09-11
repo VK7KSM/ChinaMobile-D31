@@ -19,13 +19,14 @@ public final class MainActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        RemoteManualBootstrap.request(this);
 
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(28, 20, 28, 20);
 
         TextView title = new TextView(this);
-        title.setText("D31 无线 ADB 启动器");
+        title.setText("elfRemote");
         title.setTextSize(24);
         title.setGravity(Gravity.CENTER_HORIZONTAL);
         content.addView(title, new LinearLayout.LayoutParams(-1, -2));
@@ -43,7 +44,7 @@ public final class MainActivity extends Activity {
         content.addView(recovery, new LinearLayout.LayoutParams(-1, -2));
 
         Button enable = new Button(this);
-        enable.setText("重新启动无线 ADB（端口 5555）");
+        enable.setText("重新启动无线 ADB（保留当前端口）");
         enable.setAllCaps(false);
         enable.setOnClickListener(view -> runAction(1));
         content.addView(enable, new LinearLayout.LayoutParams(-1, -2));
@@ -103,7 +104,7 @@ public final class MainActivity extends Activity {
         output.setText("请稍候...");
         new Thread(() -> {
             StringBuilder text = new StringBuilder();
-            text.append("D31 无线 ADB 启动器root通道版\n")
+            text.append("elfRemote / D31设备维护\n")
                     .append("系统：Android ").append(Build.VERSION.RELEASE)
                     .append(" / API ").append(Build.VERSION.SDK_INT).append('\n')
                     .append("型号：").append(Build.MODEL).append('\n')
@@ -138,6 +139,7 @@ public final class MainActivity extends Activity {
             String report = text.toString();
             ProbeLog.append(this, "界面操作，动作=" + action + "\n" + report);
             final boolean healthy = action >= 5 ? RescueInstaller.healthy() : AdbControl.isHealthy(this);
+            final int adbPort = AdbControl.currentPort();
             final boolean actionSucceeded = result == null || result.succeeded;
             runOnUiThread(() -> {
                 actionRunning = false;
@@ -157,11 +159,11 @@ public final class MainActivity extends Activity {
                             : "防火墙回滚失败，请查看下方错误");
                 } else if (action == 1) {
                     summary.setText(actionSucceeded
-                            ? "设备本地ADB状态正常：" + DeviceInfo.firstIpv4() + ":5555"
+                            ? "设备本地ADB状态正常：" + DeviceInfo.firstIpv4() + ":" + adbPort
                             : "设备本地ADB状态异常，请查看下方错误");
                 } else {
                     summary.setText(healthy
-                            ? "设备本地ADB状态正常：" + DeviceInfo.firstIpv4() + ":5555"
+                            ? "设备本地ADB状态正常：" + DeviceInfo.firstIpv4() + ":" + adbPort
                             : "设备本地ADB状态异常，请查看下方错误");
                 }
                 output.setText(report);
