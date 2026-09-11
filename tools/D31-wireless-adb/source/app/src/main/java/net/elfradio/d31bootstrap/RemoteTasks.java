@@ -28,6 +28,8 @@ final class RemoteTasks {
             if (!saved.getJSONObject("task").getString("type").equals(task.getString("type"))
                     || !saved.getJSONObject("task").getJSONObject("params").toString()
                     .equals(task.getJSONObject("params").toString())) throw new IOException("同号任务内容冲突");
+            if ("system_config".equals(task.optString("type")) && task.optBoolean("cancel_requested") && !saved.has("receipt"))
+                RemoteBusinessCommand.cancel(RemoteBusinessCommand.ROOT, id);
             if (task.optBoolean("cancel_requested") && !saved.optBoolean("dispatch_intent") && !saved.has("receipt")) {
                 saved.put("receipt", receipt(cloudId, "rejected", "任务已取消，未执行", null));
                 RescueFiles.write(file, saved.toString());
@@ -117,6 +119,21 @@ final class RemoteTasks {
                     result=new JSONObject().put("target",p.getString("target")).put("account_id",p.getString("account_id"))
                             .put("applied",ok).put("exit_code",ok?0:1).put("action",ok?"completed":"failed")
                             .put("text",ok?"配置已写入":"配置未完成，保留原配置备份");
+                }
+                if ("system_config".equals(task.optString("type"))) {
+                    JSONObject snapshot = null;
+                    try {
+                        JSONObject verified = RemoteBusinessCommand.readResult(RemoteBusinessCommand.ROOT,
+                                request.getString("id"), task.getString("type"), task.getJSONObject("params"));
+                        ok = ok && verified.getBoolean("ok");
+                        snapshot = verified.getJSONObject("snapshot");
+                    } catch (Exception invalid) { ok = false; }
+                    String output = snapshot == null ? "管理任务未取得完整回执，请查询原任务" : snapshot.toString();
+                    boolean truncated = output.length() > 16000;
+                    ok = ok && !truncated;
+                    result = new JSONObject().put("text", output.substring(0, Math.min(16000, output.length())))
+                            .put("truncated", truncated).put("exit_code", ok ? 0 : 1)
+                            .put("action", ok ? "completed" : "failed").put("stage", "system_config");
                 }
                 saved.put("receipt", receipt(cloudId, ok ? "success" : "failed",
                         ok ? "命令执行成功" : "命令未成功完成", result));

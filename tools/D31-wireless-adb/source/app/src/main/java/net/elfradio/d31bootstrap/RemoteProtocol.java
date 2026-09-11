@@ -49,6 +49,10 @@ final class RemoteProtocol {
         if (task.optBoolean("cancel_requested")) throw new IOException("任务已取消，未执行");
         if (task.optLong("expires_at", 0) <= now) throw new IOException("任务已过期，未执行");
         JSONObject params = task.getJSONObject("params");
+        if ("system_config".equals(task.optString("type"))) {
+            return new JSONObject().put("id", id).put("command", RemoteBusinessCommand.command(apk, id,
+                    task.getString("type"), params)).put("timeout", 45);
+        }
         if("configure_sip".equals(task.optString("type"))){
             return new JSONObject().put("id",id).put("command",RemoteSip.command(apk,id,task.getString("id"),params)).put("timeout",45);
         }

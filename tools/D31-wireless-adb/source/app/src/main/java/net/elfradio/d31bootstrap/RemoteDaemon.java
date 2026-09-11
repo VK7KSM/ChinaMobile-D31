@@ -30,6 +30,15 @@ public final class RemoteDaemon {
     });
     private java.util.concurrent.Future<JSONObject> sipReading;
     private final RemoteSipFollowup sipFollowup=new RemoteSipFollowup();
+    private final RemoteTelemetry telemetry = new RemoteTelemetry();
+    private RemoteFaultRuntime faults;
+    private volatile boolean managementReady;
+    private final java.util.concurrent.ExecutorService managementReader = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+        Thread thread = new Thread(r, "d31-management-readiness"); thread.setDaemon(true); return thread;
+    });
+    private java.util.concurrent.Future<Boolean> managementReading;
+    private long managementStarted;
+    private long managementRetry;
 
     private RemoteDaemon(File root, String instance) throws Exception {
         this.root = root; this.instance = instance;
@@ -57,12 +66,15 @@ public final class RemoteDaemon {
             java.util.concurrent.ScheduledExecutorService health = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
             health.scheduleWithFixedDelay(() -> daemon.health(instance, apkHash), 0, 5, java.util.concurrent.TimeUnit.SECONDS);
             try {
+                daemon.faults = new RemoteFaultRuntime(RemoteDaemon::bootComplete);
+                boolean cloudStopped = false;
                 do {
+                    if (cloudStopped) { Thread.sleep(1000); continue; }
                     try { daemon.tick(); }
                     catch (RemoteHttp.Rejected rejected) {
                         daemon.status("cloud_rejected", rejected.status, rejected.reason);
-                        // 配置或身份拒绝立即结束，不反复创建注册请求。
-                        if (rejected.status >= 400 && rejected.status < 500 && rejected.status != 429) break;
+                        // 身份拒绝停止云请求，保留本地健康和取证，修正身份后由现有入口重启核心。
+                        if (rejected.status >= 400 && rejected.status < 500 && rejected.status != 429) cloudStopped = true;
                         if ("run".equals(args[1])) daemon.pauseRetry();
                     } catch (Exception error) {
                         daemon.status("retry_pending", 0, error.getClass().getSimpleName());
@@ -72,6 +84,10 @@ public final class RemoteDaemon {
                     Thread.sleep(1000);
                 } while (!new File(root, "stop").exists());
             } finally {
+                if (daemon.faults != null) daemon.faults.close();
+                daemon.telemetry.close();
+                daemon.sipReader.shutdownNow();
+                daemon.managementReader.shutdownNow();
                 if(daemon.incoming!=null)daemon.incoming.close();
                 daemon.adb.close();
                 health.shutdownNow(); daemon.push.close(); new File(root, "remote.pid").delete();
@@ -151,7 +167,8 @@ public final class RemoteDaemon {
             // 旧待报告先按原身份完成，再补本次启动的名称与版本，保留去重依据。
             boolean pending = new File(root, "pending-report.json").isFile();
             boolean bootComplete = bootReportAcknowledged || bootComplete();
-            report();
+            try { report(); }
+            catch (RemoteTelemetry.PreparationPending preparing) { return 1000; }
             if (bootComplete && !pending) bootReportAcknowledged = true;
             return 900000;
         }
@@ -193,11 +210,33 @@ public final class RemoteDaemon {
                     .put("managed_file_delete",ready)
                     .put("managed_adb_session",true)
                     .put("managed_adbd_tasks",ready)
+                    .put("managed_system_settings", false)
                     .put("maintenance", new JSONObject().put("ready", ready)
                             .put("state", ready ? "ready" : "unavailable"))
                     .put("hardware_identity", state.snapshot().getJSONObject("hardware_identity"));
             if (RemoteUpdates.ready()) body.put("managed_update", true).put("managed_update_v2", true);
             if(bootComplete()){
+                if (managementReading != null && managementReading.isDone()) {
+                    try { managementReady = managementReading.get(); }
+                    catch (Exception unavailable) { managementReady = false; }
+                    managementReading = null;
+                    managementRetry = SystemClock.elapsedRealtime() + 60000;
+                }
+                if (!managementReady && managementReading == null && SystemClock.elapsedRealtime() >= managementRetry) {
+                    managementStarted = SystemClock.elapsedRealtime();
+                    managementReading = managementReader.submit(
+                            () -> net.elfradio.d31bootstrap.management.SystemManagement.readiness(context()).optBoolean("ready"));
+                }
+                body = telemetry.enrich(body, () -> {
+                    return new net.elfradio.d31bootstrap.telemetry.TelemetryCollector(
+                        new net.elfradio.d31bootstrap.telemetry.AndroidTelemetryAccess(context()),
+                        net.elfradio.d31bootstrap.telemetry.AndroidTelemetryAccess.clock())
+                        .collect(new net.elfradio.d31bootstrap.telemetry.TelemetryCollector.Limits(0, 300000));
+                }, 250);
+                if (!managementReady && managementReading != null && !managementReading.isDone()
+                        && SystemClock.elapsedRealtime() - managementStarted < 5000)
+                    throw new RemoteTelemetry.PreparationPending();
+                body.put("managed_system_settings", ready && managementReady);
                 try{
                     if(sipReading==null)sipReading=sipReader.submit(()->RemoteSip.snapshot(context()));
                     JSONObject sip=sipReading.get(5,java.util.concurrent.TimeUnit.SECONDS);sipReading=null;
@@ -275,7 +314,7 @@ public final class RemoteDaemon {
         return "unknown";
     }
 
-    private android.content.Context context() throws Exception {
+    private synchronized android.content.Context context() throws Exception {
         if (systemContext == null) {
             if (android.os.Looper.getMainLooper() == null) android.os.Looper.prepareMainLooper();
             Class<?> activityThread = Class.forName("android.app.ActivityThread");
