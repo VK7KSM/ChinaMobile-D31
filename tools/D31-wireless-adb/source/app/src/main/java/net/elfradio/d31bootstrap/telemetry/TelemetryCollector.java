@@ -159,7 +159,8 @@ public final class TelemetryCollector {
     }
     private static String safeReason(String reason) {
         for (String allowed : new String[]{"location_disabled", "permission_denied", "provider_unavailable", "timeout",
-                "no_cached_location", "no_location", "cleanup_failed"}) if (allowed.equals(reason)) return reason;
+                "no_cached_location", "no_location", "cleanup_failed", "app_cache_timeout", "app_cache_unavailable",
+                "app_cache_identity_mismatch", "app_cache_invalid_reply", "app_cache_busy"}) if (allowed.equals(reason)) return reason;
         return "no_location";
     }
 }

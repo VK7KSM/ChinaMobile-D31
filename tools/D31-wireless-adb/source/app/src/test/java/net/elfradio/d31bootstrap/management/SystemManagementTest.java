@@ -91,6 +91,15 @@ public class SystemManagementTest {
         assertEquals(80, result.getInt("brightness")); assertEquals("41", c.saved.getString("original"));
         assertEquals(1, d.writes); assertEquals(0, d.restores);
     }
+    @Test public void integralNumbersUseIntegerSettingTextBeforeDirectExecution() throws Exception {
+        for (Number value : new Number[]{Double.valueOf(80), new java.math.BigDecimal("8E+1")}) {
+            JSONObject request = set("sound", "brightness", value);
+            assertTrue(SystemManagement.validate("system_config", request).get("value") instanceof Integer);
+            Device device = new Device();
+            JSONObject result = SystemManagement.run("system_config", request, device, new Control());
+            assertTrue(result.getBoolean("applied")); assertEquals("80", device.value); assertEquals(0, device.restores);
+        }
+    }
     @Test public void readDoesNotSaveOrMutate() throws Exception {
         Device d = new Device(); Control c = new Control();
         JSONObject result = SystemManagement.run("system_config", new JSONObject().put("group", "sound"), d, c);

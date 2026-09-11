@@ -22,6 +22,7 @@ public class FaultMonitorTest {
     private FaultMonitor monitor;
     private FaultPolicy policy;
     @Before public void setup() throws Exception {
+        FaultExports.identities = FaultTestFiles::identity;
         root = Files.createTempDirectory("fault-monitor-").toFile(); evidence = new File(root, "archive");
         clock = new FaultTestFiles.Clock(); source = new Source(); policy = policy(8, 3, 0);
         monitor = new FaultMonitor(evidence, source, clock, policy);
@@ -220,5 +221,35 @@ public class FaultMonitorTest {
     }
     @Test public void queryRejectsTraversal() throws Exception {
         try { monitor.query("../escape"); fail(); } catch (IOException expected) { assertEquals("INVALID_EVENT_ID", expected.getMessage()); }
+    }
+    @Test public void verifiedArchiveReleasesActiveSlotButNotTotalBytes() throws Exception {
+        monitor.close(); policy = policy(1, 3, 0); monitor = new FaultMonitor(evidence, source, clock, policy);
+        FaultSources.Candidate first = source.add("first", "raw"); tick(); tick();
+        FaultExports exports = new FaultExports(evidence, source, policy);
+        JSONObject r = exports.exportEvent(first.id()); long bytes = new FaultArchive(evidence, source).bytes();
+        FaultSources.Candidate second = source.add("second", "second"); tick();
+        assertEquals(1, source.captures);
+        exports.archiveEvent(first.id(), r.getString("sha256"), r.getLong("bytes"), r.getString("manifestSha256")); tick();
+        assertEquals(2, source.captures); assertTrue(new FaultArchive(evidence, source).bytes() > bytes);
+        assertEquals(1, monitor.index(8).getJSONObject("scan").getInt("activeEvents"));
+        assertEquals(1, monitor.index(8).getJSONObject("scan").getInt("archivedEvents"));
+        assertEquals(second.id(), monitor.query(second.id()).getString("eventId"));
+        reopen(); tick(); tick();
+        assertEquals(2, source.captures); assertEquals(2, monitor.index(8).getInt("total"));
+    }
+    @Test public void exportSealPreventsCounterDriftBeforeDownloadAck() throws Exception {
+        FaultSources.Candidate c = source.add("traces", "raw"); tick(); tick();
+        JSONObject r = new FaultExports(evidence, source, policy).exportEvent(c.id());
+        byte[] before = Files.readAllBytes(new File(evidence, c.id() + "/state.json").toPath()); tick();
+        assertArrayEquals(before, Files.readAllBytes(new File(evidence, c.id() + "/state.json").toPath()));
+        new FaultExports(evidence, source, policy).archiveEvent(c.id(), r.getString("sha256"), r.getLong("bytes"), r.getString("manifestSha256"));
+    }
+    @Test public void cursorCanReachEveryRetainedEvent() throws Exception {
+        source.add("first", "raw"); source.add("second", "other"); tick();
+        JSONObject page = FaultMonitor.readIndex(evidence, 1, "");
+        assertTrue(page.getBoolean("hasMore"));
+        JSONObject next = FaultMonitor.readIndex(evidence, 1, page.getString("nextAfter"));
+        assertFalse(next.getBoolean("hasMore")); assertEquals(1, next.getJSONArray("events").length());
+        assertNotEquals(page.getString("nextAfter"), next.getString("nextAfter"));
     }
 }

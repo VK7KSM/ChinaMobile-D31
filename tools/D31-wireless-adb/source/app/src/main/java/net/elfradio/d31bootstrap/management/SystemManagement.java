@@ -94,7 +94,7 @@ public final class SystemManagement {
         } else if ("timezone".equals(key)) {
             if (!(value instanceof String) || !Arrays.asList(TimeZone.getAvailableIDs()).contains(value))
                 throw new IOException("时区无效");
-        } else integer(value, 0, 255);
+        } else value = integer(value, 0, 255);
         if ("apps".equals(group) && pkg.isEmpty()) throw new IOException("应用启用设置必须指定包名");
         return n.put("key", key).put("value", value);
     }

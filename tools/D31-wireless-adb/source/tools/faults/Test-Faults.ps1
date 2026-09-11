@@ -25,14 +25,15 @@ $sources = @(
     Get-ChildItem -LiteralPath (Join-Path $sourceRoot 'app/src/main/java/net/elfradio/d31bootstrap/diagnostics') -Recurse -Filter '*.java'
     Get-ChildItem -LiteralPath (Join-Path $sourceRoot 'app/src/main/java/net/elfradio/d31bootstrap/faults') -Recurse -Filter '*.java'
     Get-ChildItem -LiteralPath (Join-Path $sourceRoot 'app/src/test/java/net/elfradio/d31bootstrap/faults') -Recurse -Filter '*.java'
+    Get-Item -LiteralPath (Join-Path $PSScriptRoot 'FaultTestRunner.java')
 )
 $classPath = @($json, $junit, $hamcrest, $AndroidJar) -join [IO.Path]::PathSeparator
 $arguments = @('--release', '8', '-encoding', 'UTF-8', '-cp', $classPath, '-d', $classes.FullName) + @($sources.FullName)
 & (Join-Path $Jdk 'bin/javac.exe') @arguments *>&1 | Tee-Object -FilePath (Join-Path $output 'compile.log')
 if ($LASTEXITCODE -ne 0) { throw "独立编译失败，原件保留：$output" }
 & (Join-Path $Jdk 'bin/java.exe') "-Djava.io.tmpdir=$($temporary.FullName)" '-cp' ($classes.FullName + [IO.Path]::PathSeparator + $classPath) `
-    'org.junit.runner.JUnitCore' 'net.elfradio.d31bootstrap.faults.FaultMonitorTest' `
-    'net.elfradio.d31bootstrap.faults.AndroidFaultSourcesTest' *>&1 | Tee-Object -FilePath (Join-Path $output 'junit.log')
+    'net.elfradio.d31bootstrap.faults.FaultTestRunner' 'net.elfradio.d31bootstrap.faults.FaultMonitorTest' `
+    'net.elfradio.d31bootstrap.faults.AndroidFaultSourcesTest' 'net.elfradio.d31bootstrap.faults.FaultExportsTest' *>&1 | Tee-Object -FilePath (Join-Path $output 'junit.log')
 $testExit = $LASTEXITCODE
 $sources | ForEach-Object {
     [pscustomobject]@{ path=$_.FullName; bytes=$_.Length; sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }

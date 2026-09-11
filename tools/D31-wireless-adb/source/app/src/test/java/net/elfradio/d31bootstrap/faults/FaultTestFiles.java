@@ -78,6 +78,11 @@ final class FaultTestFiles {
     static void replace(File from, File to) throws IOException {
         Files.move(from.toPath(), to.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
     }
+    static String identity(File file) throws IOException {
+        BasicFileAttributes attrs = Files.readAttributes(file.toPath(), BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        if (!attrs.isRegularFile()) throw new IOException("EXPORT_REGULAR_FILE_REQUIRED");
+        return attrs.fileKey() + ":" + attrs.size() + ":" + attrs.lastModifiedTime() + ":" + attrs.creationTime();
+    }
     static JSONObject context(long wall, long elapsed) throws Exception {
         return new JSONObject().put("capturedAtMs", wall).put("elapsedMs", elapsed)
                 .put("meminfo", new JSONObject().put("state", "CAPTURED").put("text", "MemTotal: 1234 kB\n"))

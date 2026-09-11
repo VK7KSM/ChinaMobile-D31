@@ -29,6 +29,9 @@
         android:label="elfRemote"
         android:usesCleartextTraffic="false"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <service
+            android:name=".telemetry.LocationCacheService"
+            android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"

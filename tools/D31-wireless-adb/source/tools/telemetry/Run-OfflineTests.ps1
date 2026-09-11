@@ -23,12 +23,16 @@ New-Item -ItemType Directory -Path $classes | Out-Null
 $main = Join-Path $sourceRoot 'app/src/main/java/net/elfradio/d31bootstrap/telemetry'
 $tests = Join-Path $sourceRoot 'app/src/test/java/net/elfradio/d31bootstrap/telemetry'
 $sources = @((Get-ChildItem $main -Filter '*.java').FullName) + @((Get-ChildItem $tests -Filter '*.java').FullName)
+$testClasses = @(Get-ChildItem $tests -Filter '*Test.java' | Sort-Object Name | ForEach-Object {
+    'net.elfradio.d31bootstrap.telemetry.' + $_.BaseName
+})
+if ($testClasses.Count -eq 0) { throw '未找到telemetry测试入口' }
 $compileClasspath = "$jsonJar;$AndroidJar;$junitJar;$hamcrestJar"
 & (Join-Path $JavaHome 'bin/javac.exe') -encoding UTF-8 -source 8 -target 8 -classpath $compileClasspath -d $classes $sources 2>&1 |
     Tee-Object -FilePath (Join-Path $runRoot 'compile.log')
 if ($LASTEXITCODE -ne 0) { throw "独立编译失败，记录：$runRoot" }
 & (Join-Path $JavaHome 'bin/java.exe') -classpath "$classes;$jsonJar;$junitJar;$hamcrestJar" org.junit.runner.JUnitCore `
-    net.elfradio.d31bootstrap.telemetry.TelemetryCollectorTest net.elfradio.d31bootstrap.telemetry.MediaAssociationTest 2>&1 |
+    @testClasses 2>&1 |
     Tee-Object -FilePath (Join-Path $runRoot 'junit.log')
 if ($LASTEXITCODE -ne 0) { throw "独立测试失败，记录：$runRoot" }
 $sources | ForEach-Object { Get-FileHash -LiteralPath $_ -Algorithm SHA256 } |

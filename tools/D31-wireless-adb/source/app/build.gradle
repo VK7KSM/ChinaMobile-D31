@@ -90,6 +90,7 @@ android {
         full {
             dimension 'delivery'
             buildConfigField 'String', 'REMOTE_ARTIFACT', '"full"'
+            ndk { abiFilters 'armeabi-v7a' }
         }
     }
 
@@ -164,12 +165,21 @@ tasks.configureEach {
             || (name.startsWith('generate') && name.contains('Lint'))) {
         dependsOn(syncRemoteVariantSources)
     }
+    if (name == 'testFullReleaseUnitTest') {
+        dependsOn('mergeFullReleaseNativeLibs')
+        doFirst {
+            def library = layout.buildDirectory.file('intermediates/merged_native_libs/fullRelease/mergeFullReleaseNativeLibs/out/lib/armeabi-v7a/libjingle_peerconnection_so.so').get().asFile
+            if (!library.isFile()) throw new GradleException('本批WebRTC实际ARM库缺失，不能跳过解压校验')
+            systemProperty 'd31.test.webrtcArmLibrary', library.absolutePath
+        }
+    }
 }
 
 dependencies {
     implementation 'org.nanohttpd:nanohttpd:2.3.1'
     fullImplementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
     fullImplementation 'org.java-websocket:Java-WebSocket:1.5.7'
+    fullImplementation 'io.github.webrtc-sdk:android:125.6422.07'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20240303'
 }

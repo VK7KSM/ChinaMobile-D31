@@ -29,9 +29,21 @@ public final class FaultCommand {
                 new AndroidFaultSources().checkPrivateRoot(root);
                 result = "query".equals(args[0]) ? FaultMonitor.readQuery(root, args[1])
                         : FaultMonitor.readIndex(root, Integer.parseInt(args[1])); exit = 0;
+            } else if (args.length == 2 && "export".equals(args[0])) {
+                result = new FaultExports(root, new AndroidFaultSources(), FaultPolicy.defaults()).exportEvent(args[1]); exit = 0;
+            } else if (args.length == 3 && "index".equals(args[0])) {
+                new AndroidFaultSources().checkPrivateRoot(root);
+                result = FaultMonitor.readIndex(root, Integer.parseInt(args[1]), args[2]); exit = 0;
+            } else if (args.length == 5 && "archive".equals(args[0])) {
+                result = new FaultExports(root, new AndroidFaultSources(), FaultPolicy.defaults())
+                        .archiveEvent(args[1], args[2], Long.parseLong(args[3]), args[4]); exit = 0;
             } else throw new IllegalArgumentException("INVALID_ARGUMENTS");
             System.out.println(result.toString());
-        } catch (Exception failure) { System.out.println("{\"schemaVersion\":1,\"state\":\"FAILED\",\"reason\":\"FAULT_COMMAND_FAILED\"}"); }
+        } catch (Exception failure) {
+            String reason = failure.getMessage();
+            if (reason == null || !reason.matches("[A-Z_]{1,64}")) reason = "FAULT_COMMAND_FAILED";
+            System.out.println("{\"schemaVersion\":1,\"state\":\"FAILED\",\"reason\":\"" + reason + "\"}");
+        }
         System.exit(exit);
     }
     private FaultCommand() { }

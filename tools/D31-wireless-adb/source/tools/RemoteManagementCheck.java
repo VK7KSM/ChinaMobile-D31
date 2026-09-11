@@ -36,6 +36,10 @@ public final class RemoteManagementCheck {
                     .collect(new net.elfradio.d31bootstrap.telemetry.TelemetryCollector.Limits(0, 300000)).toJson();
             else result = SystemManagement.execute(context, "system_config",
                     new JSONObject().put("group", args[0]).put("action", "read"));
+            if ("telemetry".equals(args[0])) {
+                JSONObject diagnostic = net.elfradio.d31bootstrap.telemetry.AppLocationCache.lastDiagnostic();
+                if (diagnostic != null) result.put("private_location_diagnostic", diagnostic);
+            }
             System.out.println(result); System.exit(0);
         } catch (Exception failure) { failure.printStackTrace(); System.exit(1); }
     }

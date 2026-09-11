@@ -29,6 +29,9 @@ if ($Mode -eq 'Build') {
         if (-not [Environment]::GetEnvironmentVariable($name)) { throw '正式签名环境未完整注入' }
     }
     New-Item -ItemType Directory -Path $capture | Out-Null
+    if (-not (Test-Path -LiteralPath (Join-Path $SdkPath 'platforms/android-34/android.jar'))) { throw '明确指定的SDK不完整' }
+    $previousAndroidHome = $env:ANDROID_HOME
+    $env:ANDROID_HOME = [IO.Path]::GetFullPath($SdkPath)
     Push-Location $project
     try {
         $arguments = @(':app:testBasicReleaseUnitTest', ':app:testFullReleaseUnitTest',
@@ -38,7 +41,7 @@ if ($Mode -eq 'Build') {
             "-PremoteBuildDirectory=$build", '--offline', '--console=plain')
         & ./gradlew.bat @arguments *> (Join-Path $capture 'build.log')
         if ($LASTEXITCODE -ne 0) { throw '构建或检查失败，不复制任何旧APK' }
-    } finally { Pop-Location }
+    } finally { Pop-Location; $env:ANDROID_HOME = $previousAndroidHome }
 }
 
 & (Join-Path $project 'app/src/basic/tests/Test-RemoteVariants.ps1') -GeneratedRoot (Join-Path $build 'generated/remote-variants')
@@ -99,6 +102,9 @@ foreach ($variant in @('basic', 'full')) {
             if (-not $dex.Contains("Lnet/elfradio/d31bootstrap/$entry;")) { throw "缺少本地入口：$entry" }
         }
         if ($variant -eq 'basic') {
+            if (@($zip.Entries | Where-Object { $_.FullName -like 'lib/*' }).Count -ne 0 -or $dex.Contains('Lorg/webrtc/')) {
+                throw '基础APK混入媒体原生库或WebRTC代码'
+            }
             if ($dex -match 'Lorg/eclipse/paho/|Lorg/java_websocket/|Lnet/elfradio/d31system/') { throw '基础APK携带禁止依赖' }
             foreach ($entry in @('RemoteDaemon', 'RemoteSupervisor', 'RemotePush', 'RemoteHttp',
                                 'RemoteManualBootstrap', 'RemoteManualReceiver', 'RemoteUpdateEngine',
@@ -109,6 +115,10 @@ foreach ($variant in @('basic', 'full')) {
             if (-not $dex.Contains('Lnet/elfradio/d31bootstrap/BasicFileTool;')) { throw '基础APK缺少文件工具' }
             if ($zip.GetEntry('isrgrootx1.pem') -or $zip.GetEntry('update-public.pem')) { throw '基础APK混入云资源' }
         } else {
+            if (-not $zip.GetEntry('lib/armeabi-v7a/libjingle_peerconnection_so.so') -or
+                @($zip.Entries | Where-Object { $_.FullName -match '^lib/(?!armeabi-v7a/)' }).Count -ne 0) {
+                throw '完整APK媒体原生库与D31的32位ABI合同不符'
+            }
             foreach ($entry in @('RemoteDaemon', 'RemoteSupervisor', 'RemotePush', 'RemoteManualReceiver',
                                 'RemoteManualBootstrap', 'RemoteUpdateEngine', 'RemoteUpdatePlatform')) {
                 if (-not $dex.Contains("Lnet/elfradio/d31bootstrap/$entry;")) { throw "完整APK缺少原功能入口：$entry" }
@@ -125,7 +135,8 @@ foreach ($variant in @('basic', 'full')) {
     } else {
         foreach ($required in @('org.nanohttpd:nanohttpd:2.3.1',
                 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5',
-                'org.java-websocket:Java-WebSocket:1.5.7')) {
+                'org.java-websocket:Java-WebSocket:1.5.7',
+                'io.github.webrtc-sdk:android:125.6422.07')) {
             if ($coordinates -cnotcontains $required) { throw "完整版缺少依赖：$required" }
         }
     }

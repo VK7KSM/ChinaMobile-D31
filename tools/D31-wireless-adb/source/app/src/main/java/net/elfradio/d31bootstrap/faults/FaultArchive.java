@@ -140,6 +140,8 @@ final class FaultArchive {
                 .put("uploadState", "LOCAL_ONLY").put("systemConsistency", "NOT_ASSESSED");
         File post = new File(event, "post.json");
         if (post.exists()) result.put("postIndex", reference(post));
+        result.put("export", FaultExports.summary(event));
+        result.put("rawEvidence", FaultExports.rawSummary(event));
         return result;
     }
     private static String CandidateId(JSONObject event) throws Exception {

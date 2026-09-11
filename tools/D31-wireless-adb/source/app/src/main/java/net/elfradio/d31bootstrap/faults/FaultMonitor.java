@@ -70,18 +70,27 @@ public final class FaultMonitor implements Closeable {
         return new FaultArchive(root, null, false).query(eventId);
     }
     public static JSONObject readIndex(File root, int limit) throws Exception {
+        return readIndex(root, limit, "");
+    }
+    public static JSONObject readIndex(File root, int limit, String afterEventId) throws Exception {
         if (limit < 1 || limit > 64) throw new IllegalArgumentException("INVALID_INDEX_LIMIT");
+        if (afterEventId == null || !afterEventId.isEmpty() && !afterEventId.matches("[a-f0-9]{64}"))
+            throw new IllegalArgumentException("INVALID_EVENT_CURSOR");
         FaultArchive archive = new FaultArchive(root, null, false); List<String> ids = archive.ids();
         JSONArray items = new JSONArray();
-        for (int i = 0; i < ids.size() && i < limit; i++) {
+        int first = 0;
+        while (first < ids.size() && ids.get(first).compareTo(afterEventId) <= 0) first++;
+        String next = "";
+        for (int i = first; i < ids.size() && i < first + limit; i++) {
             try { items.put(archive.query(ids.get(i))); }
             catch (Exception corrupt) { items.put(new JSONObject().put("eventId", ids.get(i)).put("state", "INDEX_CORRUPT")); }
+            next = ids.get(i);
         }
         JSONObject scan;
         try { scan = FaultArchive.read(new File(root, "scan.json")); }
         catch (Exception missing) { scan = new JSONObject().put("state", "UNAVAILABLE"); }
         return new JSONObject().put("schemaVersion", 1).put("events", items).put("total", ids.size())
-                .put("hasMore", ids.size() > limit).put("scan", scan).put("rawContentInSummary", false)
+                .put("hasMore", ids.size() > first + limit).put("nextAfter", next).put("scan", scan).put("rawContentInSummary", false)
                 .put("uploadState", "LOCAL_ONLY").put("rootCause", "NOT_ESTABLISHED");
     }
     @Override public synchronized void close() { closed = true; executor.shutdownNow(); }
@@ -112,8 +121,11 @@ public final class FaultMonitor implements Closeable {
                 while (!history.isEmpty() && elapsed - history.getFirst().elapsed > policy.windowMs) history.removeFirst();
                 int work = 0, indexErrors = 0;
                 List<String> existing = archive.ids();
+                java.util.Set<String> archived = new java.util.HashSet<String>();
+                for (String id : existing) if (FaultExports.isArchived(archive.event(id))) archived.add(id);
                 for (String id : existing) {
                     if (Thread.currentThread().isInterrupted()) return;
+                    if (archived.contains(id)) continue;
                     if (work >= policy.maxCandidates) break;
                     try { if (advance(archive.event(id), boot, clock.elapsedRealtimeMillis())) work++; }
                     catch (Exception damaged) { indexErrors++; }
@@ -122,7 +134,7 @@ public final class FaultMonitor implements Closeable {
                 FaultSources.Scan scan = sources.discover(policy);
                 if (scan.candidates.size() > 256) throw new IOException("SOURCE_COUNT_LIMIT");
                 int accepted = 0, deferred = 0; boolean capacity = false;
-                long diskBytes = archive.bytes(); int count = existing.size();
+                long diskBytes = archive.bytes(); int retained = existing.size(), count = retained - archived.size();
                 java.util.Set<String> sightings = new java.util.HashSet<String>();
                 for (FaultSources.Candidate candidate : scan.candidates) {
                     if (Thread.currentThread().isInterrupted()) return;
@@ -133,13 +145,14 @@ public final class FaultMonitor implements Closeable {
                         continue;
                     }
                     if (work >= policy.maxCandidates) { deferred++; continue; }
-                    if (count >= policy.maxEvents || (count + 1L) * policy.reservationBytes() > policy.maxArchiveBytes
+                    if (count >= policy.maxEvents || retained >= FaultExports.MAX_RETAINED_EVENTS
+                            || (count + 1L) * policy.reservationBytes() > policy.maxArchiveBytes
                             || diskBytes + policy.reservationBytes() > policy.maxArchiveBytes
                             || archive.root.getUsableSpace() < policy.minFreeBytes + policy.reservationBytes()) {
                         capacity = true; deferred++; continue;
                     }
                     create(event, candidate, boot, clock.elapsedRealtimeMillis());
-                    accepted++; count++; work++;
+                    accepted++; count++; retained++; work++;
                     advance(event, boot, clock.elapsedRealtimeMillis());
                     diskBytes = archive.bytes();
                 }
@@ -154,6 +167,9 @@ public final class FaultMonitor implements Closeable {
                 archive.state(archive.root, "scan.json", new JSONObject().put("capturedAtMs", clock.wallTimeMillis())
                         .put("state", capacity ? "CAPACITY_LIMIT" : deferred > 0 || indexErrors > 0 ? "PARTIAL" : "FINISHED")
                         .put("accepted", accepted).put("deferred", deferred).put("eventIndexErrors", indexErrors).put("coverage", scan.coverage)
+                        .put("activeEvents", count).put("archivedEvents", archived.size()).put("retainedEvents", retained)
+                        .put("retainedBytes", archive.bytes()).put("maxArchiveBytes", policy.maxArchiveBytes)
+                        .put("maxActiveEvents", policy.maxEvents).put("maxRetainedEvents", FaultExports.MAX_RETAINED_EVENTS)
                         .put("contextRetention", "BOUNDED_PROCESS_MEMORY_UNTIL_EVENT_FREEZE")
                         .put("automaticEviction", false).put("rawContentInSummary", false));
                 lastOutcome = capacity ? "CAPACITY_LIMIT" : "FINISHED";
@@ -187,6 +203,7 @@ public final class FaultMonitor implements Closeable {
                 .put("observationMeaning", "POLL_SIGHTINGS_NOT_CRASH_COUNT").put("postWindow", "PENDING");
     }
     private void observe(File event) throws Exception {
+        if (FaultExports.sealed(event)) return;
         File statePath = new File(event, "state.json");
         if (!statePath.isFile()) return;
         JSONObject state = FaultArchive.read(statePath);

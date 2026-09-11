@@ -35,23 +35,34 @@ public final class AndroidTelemetryAccess implements TelemetryCollector.Access {
     }
     @Override public synchronized TelemetryCollector.LocationReading location(final TelemetryCollector.Limits limits,
             final TelemetryCollector.Clock clock) throws Exception {
+        if (android.os.Build.VERSION.SDK_INT == 23 && android.os.Process.myUid() == 0 && limits.locationWindowMs == 0)
+            return AppLocationCache.read(context, limits, clock);
         if (cleanupFailed) return new TelemetryCollector.LocationReading(null, "cleanup_failed", false);
         if (manager == null) return new TelemetryCollector.LocationReading(null, "provider_unavailable", true);
         final List<String> enabled = new ArrayList<String>(2);
         TelemetryCollector.Fix cached = null;
+        TelemetryCollector.Fix rejectedCache = null;
         boolean denied = false;
         for (String provider : new String[]{LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER}) {
+            String stage = "getProvider";
             try {
-                if (manager.getProvider(provider) == null || !manager.isProviderEnabled(provider)) continue;
+                if (manager.getProvider(provider) == null) continue;
+                stage = "isProviderEnabled";
+                if (!manager.isProviderEnabled(provider)) continue;
                 enabled.add(provider);
+                stage = "getLastKnownLocation";
                 Location location = manager.getLastKnownLocation(provider);
                 TelemetryCollector.Fix candidate = location == null ? null : fix(location);
                 if (TelemetryCollector.invalidFix(candidate, limits, clock) == null) cached = better(cached, candidate);
-            } catch (SecurityException failure) { denied = true; }
-            catch (IllegalArgumentException unavailable) { }
+                else if (candidate != null && rejectedCache == null) rejectedCache = candidate;
+            } catch (SecurityException failure) {
+                denied = true; AppLocationCache.recordFailure(provider + "." + stage, failure);
+            } catch (IllegalArgumentException unavailable) { AppLocationCache.recordFailure(provider + "." + stage, unavailable); }
         }
         if (cached != null) return new TelemetryCollector.LocationReading(cached, "recent_cache", true);
         if (enabled.isEmpty()) return new TelemetryCollector.LocationReading(null, denied ? "permission_denied" : "location_disabled", true);
+        if (limits.locationWindowMs == 0 && rejectedCache != null)
+            return new TelemetryCollector.LocationReading(rejectedCache, TelemetryCollector.invalidFix(rejectedCache, limits, clock), true);
         if (limits.locationWindowMs == 0) return new TelemetryCollector.LocationReading(null, denied ? "permission_denied" : "no_cached_location", true);
         final AtomicReference<TelemetryCollector.Fix> observed = new AtomicReference<TelemetryCollector.Fix>();
         final CountDownLatch ready = new CountDownLatch(1);
