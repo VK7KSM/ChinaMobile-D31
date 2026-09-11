@@ -12,6 +12,7 @@ public final class MicrophoneSession implements AutoCloseable {
         void connect(RtcOffer offer, Events events) throws Exception;
         void send(JSONObject message) throws Exception;
         void close() throws Exception;
+        default void abort(){}
     }
     public interface PeerEvents { void connected(); void failed(); void recording(boolean active); }
     public interface Peer {
@@ -133,6 +134,7 @@ public final class MicrophoneSession implements AutoCloseable {
         if(stopping)return;stopping=true;cancellation.cancel();state="closing";
         reason=code!=null&&code.matches("[A-Z0-9_]{1,80}")?code:"MEDIA_STOPPED";
         for(RtcAwait<JSONObject> wait:pending.values())wait.fail("MEDIA_CANCELLED");pending.clear();watchdog.shutdownNow();
+        try{transport.abort();}catch(Exception ignored){}
         // 不能在持会话监视器时等待WebSocket线程退出，关闭过程放入媒体线程。
         worker.execute(new Runnable(){public void run(){cleanup();}});changed();
     }

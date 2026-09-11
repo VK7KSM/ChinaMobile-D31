@@ -16,7 +16,7 @@ public class MicrophoneSessionTest {
     class Wire implements MicrophoneSession.Transport {
         final List<JSONObject> sent=new CopyOnWriteArrayList<JSONObject>();
         final CountDownLatch attached=new CountDownLatch(1),newRequest=new CountDownLatch(1);
-        volatile MicrophoneSession.Events events;boolean dropNew,rejectPublish;int closes;
+        volatile MicrophoneSession.Events events;boolean dropNew,rejectPublish;int closes,aborts;
         public void connect(RtcOffer offer,MicrophoneSession.Events events){this.events=events;attached.countDown();}
         public void send(JSONObject value)throws Exception {
             sent.add(value);
@@ -30,6 +30,7 @@ public class MicrophoneSessionTest {
         }
         void hello()throws Exception{assertTrue(attached.await(2,TimeUnit.SECONDS));events.message(new JSONObject().put("type","hello").put("mode","microphone").toString());}
         public void close(){closes++;}
+        public void abort(){aborts++;}
         boolean ready(){for(JSONObject value:sent)if("ready".equals(value.optString("type")))return true;return false;}
     }
     class Device implements MicrophoneSession.Peer {
@@ -69,6 +70,7 @@ public class MicrophoneSessionTest {
     @Test public void closeCancelsPendingRpcWithoutTwentySecondWait()throws Exception{
         Wire wire=new Wire();wire.dropNew=true;Device device=new Device();MicrophoneSession s=session(temp.newFolder(),wire,device,guard);
         s.start();wire.hello();assertTrue(wire.newRequest.await(2,TimeUnit.SECONDS));s.close();assertTrue(s.awaitClosed(2000));
+        assertEquals(1,wire.aborts);
         device.events.connected();assertFalse(wire.ready());assertEquals("closed",s.snapshot().getString("state"));
     }
     @Test public void unknownAndBusyNeverOpenTransportOrPeer()throws Exception{

@@ -23,13 +23,15 @@ public final class AndroidFaultSources implements FaultSources {
     private static final String[] CATEGORIES = {"ANR", "TOMBSTONE", "DROPBOX", "BOOT"};
     private final CollectionAccess access;
     private final CollectionAccess.Clock clock;
+    private final FaultDirectoryWalker directories;
 
     public AndroidFaultSources() {
         this.clock = AndroidCollectionAccess.systemClock();
         this.access = new AndroidCollectionAccess("/system/bin/busybox", clock);
+        this.directories = new FaultDirectoryWalker.Android();
     }
-    AndroidFaultSources(CollectionAccess access, CollectionAccess.Clock clock) {
-        this.access = access; this.clock = clock;
+    AndroidFaultSources(CollectionAccess access, CollectionAccess.Clock clock, FaultDirectoryWalker directories) {
+        this.access = access; this.clock = clock; this.directories = directories;
     }
     static boolean accepts(int root, String name) {
         if (name == null) return false;
@@ -67,35 +69,90 @@ public final class AndroidFaultSources implements FaultSources {
         return "SOURCE_IO_FAILED";
     }
     @Override public Scan discover(FaultPolicy policy) throws Exception {
+        return discover(policy, new JSONObject());
+    }
+    public JSONObject discoveryProbe() throws Exception {
+        Scan scan = discover(FaultPolicy.defaults()); JSONArray sample = new JSONArray();
+        int[] sampled = new int[CATEGORIES.length];
+        for (Candidate candidate : scan.candidates) for (int i = 0; i < CATEGORIES.length; i++) {
+            if (!CATEGORIES[i].equals(candidate.category) || sampled[i] >= 4) continue;
+            sampled[i]++;
+            sample.put(new JSONObject().put("eventId", candidate.id()).put("category", candidate.category)
+                    .put("sourceTimeMs", candidate.sourceTimeMs));
+        }
+        boolean complete = true;
+        JSONArray coverage = scan.coverage.getJSONArray("sources");
+        for (int i = 0; i < coverage.length(); i++) if (!"CHECKED".equals(coverage.getJSONObject(i).optString("state"))) complete = false;
+        JSONObject result = new JSONObject().put("schemaVersion", 1).put("kind", "FAULT_DISCOVERY_PROBE")
+                .put("state", complete ? "COMPLETE" : "PARTIAL").put("coverage", scan.coverage)
+                .put("candidateCount", scan.candidates.size()).put("sample", sample)
+                .put("sampleLimitPerSource", 4).put("sourceTimeBasis", "FILE_MTIME_NOT_FAULT_TIMESTAMP")
+                .put("transport", "BUSYBOX_FIND_PINNED_PROC_FD_PRINT0")
+                .put("verificationScope", "SOURCE_DISCOVERY_ONLY_NO_CAPTURE").put("archiveModified", false);
+        if (result.toString().getBytes(StandardCharsets.UTF_8).length > 8000) throw new IOException("DISCOVERY_SIZE_LIMIT");
+        return result;
+    }
+    @Override public Scan discover(FaultPolicy policy, JSONObject continuation) throws Exception {
         List<Candidate> candidates = new ArrayList<Candidate>(); JSONArray coverage = new JSONArray();
+        JSONObject next = new JSONObject();
         long start = clock.elapsedRealtimeMillis();
         for (int root = 0; root < ROOTS.length; root++) {
-            JSONObject item = new JSONObject().put("category", CATEGORIES[root]);
-            long remaining = policy.scanMs - (clock.elapsedRealtimeMillis() - start);
+            JSONObject item = new JSONObject().put("category", CATEGORIES[root])
+                    .put("elapsedScope", "ENUMERATION_AND_CHILD_METADATA_EXCLUDES_SIGNATURES");
+            long remaining = Math.min(Math.max(1, policy.scanMs / ROOTS.length),
+                    policy.scanMs - (clock.elapsedRealtimeMillis() - start));
             if (remaining <= 0 || Thread.currentThread().isInterrupted()) {
-                coverage.put(item.put("state", "NOT_CHECKED").put("reason", "SCAN_TIME_LIMIT")); continue;
+                coverage.put(item.put("state", "NOT_CHECKED").put("reason", "SCAN_TIME_LIMIT").put("elapsedMs", 0)); continue;
             }
+            String cursor = continuation.optString(CATEGORIES[root], "");
+            if (!cursor.isEmpty() && !accepts(root, cursor)) cursor = "";
+            next.put(CATEGORIES[root], cursor);
+            long enumerationStarted = -1;
             try {
-                CollectionAccess.Stat before = access.lstat(ROOTS[root]);
-                CollectionAccess.Listing listing = access.list(ROOTS[root], before, 64, 32768, remaining);
-                int accepted = 0, unreadable = 0;
-                for (String name : listing.names) {
-                    if (clock.elapsedRealtimeMillis() - start >= policy.scanMs) break;
-                    if (!accepts(root, name)) continue;
-                    try {
-                        String path = ROOTS[root] + "/" + name;
-                        CollectionAccess.Stat s = access.lstat(path);
-                        if (!"file".equals(s.type)) { unreadable++; continue; }
-                        candidates.add(new Candidate(CATEGORIES[root], path,
-                                signature(path, s, policy.maxFileBytes, start + policy.scanMs), Math.max(0, s.modified) * 1000));
-                        accepted++;
-                    } catch (IOException failure) { unreadable++; }
+                final int source = root;
+                final long deadline = clock.elapsedRealtimeMillis() + remaining;
+                final FaultDiscoveryPage page = new FaultDiscoveryPage(cursor);
+                final int[] counts = new int[3];
+                CollectionAccess.Stat before = access.lstat(ROOTS[source]);
+                enumerationStarted = clock.elapsedRealtimeMillis();
+                String reason = directories.walk(ROOTS[source], before, clock,
+                        clock.elapsedRealtimeMillis() + Math.max(1, remaining * 2 / 3), new FaultDirectoryWalker.Visitor() {
+                    @Override public void name(String name, FaultDirectoryWalker.Metadata metadata) throws IOException {
+                        counts[0]++;
+                        if (!accepts(source, name)) return;
+                        counts[1]++;
+                        try {
+                            CollectionAccess.Stat stat = metadata.lstat(name);
+                            if ("file".equals(stat.type)) page.add(name, stat); else counts[2]++;
+                        } catch (IOException failure) { counts[2]++; }
+                    }
+                });
+                item.put("elapsedMs", Math.max(0, clock.elapsedRealtimeMillis() - enumerationStarted));
+                if (!before.same(access.lstat(ROOTS[source]))) reason = "UNSTABLE_DIRECTORY";
+                int accepted = 0;
+                java.util.Set<String> processed = new java.util.HashSet<String>();
+                for (FaultDiscoveryPage.Entry entry : page.selected()) {
+                    if (clock.elapsedRealtimeMillis() >= deadline || Thread.currentThread().isInterrupted()) break;
+                    String path = ROOTS[source] + "/" + entry.name;
+                    try { candidates.add(new Candidate(CATEGORIES[source], path,
+                            signature(path, entry.stat, policy.maxFileBytes, deadline), Math.max(0, entry.stat.modified) * 1000)); accepted++; }
+                    catch (IOException failure) { counts[2]++; }
+                    processed.add(entry.name);
                 }
-                boolean complete = listing.complete && unreadable == 0 && clock.elapsedRealtimeMillis() - start < policy.scanMs;
+                next.put(CATEGORIES[source], page.next(processed));
+                boolean complete = "ENUMERATION_FINISHED".equals(reason) && counts[2] == 0 && accepted == counts[1];
                 item.put("state", complete ? "CHECKED" : "PARTIAL").put("accepted", accepted)
-                        .put("unreadable", unreadable).put("enumerated", listing.names.size())
-                        .put("reason", complete ? "BOUNDED_ENUMERATION" : "ENUMERATION_OR_READ_LIMIT");
-            } catch (Exception failure) { item.put("state", "UNAVAILABLE").put("reason", code(failure)); }
+                        .put("unreadable", counts[2]).put("enumerated", counts[0]).put("matched", counts[1])
+                        .put("enumerationComplete", "ENUMERATION_FINISHED".equals(reason))
+                        .put("nonemptyEnumeration", counts[0] > 0)
+                        .put("selection", "LATEST_32_AND_ROTATING_32").put("sourceBudgetMs", remaining)
+                        .put("reason", complete ? "BOUNDED_ENUMERATION" : "ENUMERATION_FINISHED".equals(reason)
+                                ? "CANDIDATE_PAGE_OR_READ_LIMIT" : reason);
+            } catch (Exception failure) {
+                if (!item.has("elapsedMs")) item.put("elapsedMs", enumerationStarted < 0 ? 0
+                        : Math.max(0, clock.elapsedRealtimeMillis() - enumerationStarted));
+                item.put("state", "UNAVAILABLE").put("reason", code(failure));
+            }
             coverage.put(item);
         }
         Collections.sort(candidates, new Comparator<Candidate>() {
@@ -107,7 +164,7 @@ public final class AndroidFaultSources implements FaultSources {
         return new Scan(candidates, new JSONObject().put("sources", coverage).put("discovery", "BOUNDED_FILE_METADATA")
                 .put("processExitDetection", "NOT_IMPLEMENTED").put("logcat", "NOT_COLLECTED")
                 .put("historicalFilesMayPredateMonitor", true)
-                .put("dedupScope", "STAT_AND_FIRST_4096_BYTES_NOT_EXHAUSTIVE_EVENT_DETECTION"));
+                .put("dedupScope", "STAT_AND_FIRST_4096_BYTES_NOT_EXHAUSTIVE_EVENT_DETECTION"), next);
     }
     private static boolean allowed(Candidate candidate) {
         for (int i = 0; i < ROOTS.length; i++) {

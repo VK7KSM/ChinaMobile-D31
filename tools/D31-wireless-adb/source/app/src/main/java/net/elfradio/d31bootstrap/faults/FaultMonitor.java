@@ -69,6 +69,9 @@ public final class FaultMonitor implements Closeable {
     public static JSONObject readQuery(File root, String eventId) throws Exception {
         return new FaultArchive(root, null, false).query(eventId);
     }
+    public static JSONObject readPending(File root, int limit, String afterEventId) throws Exception {
+        return FaultPending.read(root, limit, afterEventId);
+    }
     public static JSONObject readIndex(File root, int limit) throws Exception {
         return readIndex(root, limit, "");
     }
@@ -108,14 +111,22 @@ public final class FaultMonitor implements Closeable {
                 if (boot == null || !boot.matches("[a-f0-9]{64}")) throw new IOException("BOOT_UNAVAILABLE");
                 long elapsed = clock.elapsedRealtimeMillis();
                 File scheduleFile = new File(archive.root, "schedule.json");
+                JSONObject schedule = new JSONObject();
                 if (scheduleFile.exists()) {
-                    JSONObject schedule = FaultArchive.read(scheduleFile);
+                    schedule = FaultArchive.read(scheduleFile);
                     long previous = schedule.getLong("elapsedMs");
                     if (boot.equals(schedule.getString("bootKey")) && elapsed >= previous && elapsed - previous < policy.tickMs) {
                         lastOutcome = "THROTTLED"; return;
                     }
                 }
-                archive.state(archive.root, "schedule.json", new JSONObject().put("bootKey", boot).put("elapsedMs", elapsed));
+                int turn = Math.max(0, schedule.optInt("categoryTurn", 0)) % 4;
+                int nextTurn = turn;
+                boolean existingFirst = schedule.optBoolean("existingFirst", false);
+                String existingAfter = schedule.optString("existingAfter", "");
+                JSONObject discovery = schedule.optJSONObject("discovery");
+                if (discovery == null) discovery = new JSONObject();
+                schedule.put("bootKey", boot).put("elapsedMs", elapsed);
+                archive.state(archive.root, "schedule.json", schedule);
                 if (!boot.equals(currentBoot) || (!history.isEmpty() && elapsed < history.getLast().elapsed)) history.clear();
                 currentBoot = boot;
                 while (!history.isEmpty() && elapsed - history.getFirst().elapsed > policy.windowMs) history.removeFirst();
@@ -123,19 +134,14 @@ public final class FaultMonitor implements Closeable {
                 List<String> existing = archive.ids();
                 java.util.Set<String> archived = new java.util.HashSet<String>();
                 for (String id : existing) if (FaultExports.isArchived(archive.event(id))) archived.add(id);
-                for (String id : existing) {
-                    if (Thread.currentThread().isInterrupted()) return;
-                    if (archived.contains(id)) continue;
-                    if (work >= policy.maxCandidates) break;
-                    try { if (advance(archive.event(id), boot, clock.elapsedRealtimeMillis())) work++; }
-                    catch (Exception damaged) { indexErrors++; }
-                }
                 if (Thread.currentThread().isInterrupted()) return;
-                FaultSources.Scan scan = sources.discover(policy);
+                FaultSources.Scan scan = sources.discover(policy, discovery);
                 if (scan.candidates.size() > 256) throw new IOException("SOURCE_COUNT_LIMIT");
+                if (scan.continuation.toString().length() > 4096) throw new IOException("SOURCE_CURSOR_LIMIT");
                 int accepted = 0, deferred = 0; boolean capacity = false;
                 long diskBytes = archive.bytes(); int retained = existing.size(), count = retained - archived.size();
                 java.util.Set<String> sightings = new java.util.HashSet<String>();
+                List<FaultSources.Candidate> fresh = new java.util.ArrayList<FaultSources.Candidate>();
                 for (FaultSources.Candidate candidate : scan.candidates) {
                     if (Thread.currentThread().isInterrupted()) return;
                     if (!sightings.add(candidate.id())) continue;
@@ -144,18 +150,43 @@ public final class FaultMonitor implements Closeable {
                         try { observe(event); } catch (Exception damaged) { indexErrors++; }
                         continue;
                     }
-                    if (work >= policy.maxCandidates) { deferred++; continue; }
-                    if (count >= policy.maxEvents || retained >= FaultExports.MAX_RETAINED_EVENTS
+                    fresh.add(candidate);
+                }
+                fresh = FaultOrdering.fair(fresh, turn);
+                int cursor = 0;
+                for (int round = 0; round < 2; round++) {
+                    int newLimit = round == 1 ? policy.maxCandidates
+                            : policy.maxCandidates == 1 && existingFirst ? 0 : (policy.maxCandidates + 1) / 2;
+                    while (cursor < fresh.size() && work < newLimit && !capacity) {
+                        if (Thread.currentThread().isInterrupted()) return;
+                        FaultSources.Candidate candidate = fresh.get(cursor);
+                        if (count >= policy.maxEvents || retained >= FaultExports.MAX_RETAINED_EVENTS
                             || (count + 1L) * policy.reservationBytes() > policy.maxArchiveBytes
                             || diskBytes + policy.reservationBytes() > policy.maxArchiveBytes
                             || archive.root.getUsableSpace() < policy.minFreeBytes + policy.reservationBytes()) {
-                        capacity = true; deferred++; continue;
+                            capacity = true; break;
+                        }
+                        File event = archive.event(candidate.id());
+                        create(event, candidate, boot, clock.elapsedRealtimeMillis());
+                        accepted++; count++; retained++; work++; cursor++;
+                        for (int category = 0; category < FaultOrdering.CATEGORIES.length; category++)
+                            if (FaultOrdering.CATEGORIES[category].equals(candidate.category)) nextTurn = (category + 1) % 4;
+                        advance(event, boot, clock.elapsedRealtimeMillis());
+                        diskBytes = archive.bytes();
                     }
-                    create(event, candidate, boot, clock.elapsedRealtimeMillis());
-                    accepted++; count++; retained++; work++;
-                    advance(event, boot, clock.elapsedRealtimeMillis());
+                    if (round == 0) for (String id : FaultOrdering.after(existing, existingAfter)) {
+                        if (Thread.currentThread().isInterrupted()) return;
+                        if (work >= policy.maxCandidates) break;
+                        existingAfter = id;
+                        if (archived.contains(id)) continue;
+                        try { if (advance(archive.event(id), boot, clock.elapsedRealtimeMillis())) work++; }
+                        catch (Exception damaged) { indexErrors++; }
+                    }
                     diskBytes = archive.bytes();
                 }
+                deferred = fresh.size() - cursor;
+                archive.state(archive.root, "schedule.json", schedule.put("categoryTurn", nextTurn).put("existingFirst", !existingFirst)
+                        .put("existingAfter", existingAfter).put("discovery", scan.continuation));
                 JSONObject context;
                 try { context = sources.context(); }
                 catch (Exception unavailable) { context = new JSONObject().put("state", "UNAVAILABLE"); }
@@ -164,12 +195,20 @@ public final class FaultMonitor implements Closeable {
                     history.addLast(new Sample(clock.elapsedRealtimeMillis(), clock.wallTimeMillis(), context));
                     while (history.size() > policy.preSamples) history.removeFirst();
                 }
+                JSONArray blocked = new JSONArray();
+                if (count >= policy.maxEvents) blocked.put("ACTIVE_EVENT_LIMIT");
+                if (retained >= FaultExports.MAX_RETAINED_EVENTS) blocked.put("RETAINED_EVENT_LIMIT");
+                if ((count + 1L) * policy.reservationBytes() > policy.maxArchiveBytes) blocked.put("ACTIVE_RESERVATION_LIMIT");
+                if (archive.bytes() + policy.reservationBytes() > policy.maxArchiveBytes) blocked.put("ARCHIVE_BYTE_LIMIT");
+                if (archive.root.getUsableSpace() < policy.minFreeBytes + policy.reservationBytes()) blocked.put("FREE_SPACE_RESERVE");
+                capacity = blocked.length() > 0;
                 archive.state(archive.root, "scan.json", new JSONObject().put("capturedAtMs", clock.wallTimeMillis())
                         .put("state", capacity ? "CAPACITY_LIMIT" : deferred > 0 || indexErrors > 0 ? "PARTIAL" : "FINISHED")
                         .put("accepted", accepted).put("deferred", deferred).put("eventIndexErrors", indexErrors).put("coverage", scan.coverage)
                         .put("activeEvents", count).put("archivedEvents", archived.size()).put("retainedEvents", retained)
                         .put("retainedBytes", archive.bytes()).put("maxArchiveBytes", policy.maxArchiveBytes)
                         .put("maxActiveEvents", policy.maxEvents).put("maxRetainedEvents", FaultExports.MAX_RETAINED_EVENTS)
+                        .put("admissionBlockedBy", blocked)
                         .put("contextRetention", "BOUNDED_PROCESS_MEMORY_UNTIL_EVENT_FREEZE")
                         .put("automaticEviction", false).put("rawContentInSummary", false));
                 lastOutcome = capacity ? "CAPACITY_LIMIT" : "FINISHED";

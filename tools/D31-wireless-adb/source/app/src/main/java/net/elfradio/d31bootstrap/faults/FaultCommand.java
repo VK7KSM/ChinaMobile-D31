@@ -25,10 +25,15 @@ public final class FaultCommand {
                             .put("rawContentInSummary", false).put("collectionMayBePartial", true);
                     exit = finished && "NONE".equals(monitor.lastFailure()) ? 0 : 1;
                 }
+            } else if (args.length == 1 && "discover".equals(args[0])) {
+                result = new AndroidFaultSources().discoveryProbe(); exit = 0;
             } else if (args.length == 2 && ("query".equals(args[0]) || "index".equals(args[0]))) {
                 new AndroidFaultSources().checkPrivateRoot(root);
                 result = "query".equals(args[0]) ? FaultMonitor.readQuery(root, args[1])
                         : FaultMonitor.readIndex(root, Integer.parseInt(args[1])); exit = 0;
+            } else if ((args.length == 2 || args.length == 3) && "pending".equals(args[0])) {
+                new AndroidFaultSources().checkPrivateRoot(root);
+                result = FaultMonitor.readPending(root, Integer.parseInt(args[1]), args.length == 3 ? args[2] : ""); exit = 0;
             } else if (args.length == 2 && "export".equals(args[0])) {
                 result = new FaultExports(root, new AndroidFaultSources(), FaultPolicy.defaults()).exportEvent(args[1]); exit = 0;
             } else if (args.length == 3 && "index".equals(args[0])) {

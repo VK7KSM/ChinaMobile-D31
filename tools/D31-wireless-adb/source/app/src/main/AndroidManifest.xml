@@ -24,11 +24,15 @@
     <uses-permission android:name="android.permission.REBOOT" tools:ignore="ProtectedPermissions" />
 
     <application
+        android:name=".RemoteApplication"
         android:allowBackup="false"
         android:icon="@drawable/elfremote_logo"
         android:label="elfRemote"
         android:usesCleartextTraffic="false"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <service
+            android:name=".media.AppMediaService"
+            android:exported="false" />
         <service
             android:name=".telemetry.LocationCacheService"
             android:exported="false" />

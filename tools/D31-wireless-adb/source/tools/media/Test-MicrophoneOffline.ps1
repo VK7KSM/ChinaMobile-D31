@@ -31,16 +31,18 @@ $hamcrest=Join-Path $workspace '.tools/gradle-8.9/lib/hamcrest-core-1.3.jar'
 $classpath=@($rtc,$ws,$slf,$json,$android,$junit,$hamcrest)-join ';'
 $sources=@()
 foreach($tree in @('main','test')){foreach($package in @('media','lostmode')){
-    $sources+=@(Get-ChildItem -LiteralPath "$project/app/src/$tree/java/net/elfradio/d31bootstrap/$package" -Filter *.java -File | Sort-Object FullName | ForEach-Object FullName)
+    $sources+=@(Get-ChildItem -LiteralPath "$project/app/src/$tree/java/net/elfradio/d31bootstrap/$package" -Filter *.java -File | Where-Object {$tree -eq 'main' -or $_.Name -notlike 'AndroidAudioOccupancy*'} | Sort-Object FullName | ForEach-Object FullName)
 }}
 foreach($source in $sources){
     $content=[IO.File]::ReadAllText($source)
-    if($content -match 'CompletableFuture|java\.nio\.file|java\.time\.|ProcessHandle|checkSelfPermission\(|getActiveRecordingConfigurations\(|setSpeakerphoneOn\(|setStreamVolume\(|wipeData\('){throw "发现高版本API或超范围动作：$source"}
+    if($content -match 'CompletableFuture|java\.time\.|ProcessHandle|checkSelfPermission\(|getActiveRecordingConfigurations\(|setSpeakerphoneOn\(|setStreamVolume\(|wipeData\(' -or
+       ($source -match '[\\/]src[\\/]main[\\/]' -and $content -match 'java\.nio\.file')){throw "发现高版本API或超范围动作：$source"}
 }
 & (Join-Path $jdk 'javac.exe') -encoding UTF-8 -source 8 -target 8 -cp $classpath -d $classes @sources 2>&1 | Out-File (Join-Path $root 'compile.log') -Encoding UTF8
 if($LASTEXITCODE){throw '独立编译失败，见compile.log'}
 $tests=@('media.MediaCaptureTest','media.AlarmTasksTest','media.PhotoReportTest','lostmode.LostModeReadinessTest',
-    'media.RtcOfferTest','media.RtcAwaitTest','media.MicrophoneSessionTest','media.ApkMediaLibraryTest') | ForEach-Object {'net.elfradio.d31bootstrap.'+$_}
+    'media.RtcOfferTest','media.RtcAwaitTest','media.MicrophoneSessionTest','media.ApkMediaLibraryTest',
+    'media.AppMediaContractTest','media.AppMediaControllerTest','media.AppMediaBackendTest') | ForEach-Object {'net.elfradio.d31bootstrap.'+$_}
 & (Join-Path $jdk 'java.exe') "-Djava.io.tmpdir=$temporary" "-Dd31.test.webrtcArmLibrary=$native" -cp "$classes;$classpath" org.junit.runner.JUnitCore @tests 2>&1 | Tee-Object -FilePath (Join-Path $root 'tests.log')
 if($LASTEXITCODE){throw '媒体测试失败，见tests.log'}
 $ndk='C:/Dev/android-sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/windows-x86_64'

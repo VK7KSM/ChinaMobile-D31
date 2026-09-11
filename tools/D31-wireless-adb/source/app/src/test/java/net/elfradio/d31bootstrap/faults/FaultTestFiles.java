@@ -21,9 +21,10 @@ final class FaultTestFiles {
         public long wallTimeMillis() { return wall; }
         void add(long ms) { elapsed += ms; wall += ms; }
     }
-    static final class Access implements CollectionAccess {
+    static final class Access implements CollectionAccess, FaultDirectoryWalker {
         final Path root;
         boolean deny, unstable, partialList;
+        int fullStatCalls, metadataCalls;
         Access(File root) { this.root = root.toPath(); }
         Path resolve(String path) throws IOException {
             Path file = root.resolve(path.substring(1)).normalize();
@@ -36,6 +37,10 @@ final class FaultTestFiles {
             Path file = resolve(path); Files.createDirectories(file.getParent()); Files.write(file, bytes);
         }
         public Stat lstat(String path) throws IOException {
+            fullStatCalls++;
+            return fileStat(path);
+        }
+        private Stat fileStat(String path) throws IOException {
             if (deny) throw new Failure("ACCESS_DENIED");
             Path file = resolve(path);
             if (!Files.exists(file)) throw new Failure("NOT_FOUND");
@@ -65,6 +70,16 @@ final class FaultTestFiles {
             Collections.sort(names); boolean all = names.size() <= max && !partialList;
             if (names.size() > max) names = new ArrayList<String>(names.subList(0, max));
             return new Listing(names, all, all ? "ENUMERATION_FINISHED" : "ENTRY_LIMIT", names.size() * 20L);
+        }
+        public String walk(String path, Stat expected, CollectionAccess.Clock clock, long deadline,
+                           FaultDirectoryWalker.Visitor visitor) throws IOException {
+            try (java.nio.file.DirectoryStream<Path> stream = Files.newDirectoryStream(resolve(path))) {
+                for (Path child : stream) {
+                    if (clock.elapsedRealtimeMillis() >= deadline) return "SCAN_TIME_LIMIT";
+                    visitor.name(child.getFileName().toString(), name -> { metadataCalls++; return fileStat(path + "/" + name); });
+                }
+            }
+            return partialList ? "SCAN_BYTE_LIMIT" : "ENUMERATION_FINISHED";
         }
     }
     static FaultEvidenceCollector.Store store(final File root) {

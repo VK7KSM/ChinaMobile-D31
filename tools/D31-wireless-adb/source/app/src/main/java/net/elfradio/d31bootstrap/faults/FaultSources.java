@@ -10,6 +10,7 @@ import org.json.JSONObject;
 /** Read-only source boundary; implementations never return raw text in public summaries. */
 public interface FaultSources {
     Scan discover(FaultPolicy policy) throws Exception;
+    default Scan discover(FaultPolicy policy, JSONObject continuation) throws Exception { return discover(policy); }
     Capture capture(Candidate candidate, File newAttempt, FaultPolicy policy) throws Exception;
     JSONObject context() throws Exception;
     String bootKey() throws Exception;
@@ -44,9 +45,14 @@ public interface FaultSources {
     final class Scan {
         public final List<Candidate> candidates;
         public final JSONObject coverage;
+        public final JSONObject continuation;
         public Scan(List<Candidate> candidates, JSONObject coverage) {
+            this(candidates, coverage, new JSONObject());
+        }
+        public Scan(List<Candidate> candidates, JSONObject coverage, JSONObject continuation) {
             this.candidates = Collections.unmodifiableList(new ArrayList<Candidate>(candidates));
             this.coverage = coverage;
+            this.continuation = continuation;
         }
     }
 
