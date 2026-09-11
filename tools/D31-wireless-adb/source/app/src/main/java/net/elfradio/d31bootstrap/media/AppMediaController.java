@@ -56,7 +56,7 @@ final class AppMediaController {
                 current=backend.localCapture(command.getString("apk_sha256"),id,command.getInt("duration_ms"),cancel,requestId);
                 used.add(id);diagnostic=current;diagnosticOwner=callerOwner;diagnosticRequest=requestId;
             }
-            return current.run(replyDeadline);
+            return current.run(replyDeadline).put("operation_request_id",requestId);
         }
         RtcOffer offer=RtcOffer.parse(command.getJSONObject("offer"),backend.origin(),clock.wall());
         synchronized(this){
@@ -85,11 +85,11 @@ final class AppMediaController {
     }
     synchronized JSONObject query(String id,Object callerOwner)throws Exception {
         if(diagnostic!=null){
-            if(diagnostic.id().equals(id))return diagnostic.snapshot();
+            if(diagnostic.id().equals(id))return diagnosticSnapshot();
             if(id.isEmpty()){
-                if(diagnostic.active())return new JSONObject().put("state","diagnosing").put("managed_media",false).put("last_diagnostic",diagnostic.snapshot());
+                if(diagnostic.active())return new JSONObject().put("state","diagnosing").put("managed_media",false).put("last_diagnostic",diagnosticSnapshot());
                 if(session==null||"closed".equals(session.snapshot().optString("state")))
-                    return new JSONObject().put("state","idle").put("managed_media",false).put("last_diagnostic",diagnostic.snapshot());
+                    return new JSONObject().put("state","idle").put("managed_media",false).put("last_diagnostic",diagnosticSnapshot());
             }
         }
         if(pendingCancellation!=null&&(id.isEmpty()||pendingId.equals(id)))return new JSONObject().put("state","preparing").put("session_id",pendingId).put("managed_media",false);
@@ -100,11 +100,12 @@ final class AppMediaController {
         return session.snapshot().put("managed_media",false).put("owner_lease_ms",AppMediaContract.LEASE_MS);
     }
     synchronized JSONObject stop(String id)throws Exception {
-        if(diagnostic!=null&&diagnostic.id().equals(id)){if(diagnostic.active())diagnostic.cancel();return diagnostic.snapshot();}
+        if(diagnostic!=null&&diagnostic.id().equals(id)){if(diagnostic.active())diagnostic.cancel();return diagnosticSnapshot();}
         if(pendingCancellation!=null&&pendingId.equals(id)){pendingCancellation.cancel();return new JSONObject().put("state","closing").put("session_id",id).put("managed_media",false);}
         if(session==null||!sessionId.equals(id))return new JSONObject().put("session_id",id).put("state","NOT_FOUND").put("managed_media",false);
         session.stop();return session.snapshot().put("managed_media",false);
     }
+    private JSONObject diagnosticSnapshot()throws Exception{return diagnostic.snapshot().put("operation_request_id",diagnosticRequest);}
     synchronized void cancelRequest(String id){if(id.equals(diagnosticRequest)&&diagnostic!=null&&diagnostic.active())diagnostic.cancel();if(id.equals(pendingRequest)&&pendingCancellation!=null)pendingCancellation.cancel();if(id.equals(startRequest)&&session!=null)session.stop();}
     synchronized void ownerDied(Object dead){if(diagnosticOwner!=null&&diagnosticOwner.equals(dead)&&diagnostic!=null&&diagnostic.active())diagnostic.cancel();if(pendingOwner!=null&&pendingOwner.equals(dead)&&pendingCancellation!=null)pendingCancellation.cancel();if(owner!=null&&owner.equals(dead)&&session!=null)session.stop();}
     synchronized void tick(){

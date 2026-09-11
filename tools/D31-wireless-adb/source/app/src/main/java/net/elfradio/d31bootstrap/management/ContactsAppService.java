@@ -12,6 +12,7 @@ import org.json.JSONObject;
 /** 非导出的按需APP服务；启动Intent只握手，UID0控制Binder才能开始原厂绑定。 */
 public final class ContactsAppService extends Service {
     private static final ContactsAppContract.Requests REQUESTS = new ContactsAppContract.Requests();
+    private static volatile JSONObject lastLocalResult;
     private final Handler main = new Handler(Looper.getMainLooper());
     private static final ContactsAppWatchdog.Lifecycle<Endpoint> current = new ContactsAppWatchdog.Lifecycle<Endpoint>();
     private final ThreadPoolExecutor worker = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS,
@@ -78,10 +79,11 @@ public final class ContactsAppService extends Service {
             ResultReceiver receiver = intent.getParcelableExtra("reply");
             if (receiver == null) throw new IOException("CONTACTS_REPLY_MISSING");
             Endpoint endpoint = new Endpoint(id, boot, started, receiver);
+            endpoint.inspection = intent.getBooleanExtra("inspect_only", false);
             try { REQUESTS.claim(id, boot, started, SystemClock.elapsedRealtime()); }
             catch (Exception refused) { endpoint.finish(failure(ContactsAppContract.code(refused), false)); }
             if (!endpoint.finished.get()) {
-                if (!current.accept(endpoint)) endpoint.finish(failure("CONTACTS_APP_BUSY", false));
+                if (!endpoint.inspection && !current.accept(endpoint)) endpoint.finish(failure("CONTACTS_APP_BUSY", false));
                 else endpoint.hello();
             }
         } catch (Exception invalid) { /* 未验证的Intent不得触发原厂绑定或回显其内容。 */ }
@@ -100,6 +102,9 @@ public final class ContactsAppService extends Service {
         final String id, boot; final long started; final ResultReceiver receiver;
         final AtomicBoolean used = new AtomicBoolean(), finished = new AtomicBoolean(), cancelled = new AtomicBoolean();
         volatile boolean localRead;
+        volatile boolean workStarted;
+        boolean inspection;
+        volatile String executionHash;
         volatile IBinder owner;
         final IBinder.DeathRecipient ownerDeath = new IBinder.DeathRecipient() { public void binderDied() { cancel(); } };
         Endpoint(String id, String boot, long started, ResultReceiver receiver) {
@@ -109,18 +114,34 @@ public final class ContactsAppService extends Service {
             Bundle data = new Bundle();
             data.putString("envelope", ContactsAppContract.envelope(id, boot, started, result).toString()); return data;
         }
-        void hello() throws Exception { Bundle data = envelope(null); data.putBinder("control", this); receiver.send(ContactsAppContract.HELLO, data); }
+        void hello() throws Exception { Bundle data = envelope(null); data.putBinder("control", this); data.putInt("app_pid",android.os.Process.myPid()); receiver.send(ContactsAppContract.HELLO, data); }
 
         protected synchronized boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
             if (Binder.getCallingUid() != 0) return false;
             try {
                 data.enforceInterface(ContactsAppContract.DESCRIPTOR);
                 if (code == ContactsAppContract.CANCEL) { cancel(); return true; }
+                if (inspection) {
+                    if (code != ContactsAppContract.INSPECT_LOCAL || !used.compareAndSet(false, true)) return false;
+                    String digest = ContactsAppContract.digest(data.readString()), wanted = data.readString();
+                    boolean cancelTarget = data.readInt() == 1;
+                    if (data.dataAvail() != 0 || wanted == null || !wanted.matches("[a-f0-9-]{36}"))
+                        throw new IOException("CONTACTS_QUERY_INVALID");
+                    ContactsAppContract.request(id,boot,started,SystemClock.elapsedRealtime(),ContactsAppContract.WORK_MS);
+                    JSONObject found = lastLocalResult;
+                    Endpoint active = current.get();
+                    if (active != null && wanted.equals(active.id) && digest.equals(active.executionHash)) {
+                        if (cancelTarget) active.cancel();
+                        found = lastLocalResult;
+                    }
+                    finish(ContactsAppContract.localReceipt(found,wanted,digest)); return true;
+                }
                 if (code != ContactsAppContract.EXECUTE && code != ContactsAppContract.EXECUTE_LOCAL) return false;
                 if (finished.get() || !used.compareAndSet(false, true)) return true;
                 localRead = code == ContactsAppContract.EXECUTE_LOCAL;
                 ContactsAppContract.request(id, boot, started, SystemClock.elapsedRealtime(), ContactsAppContract.WORK_MS);
                 final String digest = ContactsAppContract.digest(data.readString());
+                executionHash = digest;
                 owner = data.readStrongBinder();
                 if (data.dataAvail() != 0 || owner == null || !boot.equals(ContactsAppContract.bootId()))
                     throw new IOException("CONTACTS_OWNER_INVALID");
@@ -133,6 +154,7 @@ public final class ContactsAppService extends Service {
         }
 
         void execute(String digest) {
+            workStarted = true;
             JSONObject result;
             try {
                 ContactsBindingProbe.Control control = new ContactsBindingProbe.Control() { public void check() throws Exception {
@@ -160,9 +182,14 @@ public final class ContactsAppService extends Service {
                 if (result.optBoolean("ok") && (cancelled.get() || SystemClock.elapsedRealtime() - started >= ContactsAppContract.WORK_MS))
                     result.put("ok", false).put("listComplete", false).put("state", cancelled.get() ? "CONTACTS_CANCELLED" : "CONTACTS_TIMEOUT");
                 result.put("app_pid", android.os.Process.myPid()).put("app_uid", android.os.Process.myUid());
+                if (localRead && workStarted) {
+                    result.put("operation_request_id",id).put("operation_apk_sha256",executionHash);
+                    lastLocalResult = new JSONObject(result.toString());
+                }
                 receiver.send(ContactsAppContract.RESULT, envelope(result));
             } catch (Exception ignored) { }
-            finally { current.complete(this); }
+            // 清理未知保留当前占位，既有专用进程watchdog继续追踪至硬截止。
+            finally { current.complete(this, !workStarted || ContactsAppWatchdog.cleanupConfirmed(result)); }
         }
 
         synchronized void cancel() {

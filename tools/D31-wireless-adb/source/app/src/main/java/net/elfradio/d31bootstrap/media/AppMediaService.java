@@ -84,7 +84,7 @@ public final class AppMediaService extends Service {
         volatile IBinder rootOwner;volatile Future<?> job;
         volatile long executionWindow=AppMediaContract.WAIT_MS;
         Endpoint(String id,String boot,long started,ResultReceiver receiver){this.id=id;this.boot=boot;this.started=started;this.receiver=receiver;}
-        void hello()throws Exception {Bundle data=envelope(null);data.putBinder("control",this);receiver.send(AppMediaContract.HELLO,data);}
+        void hello()throws Exception {Bundle data=envelope(null);data.putBinder("control",this);data.putInt("app_pid",android.os.Process.myPid());receiver.send(AppMediaContract.HELLO,data);}
         private Bundle envelope(JSONObject result)throws Exception {
             JSONObject value=new JSONObject().put("request_id",id).put("boot_id",boot).put("started_elapsed_ms",started);
             if(result!=null)value.put("result",result);

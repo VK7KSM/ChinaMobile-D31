@@ -34,6 +34,35 @@ EXPECTED_APP_PAGE = [
 EXPECTED_PROJECT_CERTIFICATE = "9B31F89FA50B672ECFE02D73A534CC03F6CF893739AEC268F9FE0B71E72DA72E"
 
 
+def verify_manifest_files(manifest: dict, checked: dict) -> None:
+    """将包内清单逐项绑定到已实算载荷，不能仅验证路径或接受空清单。"""
+    if not isinstance(manifest, dict) or manifest.get("版本") != "1.4.3":
+        raise SystemExit("包内清单版本不匹配")
+    files = manifest.get("文件")
+    actual = {name: value for name, value in checked.items() if " -> " not in name}
+    if not isinstance(files, list) or len(files) != len(actual):
+        raise SystemExit("包内清单数量与实际载荷不符")
+    seen = set()
+    for item in files:
+        if not isinstance(item, dict):
+            raise SystemExit("包内清单条目格式无效")
+        name = item.get("path")
+        if not isinstance(name, str) or name not in actual or name in seen:
+            raise SystemExit("包内清单存在遗漏、重复或未登记路径")
+        seen.add(name)
+        verified = actual[name]
+        if (type(item.get("bytes")) is not int or item["bytes"] != verified["bytes"]
+                or not isinstance(item.get("sha256"), str)
+                or item["sha256"].upper() != verified["sha256"].upper()):
+            raise SystemExit("包内清单长度或摘要与实际载荷不符")
+        if name == "payload/system.img.gz":
+            system = checked["payload/system.img.gz -> system.img"]
+            if (type(item.get("uncompressed_bytes")) is not int or item["uncompressed_bytes"] != system["bytes"]
+                    or not isinstance(item.get("source_sha256"), str)
+                    or item["source_sha256"].upper() != system["sha256"].upper()):
+                raise SystemExit("包内清单系统原像与实际解压结果不符")
+
+
 def run_checked(command: list[str], description: str) -> str:
     process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
     output = (process.stdout + process.stderr).decode("utf-8", errors="replace")
@@ -299,6 +328,9 @@ def main() -> int:
             checked[name] = {"bytes": actual_size, "sha256": actual_hash, "status": "通过"}
 
         with archive.open("payload/system.img.gz", "r") as compressed:
+            compressed_size, compressed_hash = sha256_stream(compressed)
+        checked["payload/system.img.gz"] = {"bytes": compressed_size, "sha256": compressed_hash, "status": "通过"}
+        with archive.open("payload/system.img.gz", "r") as compressed:
             with gzip.GzipFile(fileobj=compressed, mode="rb") as system_image:
                 system_size, system_hash = sha256_stream(system_image)
         expected_system_size, expected_system_hash = EXPECTED_SOURCES["partitions/system.img"]
@@ -390,17 +422,7 @@ def main() -> int:
         system_output = run_checked(system_command, "独立挂载核验system镜像")
 
         manifest = json.loads(archive.read("payload/manifest.json"))
-        if manifest.get("版本") != "1.4.3":
-            raise SystemExit("包内清单版本不匹配")
-        manifest_files = manifest.get("文件")
-        if not isinstance(manifest_files, list):
-            raise SystemExit("包内清单文件列表格式错误")
-        for item in manifest_files:
-            path = str(item.get("path", ""))
-            if not path or path.startswith("/") or ":" in path or "\\" in path:
-                raise SystemExit(f"包内清单出现非相对路径：{path}")
-            if FORBIDDEN_PARTS.intersection(Path(path).parts):
-                raise SystemExit(f"包内清单出现禁止的用户配置路径：{path}")
+        verify_manifest_files(manifest, checked)
 
     report["checked_payloads"] = checked
     report["应用页"] = app_page

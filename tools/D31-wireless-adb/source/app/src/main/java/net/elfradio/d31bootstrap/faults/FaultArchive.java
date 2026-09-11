@@ -120,9 +120,11 @@ final class FaultArchive {
             JSONObject item = new JSONObject().put("number", i);
             File report = new File(attempt, "report.json");
             if (report.isFile()) {
-                JSONObject value = read(report);
-                item.put("state", value.getJSONObject("diagnostic").optString("state", "PARTIAL"))
-                        .put("report", reference(report));
+                try {
+                    JSONObject value = read(report);
+                    item.put("state", value.getJSONObject("diagnostic").optString("state", "PARTIAL"))
+                            .put("report", reference(report));
+                } catch (Exception damaged) { item.put("state", "REPORT_UNREADABLE"); }
             } else item.put("state", "INTERRUPTED");
             attempts.put(item);
         }

@@ -1,12 +1,14 @@
 package net.elfradio.d31bootstrap.faults;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.attribute.FileTime;
 import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
+import net.elfradio.d31bootstrap.diagnostics.collection.CollectionAccess;
 
 public class AndroidFaultSourcesTest {
     private FaultTestFiles.Access access;
@@ -56,6 +58,52 @@ public class AndroidFaultSourcesTest {
         FaultSources.Capture capture = sources.capture(candidate, output, FaultPolicy.defaults());
         assertFalse(capture.retryable); assertEquals("SOURCE_CHANGED", capture.diagnostic.getString("reason"));
         assertEquals(0, output.list().length);
+    }
+    @Test public void lostMarkersKeepBytesButNeverClaimOriginalCrashWasCaptured() throws Exception {
+        for (String suffix : new String[]{".lost", ".lost.gz"}) {
+            String path = "/data/system/dropbox/data_app_crash@123" + suffix;
+            access.write(path, new byte[]{1, 2, 3});
+            FaultSources.Candidate candidate = null;
+            for (FaultSources.Candidate c : sources.discover(FaultPolicy.defaults()).candidates) if (c.path.equals(path)) candidate = c;
+            assertNotNull(candidate); File output = Files.createTempDirectory("lost-marker-").toFile();
+            FaultSources.Capture capture = sources.capture(candidate, output, FaultPolicy.defaults(), FaultTestFiles.store(output));
+            assertEquals("PARTIAL", capture.diagnostic.getString("state"));
+            assertEquals("DROPBOX_ENTRY_LOST", capture.diagnostic.getString("reason"));
+            assertEquals(0, capture.diagnostic.getJSONObject("counts").getInt("complete"));
+            assertEquals("UNAVAILABLE", capture.diagnostic.getJSONArray("items").getJSONObject(0).getString("state"));
+            assertArrayEquals(new byte[]{1, 2, 3}, Files.readAllBytes(new File(output, "fault-source.bin").toPath()));
+        }
+    }
+    @Test public void sourceReplacementBetweenSignatureAndCaptureCannotLeaveCompleteItem() throws Exception {
+        String path = "/data/anr/traces.txt"; access.write(path, new byte[]{1, 2});
+        FaultSources.Candidate candidate = sources.discover(FaultPolicy.defaults()).candidates.get(0);
+        final FileTime timestamp = Files.getLastModifiedTime(access.resolve(path));
+        CollectionAccess changing = new CollectionAccess() {
+            int opens;
+            public Stat lstat(String name) throws IOException { return access.lstat(name); }
+            public String readLink(String name) throws IOException { return access.readLink(name); }
+            public Listing list(String name, Stat expected, int max, long bytes, long timeout) throws IOException {
+                return access.list(name, expected, max, bytes, timeout);
+            }
+            public Handle openRegular(String name, Stat expected) throws IOException {
+                Handle input = access.openRegular(name, expected); final boolean change = ++opens == 1;
+                return new Handle() {
+                    public Stat stat() throws IOException { return input.stat(); }
+                    public int read(byte[] bytes, int offset, int length) throws IOException { return input.read(bytes, offset, length); }
+                    public void close() throws IOException {
+                        input.close();
+                        if (change) { access.write(path, new byte[]{3, 4}); Files.setLastModifiedTime(access.resolve(path), timestamp); }
+                    }
+                };
+            }
+        };
+        File output = Files.createTempDirectory("changed-after-signature-").toFile();
+        FaultSources.Capture capture = new AndroidFaultSources(changing, clock, access)
+                .capture(candidate, output, FaultPolicy.defaults(), FaultTestFiles.store(output));
+        assertEquals("SOURCE_CHANGED", capture.diagnostic.getString("reason")); assertFalse(capture.retryable);
+        assertEquals("UNSTABLE", capture.diagnostic.getJSONArray("items").getJSONObject(0).getString("state"));
+        assertEquals(0, capture.diagnostic.getJSONObject("counts").getInt("complete"));
+        assertArrayEquals(new byte[]{3, 4}, Files.readAllBytes(new File(output, "fault-source.bin").toPath()));
     }
     @Test public void enumerationOverflowIsExplicit() throws Exception {
         for (int i = 0; i < 65; i++) access.write("/data/tombstones/tombstone_" + String.format(java.util.Locale.ROOT, "%02d", i), new byte[]{1});

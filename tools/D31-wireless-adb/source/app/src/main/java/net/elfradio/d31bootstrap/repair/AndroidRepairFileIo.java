@@ -113,6 +113,7 @@ final class AndroidRepairFileIo implements RepairFileIo {
                     throw new IOException("准备期间原文件变化");
                 samePath(target, old.stat); samePath(source, input.stat);
                 // 调用方的全局维护租约覆盖此窗口；不合作的root写入者不属于此互斥合同。
+                RepairTransactions.checkInterrupted();
                 Os.rename(temporary, target.leaf());
                 Os.fsync(target.directory.fd());
             }

@@ -14,6 +14,7 @@ public class FaultExportsTest {
     private File root, event;
     private String id;
     private FaultExports exports;
+    private boolean failAckCommit, failReceiptCommit;
     private final FaultPolicy policy = new FaultPolicy(1, 1, 3, 1024, 1, 8L * 1048576, 0, 1000, 1000, 1000, 10000, 1000);
     private final FaultSources sources = new FaultSources() {
         public Scan discover(FaultPolicy policy) { throw new AssertionError("must not read device sources"); }
@@ -21,7 +22,11 @@ public class FaultExportsTest {
         public JSONObject context() { throw new AssertionError("must not sample"); }
         public String bootKey() { throw new AssertionError("must not query boot"); }
         public void checkPrivateRoot(File file) throws IOException { FaultArchive.checked(file); }
-        public void replace(File a, File b) throws IOException { FaultTestFiles.replace(a, b); }
+        public void replace(File a, File b) throws IOException {
+            if (failAckCommit && b.getName().equals("archived.json")
+                    || failReceiptCommit && b.getName().equals("receipt.json")) throw new IOException("模拟提交前中断");
+            FaultTestFiles.replace(a, b);
+        }
     };
     @Before public void setup() throws Exception {
         FaultExports.identities = FaultTestFiles::identity;
@@ -80,6 +85,40 @@ public class FaultExportsTest {
         JSONObject ack = archive(first); assertEquals(ack.toString(), archive(first).toString());
         assertArrayEquals(original, Files.readAllBytes(new File(first.getString("path")).toPath()));
         assertFalse(new File(event, "exports/export-2").exists());
+    }
+    @Test public void interruptedAckKeepsOriginalsAndRetriesWithoutFalseSlotRelease() throws Exception {
+        JSONObject receipt = exports.exportEvent(id);
+        byte[] raw = Files.readAllBytes(new File(event, "attempt-1/fault-source.bin").toPath());
+        failAckCommit = true;
+        rejects("模拟提交前中断", () -> archive(receipt));
+        assertFalse(new File(event, "archived.json").exists()); assertFalse(FaultExports.isArchived(event));
+        assertTrue(new File(event, "archived.json.next").exists());
+        failAckCommit = false; exports = new FaultExports(root, sources, policy);
+        assertTrue(archive(receipt).getBoolean("activeSlotReleased"));
+        assertArrayEquals(raw, Files.readAllBytes(new File(event, "attempt-1/fault-source.bin").toPath()));
+        assertEquals(receipt.toString(), exports.exportEvent(id).toString());
+    }
+    @Test public void interruptedReceiptCannotBecomeCommittedAndRetryKeepsFirstPackage() throws Exception {
+        failReceiptCommit = true;
+        rejects("模拟提交前中断", () -> exports.exportEvent(id));
+        File first = new File(event, "exports/export-1/bundle.zip");
+        byte[] raw = Files.readAllBytes(first.toPath());
+        assertFalse(new File(first.getParentFile(), "receipt.json").exists());
+        assertEquals("INCOMPLETE_EXPORT", FaultExports.summary(event).getString("state"));
+        failReceiptCommit = false; exports = new FaultExports(root, sources, policy);
+        JSONObject receipt = exports.exportEvent(id); assertEquals(2, receipt.getInt("exportNumber"));
+        assertArrayEquals(raw, Files.readAllBytes(first.toPath()));
+        assertTrue(archive(receipt).getBoolean("activeSlotReleased"));
+    }
+    @Test public void unreadableReportIsPackagedWithGapAndMayBeExplicitlyArchived() throws Exception {
+        File report = new File(event, "attempt-1/report.json"); byte[] partial = new byte[]{123,34,100};
+        Files.write(report.toPath(), partial);
+        JSONObject receipt = exports.exportEvent(id);
+        assertEquals(0, receipt.getInt("completeRawFiles"));
+        JSONObject manifest = FaultArchive.read(new File(new File(receipt.getString("path")).getParentFile(), "manifest.json"));
+        assertTrue(manifest.getJSONArray("gaps").toString().contains("REPORT_UNREADABLE"));
+        assertTrue(archive(receipt).getBoolean("activeSlotReleased"));
+        assertArrayEquals(partial, Files.readAllBytes(report.toPath()));
     }
     @Test public void absentReceiptCannotArchive() throws Exception {
         rejects("EXPORT_RECEIPT_REQUIRED", () -> exports.archiveEvent(id, FaultArchive.hash("x"), 1, FaultArchive.hash("y")));

@@ -26,8 +26,8 @@ final class RemoteTasks {
         if (file.exists()) {
             JSONObject saved = read(file);
             if (!saved.getJSONObject("task").getString("type").equals(task.getString("type"))
-                    || !saved.getJSONObject("task").getJSONObject("params").toString()
-                    .equals(task.getJSONObject("params").toString())) throw new IOException("同号任务内容冲突");
+                    || !RemoteProtocol.sameJson(saved.getJSONObject("task").getJSONObject("params"),
+                    task.getJSONObject("params"))) throw new IOException("同号任务内容冲突");
             if ("system_config".equals(task.optString("type")) && task.optBoolean("cancel_requested") && !saved.has("receipt"))
                 RemoteBusinessCommand.cancel(RemoteBusinessCommand.ROOT, id);
             if (task.optBoolean("cancel_requested") && !saved.optBoolean("dispatch_intent") && !saved.has("receipt")) {

@@ -152,6 +152,12 @@ try:
     elif cmd == 'cp':
         real = [a for a in args if not a.startswith('-')]
         fail('copy')
+        if state.get('partial_copy') == Path(host(real[0])).name and not state.get('partial_copy_failed'):
+            state['partial_copy_failed'] = True
+            Path(host(real[1])).write_bytes(Path(host(real[0])).read_bytes()[:3])
+            state['external_system'] = not real[1].endswith('.new')
+            save()
+            raise RuntimeError('模型复制中断：目标已留下部分字节')
         shutil.copy2(host(real[0]), host(real[1])); code = 0
     elif cmd in ('chcon', 'chown', 'sync'):
         fail(cmd); code = 0

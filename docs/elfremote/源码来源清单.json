@@ -280,18 +280,32 @@
     "Git对象": "2d1520b6f881d8eaa651912edf16c257ab1046f4"
   },
   {
+    "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteAppOperation.java",
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RemoteAppOperation.java",
+    "字节数": 15772,
+    "SHA256": "1680B312BA29867BACF8C6F0550505D364C3297FC25AE58915B461DF45958C5A",
+    "Git对象": "ab5e1263523434de9526b5cf442ada76c38aa5b6"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteAppOperationFiles.java",
+    "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RemoteAppOperationFiles.java",
+    "字节数": 10855,
+    "SHA256": "A7AC185C332B78391D670B52668D3D557016720D0879D90BAB6A1BBF69DD08BC",
+    "Git对象": "42ad15a28012cc2013ed9498323d5b057c88da9f"
+  },
+  {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteBusinessCommand.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RemoteBusinessCommand.java",
-    "字节数": 8734,
-    "SHA256": "A4FC697F3BBF43F34BDC8B3D6C667E155252D4D631A8B0BDF7F1509C703C64A8",
-    "Git对象": "37b7107fdf36fa0a99499e9f500786a8c7394df5"
+    "字节数": 8776,
+    "SHA256": "82F6D6C0246BEE988E7900672BEAE67156F98CBC946492CB6625920E573591EA",
+    "Git对象": "f4a589671a13314f8ea14d6a097553abd778a414"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteContactsAccess.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RemoteContactsAccess.java",
-    "字节数": 1559,
-    "SHA256": "C10E44D4621A7310BE48FB156F02710419780751022039CEF8AEB92F1582688A",
-    "Git对象": "66ba379cf4c5a6237b1eaecf20b81b07a300c6b7"
+    "字节数": 1792,
+    "SHA256": "AD85712F2E2BDC46CECBDC92CB9C57C9FA1A951B8F1EBDF262CCA40AA1AF7204",
+    "Git对象": "e4d3447dd571426df5b52cc3d49caecf5d3f1f14"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteContent.java",
@@ -338,9 +352,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteFaultRuntime.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RemoteFaultRuntime.java",
-    "字节数": 1781,
-    "SHA256": "B399E3A2B5FFC68ADE3C0D1EFAB352A2592B49BEDD6AE5743EC34A0FD76A416B",
-    "Git对象": "72984ba14228f2cd706c2ededd1b20cd1d259536"
+    "字节数": 1791,
+    "SHA256": "7B8C6BE264C400371F4EDB9EAB37548F0A0E49A15F62930738295A13841F9004",
+    "Git对象": "ad26a98812c3fa8606263c67df0abedd6484b5a0"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteFileCommand.java",
@@ -366,9 +380,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteFileTransfers.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RemoteFileTransfers.java",
-    "字节数": 12412,
-    "SHA256": "9176BE011873B1D6CD1FE47751574A4466979943D711A108BF03C4059BEDAD37",
-    "Git对象": "b8523752964f7e342c6a6c4df81452bec250b201"
+    "字节数": 13147,
+    "SHA256": "4BE345CB37D23AB05C840410E8348F2725ED1C8EFA0BF6BBE1DF322314C7B8BE",
+    "Git对象": "1ac278780d400f6b0cb3c7a49228cb559b318415"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteFileUpload.java",
@@ -394,16 +408,16 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteMaintenance.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RemoteMaintenance.java",
-    "字节数": 5905,
-    "SHA256": "5DCDFC12A72F5E05C21D490B6A57266AF800708CB30FEAFD459A482A7FFC845E",
-    "Git对象": "6f4f21d302ace78632d49ff5ed80d92e77682f08"
+    "字节数": 6406,
+    "SHA256": "0BDA75A3815298C1462292F4AE1C7655F5E1AFB8A8B06F196A2FE5246B5F762C",
+    "Git对象": "a08fee2e63bdb7eb3102fce6f9d9b96787404bcb"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteManualBootstrap.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RemoteManualBootstrap.java",
-    "字节数": 17467,
-    "SHA256": "841BB2084356371F7D89DB9D1B8131975575944BF7758F4A384CEC67B490E2C1",
-    "Git对象": "482111962d60f954d08dc406995e10771f260231"
+    "字节数": 18367,
+    "SHA256": "F183BBB6DF7750B02B3A98FA9CC891EF691489148DF6024E84F06DB02F0AE70E",
+    "Git对象": "6cbda15530dc7a362005aacfc39d1882dd98689f"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteManualReceiver.java",
@@ -422,9 +436,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteMediaCommand.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RemoteMediaCommand.java",
-    "字节数": 4460,
-    "SHA256": "8FBEC61BA360CC2A88DE4E65F19F4BC92C8D47D07730C5FDF60E25210AADEF82",
-    "Git对象": "3ed7fac47a882d453b8d2b7ca738c65d26ad2f7c"
+    "字节数": 6174,
+    "SHA256": "6E83A048A2C2A3D51710CEC284FC6B5E292F818D912D00A95E7648E948A9AC73",
+    "Git对象": "39eaa5c129a548d481899862f3673dc7940db609"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteNetworkAccess.java",
@@ -436,9 +450,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteProtocol.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RemoteProtocol.java",
-    "字节数": 4779,
-    "SHA256": "2099F78AAF1D520ACDE97050F8248442C61952A294FEB1589D1F97EF92974510",
-    "Git对象": "8fbdd9f5c13b16bf812228acde7fdee8bba5a890"
+    "字节数": 6351,
+    "SHA256": "EFC567F1E9BB162E50D8ABB59EBF23D0779C046754CFC8CA5DA97452B5F81ADB",
+    "Git对象": "9d38b3585ed0e9641970ad10d439afe99846d626"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemotePush.java",
@@ -520,9 +534,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteTasks.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RemoteTasks.java",
-    "字节数": 10275,
-    "SHA256": "CA768816713B7E6FAA2A27754E0D243182C7E0A78BC113F0A8E4C05E26B670AB",
-    "Git对象": "0fab84ec7381c82b82c9272678f0521ac25c8e08"
+    "字节数": 10270,
+    "SHA256": "68BD609D8B4577EEAEB1F92F586EFB7202E72F093E8997B2D92C78AC9B220585",
+    "Git对象": "9b11f78361e471358b49078b2ddaa263399c62c1"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteTelemetry.java",
@@ -548,9 +562,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteUpdateEngine.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/RemoteUpdateEngine.java",
-    "字节数": 9336,
-    "SHA256": "17803BE866022ECAECEBA52F4DAC955ADAFC44A6CC8484D891CF321514444368",
-    "Git对象": "ff3a3438c662b8001ce10aadecbd901f60352b65"
+    "字节数": 10819,
+    "SHA256": "3EE95422777C1CF54308952F79DD830C36D5B225656C6EA4A6067ABD7477B086",
+    "Git对象": "28646916039cf23384d20f73f6329f65ebcf2531"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/RemoteUpdateFiles.java",
@@ -709,9 +723,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/diagnostics/DiagnosticManifest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/diagnostics/DiagnosticManifest.java",
-    "字节数": 6423,
-    "SHA256": "D3A20A932AD35F533C3F23CBF363564D458F1C0C7AE7772DE21266480B15AD04",
-    "Git对象": "ea226445bb289377ce271723d772d6ae4f6fa452"
+    "字节数": 7376,
+    "SHA256": "174D0616D36480457B1F1D4256F5594D71D1478E6F7867AF2F0CF61EB8CC3F5D",
+    "Git对象": "9b33ae726c45d852be4f798121bd291047c01c78"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/diagnostics/DiagnosticRules.java",
@@ -779,23 +793,23 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/faults/AndroidFaultSources.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/faults/AndroidFaultSources.java",
-    "字节数": 16948,
-    "SHA256": "3E5857DABA78FEB4EB07BE18538FBEBC7B6306C122BA1E485EFC4A042A57A964",
-    "Git对象": "2b13a5a2dcb3119e64110c8cfd1d6145355cb0f3"
+    "字节数": 17706,
+    "SHA256": "36B7252CFC6FEB4108CC9C28C4CD106D7DA3B4AA0B60A75E4ED3FADA4E105A8F",
+    "Git对象": "e04ad5242729b6c23458e67302808e99b4688b15"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/faults/FaultArchive.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/faults/FaultArchive.java",
-    "字节数": 9157,
-    "SHA256": "2C6F64A42E1C48B1FFD35DBD1311DA1F880DE5266D16AB85553067F4E3400536",
-    "Git对象": "d7a692e8094b12aa8e8102117e8aa15962b60ac8"
+    "字节数": 9279,
+    "SHA256": "DEDF3751DCACCC71C4F747F6A5C8A7FDF3916477D52D8C8D8285F5504B2FD8A9",
+    "Git对象": "428bcd3c6233f2b745fb5a56ccc8c0f114084aa6"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/faults/FaultCommand.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/faults/FaultCommand.java",
-    "字节数": 3780,
-    "SHA256": "FD6160BFA2922D76F619AE01CC8129323DE1DED2FE6081CC0C70CF81C87932AE",
-    "Git对象": "6ee67ea6cc4a3153b230042707987eead3aa664c"
+    "字节数": 3790,
+    "SHA256": "95E1D47E6964D0C1877A6FDD10F294D326B07F97FA8CF7328D4C5DFA6E59D703",
+    "Git对象": "1be093a045382e13aa9ae44271f5d1e9a6bfa78f"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/faults/FaultDirectoryWalker.java",
@@ -814,16 +828,16 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/faults/FaultExports.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/faults/FaultExports.java",
-    "字节数": 32122,
-    "SHA256": "AD1A209CD09F64641EECD2B516899FA19E844AC2CF699F64B48E7DB50D1F6DAC",
-    "Git对象": "10b9ff19d467b4be155c964a2bc29bd77f06cf71"
+    "字节数": 32850,
+    "SHA256": "F11AD6A5B1425A5CC5AC6ADD67991CEE08EFE1FC57043CC72A77A2B1B8B35B85",
+    "Git对象": "a00335188acb078fdf203e69e8f0ba5b847ed422"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/faults/FaultMonitor.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/faults/FaultMonitor.java",
-    "字节数": 22002,
-    "SHA256": "BD344EDDEBC22B34518082FDAC2AE1ACA0EC10AF812CCD4C7BFCF954E0E02E5A",
-    "Git对象": "3c6a65a39f5e2d3d0b1c9848b192ad4c889c0dd1"
+    "字节数": 26130,
+    "SHA256": "CB124E0B6267CEAB745103F6523BC4D9D60C81A966391C3A9077DA14467A04DB",
+    "Git对象": "4aefdd5dffb2fad7725999c4a0fee6b760f855f4"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/faults/FaultOrdering.java",
@@ -835,16 +849,16 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/faults/FaultPending.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/faults/FaultPending.java",
-    "字节数": 5548,
-    "SHA256": "D8B6CB2461C05209133D5C6BFA5C40CFC5D8BF533A6C4EF1552BA2A9CEEE9029",
-    "Git对象": "28745664adf61774264bca7cf0dc24e69b22eab4"
+    "字节数": 6115,
+    "SHA256": "2D8659BA66750EA7FC2BE3DBE9E4CFBF442537EDB4DDB229829DB9AB1BC55FA6",
+    "Git对象": "c3a5feff8b842d17b4cceb1b105c126b92b7862b"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/faults/FaultPolicy.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/faults/FaultPolicy.java",
-    "字节数": 1970,
-    "SHA256": "4EC4FA8AF0584A9F2A572EAE7719CCA3ACCB5770150C001BB0882B6CEAE2FCEE",
-    "Git对象": "d6288bb333e3f8eac204438050745d20fa7c1720"
+    "字节数": 3457,
+    "SHA256": "1D9BE93E9918EAA9AEE64E45ECCDC0DC23981E434202760ADCA51172AC46A2CA",
+    "Git对象": "82efd84e73dacd7ec8f06076e74c809a4d34e123"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/faults/FaultQueryCommand.java",
@@ -877,37 +891,37 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/management/ContactsAppBridge.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/management/ContactsAppBridge.java",
-    "字节数": 10193,
-    "SHA256": "094D9575F05243ED9B7A2FCDBFB190245945017E12F1E6DBAC21D83343EE4601",
-    "Git对象": "dabe0907cea41f11aacb48acb629e179ac26e3cc"
+    "字节数": 11795,
+    "SHA256": "62E07BFE2F702DEF72237F0634610410DE34A2C178E96EE01210E9093E6758B1",
+    "Git对象": "39552ca2882085798184a50f61c535694e1798ef"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/management/ContactsAppCommand.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/management/ContactsAppCommand.java",
-    "字节数": 2856,
-    "SHA256": "8A67BEC7A8551D582C1F0F164A8F6334D9DCCDAA74C3DF03FD3F9B7D3307F210",
-    "Git对象": "8fa805fb255be0794b4275e076ed785eb42a8376"
+    "字节数": 4073,
+    "SHA256": "F93C6873943ED031E487E94B4EC5BF92E84E44603360DD83976FDE8D5B40265F",
+    "Git对象": "d403643930005a07f1084cd60cf6c7567a08785a"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/management/ContactsAppContract.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/management/ContactsAppContract.java",
-    "字节数": 6498,
-    "SHA256": "BB0A19735FC5201167C79EDCBBE61C0789272ECFE24A58FF98A572DB8856E06F",
-    "Git对象": "0a2dda233c50f62cae72b33bf2489d665f2419cc"
+    "字节数": 7005,
+    "SHA256": "7CAE6A9992A2FA6280CD88C0D426EA227B30117D3C8A4C2E8EF930AB85CDC139",
+    "Git对象": "cd48d0687267933e460c6241e8a65ee5be103626"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/management/ContactsAppService.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/management/ContactsAppService.java",
-    "字节数": 11194,
-    "SHA256": "523F86706BB35FA3813CBCAB3B6B10D8D968F5616F6236923DCA980153550D12",
-    "Git对象": "bb630027c93995cad712b4dfaa48eb0b207e74f6"
+    "字节数": 13073,
+    "SHA256": "A6BC354441C14F586E58ED57FCD4A626C00C7E49BCE7B307FAEA17A7C183C493",
+    "Git对象": "4d7550decff34eca7569e1487acc1ebfd36d163b"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/management/ContactsAppWatchdog.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/management/ContactsAppWatchdog.java",
-    "字节数": 2321,
-    "SHA256": "1D9EC4CE1CE074123775E19C5BA761B418C93633C0C56C2593A1A2DACD02257F",
-    "Git对象": "023d5465c8ad564532e110b38ac1617c6e145098"
+    "字节数": 3130,
+    "SHA256": "4911A74C8EAE9417BBA71129F00D8B631EE8390530869590380662E06F3472E7",
+    "Git对象": "95457032cbd7dd686577309ea722590311c56e3d"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/management/ContactsBindingAndroid.java",
@@ -1136,16 +1150,16 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/media/AppMediaBackend.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/media/AppMediaBackend.java",
-    "字节数": 10283,
-    "SHA256": "D83815563EDCBBC749441D1ADE11A7D8C57E357F7D38A33F60DD16596A79DAF8",
-    "Git对象": "ff42acf7151073108e8c48397bd4349420eda770"
+    "字节数": 11016,
+    "SHA256": "DFEBBE6ED34494202CE6722C49B8C810ACCEF1E835785962ACBB8BF90A793620",
+    "Git对象": "7432cfc4787f544effc217c74a5320a907809c2d"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/media/AppMediaBridge.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/media/AppMediaBridge.java",
-    "字节数": 10061,
-    "SHA256": "14C3287F36072C8BCC0A2B117134BED6EA61488B6909ACE0CE3DBF593C572C9F",
-    "Git对象": "65e5bd864d7c6a2d4bf942d33a394b81ddd3d559"
+    "字节数": 11195,
+    "SHA256": "2EFD6ADA17151DDEBFA8D058D0A961D30ABA6F1AEF89F772C99FD899225900B6",
+    "Git对象": "d38047598922e08e996e6dadbccefc6d413eb966"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/media/AppMediaContract.java",
@@ -1157,16 +1171,16 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/media/AppMediaController.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/media/AppMediaController.java",
-    "字节数": 8396,
-    "SHA256": "C5F13BDCB734FF9E455DFEAD45BA36294DC3377281D1AC829D882CFF15B50C23",
-    "Git对象": "f70f404aa999af70e7311f040b09bf40cd759212"
+    "字节数": 8567,
+    "SHA256": "BD62265862318A3A808C4B7C6FB056AE8EB2E661DF112BE7CCE407B95A75E4AE",
+    "Git对象": "b085befdadce1b30c9245024f6b6cacbc69eba73"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/media/AppMediaService.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/media/AppMediaService.java",
-    "字节数": 9629,
-    "SHA256": "AC5EEC8A41673DF3A1FD416685D923F8242A75B7AB4299B5A788285F857E5CB5",
-    "Git对象": "87d88efaa4565a08059c8181a6338d6353e6f84d"
+    "字节数": 9679,
+    "SHA256": "D833AAB48A7626EB060B0C7B35EA40863763F27E29EBC84C8BF73E44226C8DB5",
+    "Git对象": "2d811c9b363a54c8d6b5e0181d8e927ae198d10a"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/media/AudioCaptureDriver.java",
@@ -1234,9 +1248,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/media/LocalAudioCapture.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/media/LocalAudioCapture.java",
-    "字节数": 10557,
-    "SHA256": "6370436425797B31C3DB7F2B989A1A23B2A4D5904529532AD9A80B91988254B8",
-    "Git对象": "a97f428f366311d150602db6568ce1cb0b6d3fa6"
+    "字节数": 11055,
+    "SHA256": "158230D19EB579C8695E3E02E12E443E4B047426949B813F7D314C7C270F7FF6",
+    "Git对象": "97149dd0fdc81d6a0f0fea2c26579dc095624aef"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/media/LocalAudioCaptureAndroid.java",
@@ -1304,9 +1318,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/repair/AndroidRepairFileIo.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/repair/AndroidRepairFileIo.java",
-    "字节数": 17546,
-    "SHA256": "2FA7EC736F6B785D62CEF43E56ED093702894302E24D0CBE8570D9DB11D28C60",
-    "Git对象": "82b878e205f6e603157cffd50214b6b210e31f6b"
+    "字节数": 17601,
+    "SHA256": "820A6C5C6A6B5F58E659B5A96DBDE00ECC2FA6FFB70735F2F0850868140366BB",
+    "Git对象": "7379c3ad8e83728f540bdd4fe26e33e3e12f868f"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/repair/AndroidRepairPlatform.java",
@@ -1332,9 +1346,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/repair/RepairJournal.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/repair/RepairJournal.java",
-    "字节数": 5421,
-    "SHA256": "37F140194257E4BB37A1B15D7A9447EE963AE0CFE85A85F0DC571D625683C5FE",
-    "Git对象": "f92e540fb2882b2175e03eabf9e94a440c0a6b2f"
+    "字节数": 5468,
+    "SHA256": "68416A259966CEDE7ADEED305A63EEFB4C22B61912967D6BB9AECC51BAEBBEA6",
+    "Git对象": "344f65fb158a2cc8f7d986e7c754a05b1fa2b9f2"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/repair/RepairPlan.java",
@@ -1353,9 +1367,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/repair/RepairTransactions.java",
     "路径": "tools/D31-wireless-adb/source/app/src/main/java/net/elfradio/d31bootstrap/repair/RepairTransactions.java",
-    "字节数": 16284,
-    "SHA256": "4038AE36084DA01F44ED4E2557D700131D248BF97E35526EB0195DFF669A8BD8",
-    "Git对象": "52417bdec6d6376b71296d9873baa76879c2a7c7"
+    "字节数": 17248,
+    "SHA256": "0AE9F18DA532E4B72634E0B327063D68335B6DF7BA84F6E59DCD2B831CD4C186",
+    "Git对象": "8572244a09c8fadb0ceed91caf77f1a8f2a674a7"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/java/net/elfradio/d31bootstrap/telemetry/AndroidTelemetryAccess.java",
@@ -1603,11 +1617,25 @@
     "Git对象": "e5d9800c936adfaca4a495eef9e1d619245ec5d1"
   },
   {
+    "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/RemoteAppOperationTest.java",
+    "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/RemoteAppOperationTest.java",
+    "字节数": 18739,
+    "SHA256": "AF8ADD3CEE2E12DAC895A30B07F69400D34BB86D97153FFDFEC01D3D4B7A3513",
+    "Git对象": "a9083b42e276fcbf89e1a162d386786572896853"
+  },
+  {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/RemoteArtifactTypeTest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/RemoteArtifactTypeTest.java",
     "字节数": 1648,
     "SHA256": "5166D90C93C7DDDDCF7F1C1F2A892398CD9229E8BF68E3C922210D90F41AF02D",
     "Git对象": "3afdd5113d5c1284502a649694932cbe76fa4974"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/RemoteBaselineMountTest.java",
+    "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/RemoteBaselineMountTest.java",
+    "字节数": 5132,
+    "SHA256": "7F82BE08FE52E08543E5352AA7D7E4BD0C64111ABDD9B66FD4D02E3B83116BB3",
+    "Git对象": "db28f6a03a7db95fb7a5f30660c39ed9f5b9c632"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/RemoteBusinessCommandTest.java",
@@ -1619,9 +1647,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/RemoteCoreTest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/RemoteCoreTest.java",
-    "字节数": 8250,
-    "SHA256": "7E4A851B60AE5F511DBF8357443AF295CFC1CCA78D67AE25158864CAE8C04E4D",
-    "Git对象": "13c364c8d482038c967324f97dea3cfa95547e3a"
+    "字节数": 9721,
+    "SHA256": "D6548D4503C0C085DD76F7F6159F951AEF1FC7E8C392BF1EF74FC16E5256DD13",
+    "Git对象": "8b52231e8e565320382fe3dc6425adbcfd0ffd9f"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/RemoteDiagnosticJobsTest.java",
@@ -1661,9 +1689,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/RemoteIncomingFilesTest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/RemoteIncomingFilesTest.java",
-    "字节数": 4633,
-    "SHA256": "583FCEE7894EC77DC75E81EC9CB3142CDF33EE4D2ADA286EF7484B62F23C82BB",
-    "Git对象": "7a96fc675db872c356bb9d204a9bb06d96c34569"
+    "字节数": 6978,
+    "SHA256": "339F00DCEE77E4FE253B6237F483ED688DE954E380D3BB5ACF124C8F6AB7014D",
+    "Git对象": "d3950df693282d166f03725925ea50c93c87c2ab"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/RemoteMaintenanceTest.java",
@@ -1766,9 +1794,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/RemoteUpdateTest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/RemoteUpdateTest.java",
-    "字节数": 14656,
-    "SHA256": "8A62B28311E72DBCD565D0BB954B52829FD820FAACE9D89546FAD19EA5081CAD",
-    "Git对象": "2a668b71e742e99f55816c856d04dde2f57f6d9e"
+    "字节数": 17314,
+    "SHA256": "12864729DA09DF046D6402171C7890246818C05DBC4B0434E1CAFF21D5F2F73E",
+    "Git对象": "706324ce526d9fc01f86caee73a78567fdea1a83"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/RemoteWindowsMaintenanceTest.java",
@@ -1829,9 +1857,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/diagnostics/DiagnosticComparatorTest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/diagnostics/DiagnosticComparatorTest.java",
-    "字节数": 33011,
-    "SHA256": "26B504D05DD73B9E0CE41C8E624FF16CFA95EF65214D257F2F329E1D1E7A3255",
-    "Git对象": "e450a11ca02b142090d3de77498dd82f0e4a5b73"
+    "字节数": 34705,
+    "SHA256": "8CC48360376340CDA12BCD869A269350372A5732976284ED7FF9CB58E680C13D",
+    "Git对象": "39c2e419559c3437a056234502020670bf0f7dc5"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/diagnostics/collection/AndroidCollectionAccessTest.java",
@@ -1871,23 +1899,23 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/faults/AndroidFaultSourcesTest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/faults/AndroidFaultSourcesTest.java",
-    "字节数": 21807,
-    "SHA256": "011647398839C94C8D7A098F0EDEC0F83235AEB59F3CF35392BF4CB093C8135B",
-    "Git对象": "c42ff0c39d2dc716d0f2a152c8fc3eb32fb6c0a5"
+    "字节数": 25464,
+    "SHA256": "63A1BC1458484EE8DE5593544C655BDF505F105C8D305E1DC08B4BE85CEE1A75",
+    "Git对象": "a42bc9b5497154bd12a69a56b0966bda3a7bd61f"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/faults/FaultExportsTest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/faults/FaultExportsTest.java",
-    "字节数": 15820,
-    "SHA256": "3E9F5C0F3DE56E021F6ACE9706FAE632C7B67C30AF43420A9654875244F5570E",
-    "Git对象": "ed6cefa0229da408fd42046c6ba6902d37f422ae"
+    "字节数": 18551,
+    "SHA256": "2BA83CA517ABFB6DF1D4DBF1360F9352C4DAEA71576CEC1333C4B17DE0EFDC1D",
+    "Git对象": "8fe9e7295d60e84b7a1b31283ff7d644e733072e"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/faults/FaultMonitorTest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/faults/FaultMonitorTest.java",
-    "字节数": 27439,
-    "SHA256": "ED4E37DE2B6CA054E967782A6F6099DAE62CBD44304C0AF709097CABC6162AF3",
-    "Git对象": "d89bcb5f5f78685b8a6b53a5a12c94dab14633c8"
+    "字节数": 38121,
+    "SHA256": "6BA41F34DEEB27BEF9F1CCB1F4D868881F028F318CC4AEFD50764DF8CDC3F2C7",
+    "Git对象": "744a4ae829a30c83fd87793ec2f987d016eb845a"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/faults/FaultTestFiles.java",
@@ -1906,16 +1934,16 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/management/ContactsAppContractTest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/management/ContactsAppContractTest.java",
-    "字节数": 5460,
-    "SHA256": "43C7EB8B5AFC1B6D3E55BC0722B9DB1FB417129672AF3C59138850003314A2C8",
-    "Git对象": "f78f2c3890492bfce8a082c8c3165cc7569dc3de"
+    "字节数": 6441,
+    "SHA256": "626F97B07B5BF4B9CEE9E0A0266E6E996F3696847DE9201C380299962A8D74DD",
+    "Git对象": "dfa9e6c65cf3984846274c69b1746d261d96e480"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/management/ContactsAppWatchdogTest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/management/ContactsAppWatchdogTest.java",
-    "字节数": 6307,
-    "SHA256": "41D83446E1620E52B7C7A8B6EE949751042F7127A2763008C066A602315F61FD",
-    "Git对象": "bbf85f7dc19312f8603dbc78d63a02c4e021dc08"
+    "字节数": 7360,
+    "SHA256": "83F436E8D76383A727AC067A193D548D51EF072A99EAB989FD8D16AE35BC0259",
+    "Git对象": "6a9a89a27b289b0ff85df8d04e239ec989367b02"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/management/ContactsBindingProbeTest.java",
@@ -1927,9 +1955,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/management/ContactsLocalReadTest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/management/ContactsLocalReadTest.java",
-    "字节数": 13149,
-    "SHA256": "53EF26E1CD0AF3974D5F6DD76AB1F807D5171641BAD1DDF2B1889FEECEC271E3",
-    "Git对象": "d564f54a4fe1773ee42827f17f015751b820bd6b"
+    "字节数": 14942,
+    "SHA256": "6ABE5A25EFD00A54D26D155A2657EE6F95B9AF2CA047A8C9DDEE9230C955CC1F",
+    "Git对象": "e1d3e1a2500773aff619237a8ff29829ec64f3a9"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/management/ContactsNexuiTest.java",
@@ -2011,9 +2039,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/media/AppMediaBackendTest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/media/AppMediaBackendTest.java",
-    "字节数": 8563,
-    "SHA256": "260A00EA4310A3E4AECE3DB27A4E0F51AB2A661F8E8C146964C688DE08D145FD",
-    "Git对象": "6e1b81db005db661914c6d04ca962d1f6624cd98"
+    "字节数": 10297,
+    "SHA256": "0A7E467167EA77237E34282EC7B948D82F450D75C6175A6D4095FDD231527414",
+    "Git对象": "41dd913efe486ee804dfcab860eaa152d7490446"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/media/AppMediaContractTest.java",
@@ -2025,9 +2053,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/media/AppMediaControllerTest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/media/AppMediaControllerTest.java",
-    "字节数": 10328,
-    "SHA256": "D9872AC381DD90FD6B4DA14D2669FED2B0A917C1672122EAA07DAFA0AD975B4B",
-    "Git对象": "476cfa76722ace7f61247c7a8ee0d44eb5f6f03a"
+    "字节数": 10508,
+    "SHA256": "670064D5B71BBF7B0A391E6756C0F631A30C92CAA0A1C828E7BAB5162DD82F38",
+    "Git对象": "7a7e9098f03bb505b7c25da17930ac31c4255eb3"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/media/AudioCaptureDriverTest.java",
@@ -2081,9 +2109,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/media/LocalAudioCaptureTest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/media/LocalAudioCaptureTest.java",
-    "字节数": 14288,
-    "SHA256": "9255F50D794D399B307001C3779E17B17D655ED8B7C06987358FE74C8846E08B",
-    "Git对象": "afa4af46b895f0eb688349dcf9beba895997f726"
+    "字节数": 15695,
+    "SHA256": "5CE725B6EF1FF4D2E4AD4E118DA4F294EE1F90DED63B8EA952DE6AD197B3BA6E",
+    "Git对象": "ef89d3c351ebc5f1e43744f596ee41d2d32e9ddd"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/media/MediaCaptureTest.java",
@@ -2144,9 +2172,9 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/repair/RepairTransactionsTest.java",
     "路径": "tools/D31-wireless-adb/source/app/src/test/java/net/elfradio/d31bootstrap/repair/RepairTransactionsTest.java",
-    "字节数": 21559,
-    "SHA256": "AE457BF665DD42C9B02AB5B6550E6202EBE218E49B9947C27F3E6555B939E84B",
-    "Git对象": "0c3fcbd87a184039195928ac6a1cd5e548aafba2"
+    "字节数": 25806,
+    "SHA256": "1ABA92251A3524F8018F0089B9B8179CEC92C3650F0ECDAE80136ED9297AE385",
+    "Git对象": "fe0c8f90b2cf683d1d32bdfa23d1885aebba67cb"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/src/test/java/net/elfradio/d31bootstrap/repair/TemporaryRepairPlatform.java",
@@ -2387,6 +2415,13 @@
     "Git对象": "fbf623e10a7a999b2c8c06383a441535c198a3ec"
   },
   {
+    "来源": "research/d31_adb_bootstrap/tools/RemoteLegacyQuikCheck.java",
+    "路径": "tools/D31-wireless-adb/source/tools/RemoteLegacyQuikCheck.java",
+    "字节数": 4841,
+    "SHA256": "389FBBC2BE076CEE5F08159507AD9CED56C26370DCDB1FAC2F3E28976F626A36",
+    "Git对象": "1d1855917d18f3eb33900b3500acbc2eadabb241"
+  },
+  {
     "来源": "research/d31_adb_bootstrap/tools/RemoteLocalUpdateCheck.java",
     "路径": "tools/D31-wireless-adb/source/tools/RemoteLocalUpdateCheck.java",
     "字节数": 3325,
@@ -2406,6 +2441,13 @@
     "字节数": 3208,
     "SHA256": "541B43AE9FAB61B84BA846F508C95178D2E2C777058BD69C3AA7066B25DE097C",
     "Git对象": "60906dc42927b3a4afc9e970629403bf14e18ffb"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/tools/RemoteQueueRecoveryCheck.java",
+    "路径": "tools/D31-wireless-adb/source/tools/RemoteQueueRecoveryCheck.java",
+    "字节数": 5016,
+    "SHA256": "6CBFE13903203CD5FF8DB2CB8D337E32553400042C6A08D5130FD763DFD0ED5B",
+    "Git对象": "8a0d354d2454c338e7229bde85500f1aca772f05"
   },
   {
     "来源": "research/d31_adb_bootstrap/tools/RemoteReceiveCheck.java",
@@ -2529,9 +2571,16 @@
   {
     "来源": "research/d31_adb_bootstrap/tools/Upgrade-RemoteMaintenanceSupervisor.ps1",
     "路径": "tools/D31-wireless-adb/source/tools/Upgrade-RemoteMaintenanceSupervisor.ps1",
-    "字节数": 6527,
-    "SHA256": "849735C231E400F491E2F25F1110CF68AF6F8F1F1EA4996D3448EB11983D8CCA",
-    "Git对象": "b3c1f50d9495d8d7e9de0709343c4e44fcfe5c6a"
+    "字节数": 7124,
+    "SHA256": "F0434474E6BD1A249928B1BE3AC410D426D2FF3109312C7BD809B54FA8835A56",
+    "Git对象": "184a6028d94da2a1ecab449239677b6451d30801"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/tools/Verify-AppOperation.mjs",
+    "路径": "tools/D31-wireless-adb/source/tools/Verify-AppOperation.mjs",
+    "字节数": 1587,
+    "SHA256": "1489E078D9415C30B8805BDD4E62E78632E8AF5F4475CBC3D124CCDFFA9A1527",
+    "Git对象": "cef980ccc45629382151a75414ece9814fca1c4b"
   },
   {
     "来源": "research/d31_adb_bootstrap/tools/Verify-RemoteAdb.mjs",
@@ -2548,18 +2597,32 @@
     "Git对象": "e6ea9a9a9475e594d8ccaf2b918f33e7aeab1a21"
   },
   {
+    "来源": "research/d31_adb_bootstrap/tools/Verify-RemoteAppInterruption.mjs",
+    "路径": "tools/D31-wireless-adb/source/tools/Verify-RemoteAppInterruption.mjs",
+    "字节数": 18001,
+    "SHA256": "E8606D4A1E0D171CB0770A99875B34432BD3556E1E1CC803D6DBA65E902A3C07",
+    "Git对象": "c786bc3644bea03ac884f346534236c8117185ef"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/tools/Verify-RemoteAppInterruption.test.mjs",
+    "路径": "tools/D31-wireless-adb/source/tools/Verify-RemoteAppInterruption.test.mjs",
+    "字节数": 11731,
+    "SHA256": "40EEDBC0B16F478EB93258BBBBFE6FF17AD3AB603DA1E551037FDF3CE10DE811",
+    "Git对象": "4623576a27f5d3a6d848693e45760987caf9d2c2"
+  },
+  {
     "来源": "research/d31_adb_bootstrap/tools/Verify-RemoteAudioLifecycle.mjs",
     "路径": "tools/D31-wireless-adb/source/tools/Verify-RemoteAudioLifecycle.mjs",
-    "字节数": 7642,
-    "SHA256": "0AAF4B40330A6FF9D9D6B15460C7611AFD76E84FF5A03CAC5E10AF8BEBC89FD2",
-    "Git对象": "d7c55a1335b393651c81401ff79733dda5499261"
+    "字节数": 7858,
+    "SHA256": "691FFD558FADF9579211D25A8685C2C60DFBE10F053C5A5496CA42C3CE45B512",
+    "Git对象": "1e460043b2029b3720fa65b511697e92b7658a03"
   },
   {
     "来源": "research/d31_adb_bootstrap/tools/Verify-RemoteAudioLifecycle.test.mjs",
     "路径": "tools/D31-wireless-adb/source/tools/Verify-RemoteAudioLifecycle.test.mjs",
-    "字节数": 7875,
-    "SHA256": "90070DF6C379890387756E55A273555327466B40A980C1FA5533385F3382DBD4",
-    "Git对象": "5011730a344d2f6dce54f71161fc7a4caf349c63"
+    "字节数": 9937,
+    "SHA256": "630F25EDDFF06EC4C1B6CAE37B700718D48FD10D7637A40A023C3D50D5497232",
+    "Git对象": "7128bb3f0e5382d922c71d602f21b6753d28b6ba"
   },
   {
     "来源": "research/d31_adb_bootstrap/tools/Verify-RemoteContactsBridge.mjs",
@@ -2578,16 +2641,16 @@
   {
     "来源": "research/d31_adb_bootstrap/tools/Verify-RemoteContactsRead.mjs",
     "路径": "tools/D31-wireless-adb/source/tools/Verify-RemoteContactsRead.mjs",
-    "字节数": 12629,
-    "SHA256": "D15A17B0FFE9B4AA2A41B2D66CEE59A40E40BD13BADB117C4A2E9DF82FEB72D5",
-    "Git对象": "71715a7a2c7c3d364f0328a4069752259ca7f486"
+    "字节数": 13656,
+    "SHA256": "C1774BE993FD7DD47E30C1FDE3B90B46D22FD4905D7B1C39B2EC1C75A4CB378F",
+    "Git对象": "c6b0b69554e70ea1f8ae42da35febc28ced3af59"
   },
   {
     "来源": "research/d31_adb_bootstrap/tools/Verify-RemoteContactsRead.test.mjs",
     "路径": "tools/D31-wireless-adb/source/tools/Verify-RemoteContactsRead.test.mjs",
-    "字节数": 9297,
-    "SHA256": "BB6EF7763596ED8DC75BCCB3335F595DBE863EA9B595ECD412C47CDDE4F20606",
-    "Git对象": "6af8958f0286e2907cfd5727652db47f793b213b"
+    "字节数": 11544,
+    "SHA256": "D71373783EAC91F0ECBE22CDBF8DC6CBB4015C23C01C2011986EFB7B2517B771",
+    "Git对象": "78b15abbbfd03e1691817809c1e6fb81cc421f4c"
   },
   {
     "来源": "research/d31_adb_bootstrap/tools/Verify-RemoteDiagnostic.mjs",
@@ -2655,9 +2718,9 @@
   {
     "来源": "research/d31_adb_bootstrap/tools/Verify-RemoteLocalAudio.mjs",
     "路径": "tools/D31-wireless-adb/source/tools/Verify-RemoteLocalAudio.mjs",
-    "字节数": 16966,
-    "SHA256": "48764684D96AA6EF143E380DAFC0F4981C5A029E606AB1957AB3E227836F9605",
-    "Git对象": "59a7cb99ce922b84ec20b55de0d545147cc365f8"
+    "字节数": 17216,
+    "SHA256": "D21842E57FE842CBDFBD052D1F996BC0AED87BDD483EA76A2314404A03A7D097",
+    "Git对象": "98f0e51051d62478760a5d5157a855735d08a56d"
   },
   {
     "来源": "research/d31_adb_bootstrap/tools/Verify-RemoteManagement.mjs",
@@ -2793,6 +2856,13 @@
     "Git对象": "cce9fcdd3ef74528702c1920fbc4651eb40a24f7"
   },
   {
+    "来源": "research/d31_adb_bootstrap/tools/faults/Test-FaultDiagnosticRepairAudit.ps1",
+    "路径": "tools/D31-wireless-adb/source/tools/faults/Test-FaultDiagnosticRepairAudit.ps1",
+    "字节数": 3605,
+    "SHA256": "EF5AF49BD15B4E2D16E579A15806F74A5340BAEE3B7FF7E1DD25AE3A64A6B199",
+    "Git对象": "285c2819230bbc931c046ccaa34169486c9e3a17"
+  },
+  {
     "来源": "research/d31_adb_bootstrap/tools/faults/Test-FaultExportVerifier.py",
     "路径": "tools/D31-wireless-adb/source/tools/faults/Test-FaultExportVerifier.py",
     "字节数": 7694,
@@ -2900,9 +2970,9 @@
   {
     "来源": "research/d31_adb_bootstrap/tools/system-migration/model_commands.py",
     "路径": "tools/D31-wireless-adb/source/tools/system-migration/model_commands.py",
-    "字节数": 6674,
-    "SHA256": "2A922F7606B484E938D6E57CB462AB049B4CE838A4B046B82E7046B02D50E010",
-    "Git对象": "a62aee12e536868a64c2e0f14477ba1d2731197e"
+    "字节数": 7081,
+    "SHA256": "6540F262F223796D7288BE9ED5F48357AFB777084EDA5C74AEBD61BCD0ADADE8",
+    "Git对象": "e361f25c73702842ca5581551387a2f67af97a28"
   },
   {
     "来源": "research/d31_adb_bootstrap/tools/system-migration/Prepare-SystemMigration.ps1",
@@ -2914,16 +2984,16 @@
   {
     "来源": "research/d31_adb_bootstrap/tools/system-migration/remote-system-transaction.sh",
     "路径": "tools/D31-wireless-adb/source/tools/system-migration/remote-system-transaction.sh",
-    "字节数": 6109,
-    "SHA256": "C06C4D99CE4ED20E20113646A01C5418AEB0DB0B49F09AF45CF883A02DFF9B73",
-    "Git对象": "9b1ab81875c3fc806c7c75b62171202468df156d"
+    "字节数": 7275,
+    "SHA256": "727E0D870CB9E2B2C2C6E9840F4F5FE3280FC3B270D344F8976DEB13413BE51F",
+    "Git对象": "96a63b23d8075f4b96ead73b8f193ee6013ca43e"
   },
   {
     "来源": "research/d31_adb_bootstrap/tools/system-migration/RemoteSystemMigrationCheck.java",
     "路径": "tools/D31-wireless-adb/source/tools/system-migration/RemoteSystemMigrationCheck.java",
-    "字节数": 27917,
-    "SHA256": "FDE8262935608AAA057E49420660EC78EFC95249BE6D6F9391390633A40365A4",
-    "Git对象": "d436f05d3665cbf7548298894d238cfd5d8c57c0"
+    "字节数": 27944,
+    "SHA256": "F5FC83B77AFB3760B4622B64311DBEA91358B9F7DA544E29ADCADF0B4B4D000E",
+    "Git对象": "cc1095c173fe8c4b547e36f684fe1377cdd85e31"
   },
   {
     "来源": "research/d31_adb_bootstrap/tools/system-migration/SystemMigrationHostFixture.cs",
@@ -2935,9 +3005,9 @@
   {
     "来源": "research/d31_adb_bootstrap/tools/system-migration/test_system_migration.py",
     "路径": "tools/D31-wireless-adb/source/tools/system-migration/test_system_migration.py",
-    "字节数": 15936,
-    "SHA256": "4A222442CA2DC44C14A11D2F67C84336759C427B841D0E127916BB64FA0C38C1",
-    "Git对象": "359b07a7dfccd594dec865b387b2e51fdc471a93"
+    "字节数": 18006,
+    "SHA256": "593FF27DD11E7CB4F821EF0A7919268765BA13DAFF95871B22514012BB07A02E",
+    "Git对象": "04c6df3cb0d62fdd89077b746ae84eb1a520012c"
   },
   {
     "来源": "research/d31_adb_bootstrap/tools/system-migration/Test-SystemMigrationHost.ps1",
@@ -3012,9 +3082,9 @@
   {
     "来源": "research/d31_flash_tool/build-v1.6.7.ps1",
     "路径": "tools/Windows-flash/source/build-v1.6.7.ps1",
-    "字节数": 18420,
-    "SHA256": "724E9C88073CF817B836C017ADA9C7A3BF990762F0B58A39AA2B665A2D7AD8DF",
-    "Git对象": "b58a3c811185bce2e5fc97d74526c6550cc9a78e"
+    "字节数": 18396,
+    "SHA256": "D6FA7E7BCE13369791A34F4BF4B2057C4D16E0A18580B334BC702784CF12F589",
+    "Git对象": "a1ab8001a44f181ccd64290eaef695de840f3b01"
   },
   {
     "来源": "research/d31_flash_tool/src/RuntimeAssets.cs",
@@ -3061,16 +3131,16 @@
   {
     "来源": "research/d31_flash_tool/tests/BackendFakeAdb.cs",
     "路径": "tools/Windows-flash/source/tests/BackendFakeAdb.cs",
-    "字节数": 9582,
-    "SHA256": "179BF34BADE90FE395765252692260E4DAB5485C76533764F4156021A4A8842B",
-    "Git对象": "fcbf7173e9f0bc72f7e80b20849e5daa82057460"
+    "字节数": 10046,
+    "SHA256": "DFA1EC70AA5212D6EB7FC061AAAC4AAFB1EDAA51CD3806521E1BD88A0677036B",
+    "Git对象": "00b7cfbdfa7043eab99f30c4030a6f5432b5ba1f"
   },
   {
     "来源": "research/d31_flash_tool/tests/TestBackend.ps1",
     "路径": "tools/Windows-flash/source/tests/TestBackend.ps1",
-    "字节数": 8329,
-    "SHA256": "CD011DD9C6C94FF5454C471F862FC41500547DE8F8528F0C829C215CCC10A937",
-    "Git对象": "5f2446cd4c2d402695b4398ca3b73cf671326dd9"
+    "字节数": 8539,
+    "SHA256": "BAAB1CE1F828BF891DE114B9AF9B994614C0DEE8B3DA2D2267C13F0336B75D8A",
+    "Git对象": "0f2665332bcb02fe52dfcdbb0356b20c74b3b7db"
   },
   {
     "来源": "research/d31_flash_tool/tests/TestPostBoot.ps1",
@@ -3078,6 +3148,13 @@
     "字节数": 3223,
     "SHA256": "95DCD36094603B74F82B56775AA15F20C580EE0037528C665F50AADBB7BEB0C8",
     "Git对象": "2b12e951b20f177897c11ea96f1625da84197bc0"
+  },
+  {
+    "来源": "research/d31_flash_tool/tests/TestCandidateReport.ps1",
+    "路径": "tools/Windows-flash/source/tests/TestCandidateReport.ps1",
+    "字节数": 9417,
+    "SHA256": "AB08AB3F14E924A7D929D0395AB6326CC7A78D4FEAFAAB02289B1B7AF0FD4A1A",
+    "Git对象": "4e000ba435d4f948991d5b626b7e0c3ca245b2c0"
   },
   {
     "来源": "research/d31_flash_tool/tools/BasicProbe.Common.psm1",
@@ -3131,16 +3208,86 @@
   {
     "来源": "research/d31/factory_package/flash_d31_recovery.ps1",
     "路径": "tools/factory-package/source/flash_d31_recovery.ps1",
-    "字节数": 31930,
-    "SHA256": "82148879C6942DB0681473B1591FF783FBBDA0EE24BBBDE830BEA99AAC02EA52",
-    "Git对象": "6bce464fd381224f04ed937b8382de2c175245a7"
+    "字节数": 32795,
+    "SHA256": "0445C60324015C3954D92D9D54D0D744E554D95AAFB3C1F49DEB63794FA3BAB8",
+    "Git对象": "5b74575066bd8e0fb1755fab9dabe9ab4fefe1d2"
+  },
+  {
+    "来源": "research/d31/factory_package/verify_factory_package.py",
+    "路径": "tools/factory-package/source/verify_factory_package.py",
+    "字节数": 19528,
+    "SHA256": "51EB3B8DC70B12D342BA05BCB730001998F028AE2CD8DA8E15A3BF200723F136",
+    "Git对象": "63c81b565aa855c87ca6ca5e6c3bb70828cf153d"
+  },
+  {
+    "来源": "research/d31/factory_package/test_manifest_contract.py",
+    "路径": "tools/factory-package/source/test_manifest_contract.py",
+    "字节数": 2955,
+    "SHA256": "6DBAC765B55D384C66758B7D4439268509AEFF58BA7BE0169E34F9428957201F",
+    "Git对象": "40cf76a77b22cba56a608dd87360db223270cdd6"
+  },
+  {
+    "来源": "research/d31_phone_sms/audit-worker-factory-20260912/README.md",
+    "路径": "tools/D31-Messages/audit-worker-factory-20260912/README.md",
+    "字节数": 5301,
+    "SHA256": "D77553AB4E0B84B5CF11ABB745B63FD2D757CA3579F9A8A7187D59F532E2C97A",
+    "Git对象": "971decd91050519565dcf23591ada2bee5979c3e"
+  },
+  {
+    "来源": "research/d31_phone_sms/audit-worker-factory-20260912/LICENSE",
+    "路径": "tools/D31-Messages/audit-worker-factory-20260912/LICENSE",
+    "字节数": 35815,
+    "SHA256": "53927BD0B739D38C87A0A82236FD9B070C2DFFF11C0C119BE50372005D5047AD",
+    "Git对象": "9cecc1d4669ee8af2ca727a5d8cde10cd8b2d7cc"
+  },
+  {
+    "来源": "research/d31_phone_sms/audit-worker-factory-20260912/verification-result.json",
+    "路径": "tools/D31-Messages/audit-worker-factory-20260912/verification-result.json",
+    "字节数": 1949,
+    "SHA256": "CA0E246CCE1A2F2714E326D9B92FBF6500C2D198A06465DD243E20F69173EBAF",
+    "Git对象": "262a0a6d239655d4a6e29b50550bd798018a0ef2"
+  },
+  {
+    "来源": "research/d31_phone_sms/audit-worker-factory-20260912/test-config.patch",
+    "路径": "tools/D31-Messages/audit-worker-factory-20260912/test-config.patch",
+    "字节数": 973,
+    "SHA256": "BEE466BB246E98D7C97FE5F8257FADE908D328083982D253D8C46BAE2783AFB4",
+    "Git对象": "2ffaf91d69f95da643b2d05a2b14703b727a39b0"
+  },
+  {
+    "来源": "research/d31_phone_sms/audit-worker-factory-20260912/Verify-Overlay.ps1",
+    "路径": "tools/D31-Messages/audit-worker-factory-20260912/Verify-Overlay.ps1",
+    "字节数": 6534,
+    "SHA256": "B204C8876BEB6813987E81F5E7D9226AA257618A176214D786CBD255D15FD7E9",
+    "Git对象": "e8bec896f8e12c21bf86f1b32b23508d470f9bc5"
+  },
+  {
+    "来源": "research/d31_phone_sms/audit-worker-factory-20260912/files-sha256.json",
+    "路径": "tools/D31-Messages/audit-worker-factory-20260912/files-sha256.json",
+    "字节数": 1134,
+    "SHA256": "9DFEB4BC54C5808CD6696E7DCFA08D04D1BF797E72F561F6E4EBD6DD50C519ED",
+    "Git对象": "eda70705f09abed134735bb92b57517c673f625c"
+  },
+  {
+    "来源": "research/d31_phone_sms/audit-worker-factory-20260912/data/src/main/java/com/moez/QKSMS/worker/InjectionWorkerFactory.kt",
+    "路径": "tools/D31-Messages/audit-worker-factory-20260912/data/src/main/java/com/moez/QKSMS/worker/InjectionWorkerFactory.kt",
+    "字节数": 4410,
+    "SHA256": "7DD25DFEF68DE514520184D18A5F1467B3C2F50785B404C1EC2CB01029C5870D",
+    "Git对象": "d6fde6b701591136b53136bfcbd279f9ccb95fe8"
+  },
+  {
+    "来源": "research/d31_phone_sms/audit-worker-factory-20260912/presentation/src/test/java/com/moez/QKSMS/worker/InjectionWorkerFactoryTest.kt",
+    "路径": "tools/D31-Messages/audit-worker-factory-20260912/presentation/src/test/java/com/moez/QKSMS/worker/InjectionWorkerFactoryTest.kt",
+    "字节数": 7510,
+    "SHA256": "5A4FB79E87C55C70DBEB32AB1FC105CF6D69B94450C1233D316BF178EC39E402",
+    "Git对象": "60401e0347ef84d80db8c43a2a94e3ecf5a97ac8"
   },
   {
     "来源": "remote/docs/2026-09-10-D31专用elfRemote整合实施计划.md",
     "路径": "docs/elfremote/2026-09-10-D31专用elfRemote整合实施计划.md",
-    "字节数": 96157,
-    "SHA256": "C07F16CEA4805677575FC9EFB775B74BFE2FA0C9887B0382B60B3110361A5A57",
-    "Git对象": "e1edbcd2f767b5bd155aed6bdce7bba0a264b903"
+    "字节数": 97878,
+    "SHA256": "97C999B815478B9CAEEB1F17552559237DE53C8B98484DAE85BEEDFFDB363FA3",
+    "Git对象": "bf466aa2377a189ae7bd4b4e593ce5bc2d7d3dc8"
   },
   {
     "来源": "remote/docs/2026-09-11-D31双制品实现记录.md",
@@ -3456,5 +3603,40 @@
     "字节数": 23789,
     "SHA256": "92661578DA0309F608B88FDD31EA95653D9F0DC4613C8D1FBCF7AE31007D5DBD",
     "Git对象": "c6f9fa2bd755734566e31a7bcb1c42adbec1a926"
+  },
+  {
+    "来源": "remote/docs/2026-09-12-D31全面业务审核与修正.md",
+    "路径": "docs/elfremote/2026-09-12-D31全面业务审核与修正.md",
+    "字节数": 18578,
+    "SHA256": "52BA1CDA0957E088C0FFB3B3E5EF4CA256711D92453A093F8388A4B945842D55",
+    "Git对象": "9848ca7a4228fc022b7cd59900c1ae2473d3325f"
+  },
+  {
+    "来源": "remote/docs/2026-09-12-D31全面审查-交付与迁移.md",
+    "路径": "docs/elfremote/2026-09-12-D31全面审查-交付与迁移.md",
+    "字节数": 20940,
+    "SHA256": "4B6D76A7B64DF6845E1CC46FC835BD0B512F91A2ED2DB97799B26E62F27F7302",
+    "Git对象": "d74e1ab714bd519f501db730726a7a1e4d075f79"
+  },
+  {
+    "来源": "remote/docs/2026-09-12-D31全面审查-业务生命周期.md",
+    "路径": "docs/elfremote/2026-09-12-D31全面审查-业务生命周期.md",
+    "字节数": 27815,
+    "SHA256": "001CACC4969C7A04841375F1892EADCCD63AE5DAED8064CD999F217EF1100D68",
+    "Git对象": "34e2ccdcf2aa83c1839b3c075402af308b7250ce"
+  },
+  {
+    "来源": "remote/docs/2026-09-12-D31全面审查-故障诊断与修复.md",
+    "路径": "docs/elfremote/2026-09-12-D31全面审查-故障诊断与修复.md",
+    "字节数": 16579,
+    "SHA256": "079100129459C7D5190D0E3C24A984F8A29D6841670529B56ADA4CAA258B1804",
+    "Git对象": "bc9d90137c1174ff1666a86bde11e1aabef8fd54"
+  },
+  {
+    "来源": "remote/docs/2026-09-12-D31全面审查-QUIK后台任务.md",
+    "路径": "docs/elfremote/2026-09-12-D31全面审查-QUIK后台任务.md",
+    "字节数": 16171,
+    "SHA256": "BC851EC167870C45D7C868293DDF0716F0A22E0018EF388E52C001790151488E",
+    "Git对象": "2e78513d373349f643a086d37f72afc5539560c9"
   }
 ]

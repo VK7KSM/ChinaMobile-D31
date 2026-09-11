@@ -79,7 +79,7 @@ test('成功仍需摘要，未知或矛盾失败不能公开任意state', () => 
   assert.throws(() => validateRead(busyReceipt(), 0, SHA), /CONTACTS_HOST_RECEIPT_SCOPE/);
 });
 
-function harness(mode) {
+function harness(mode, version = 124) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'd31-local-host-'));
   const capture = path.join(root, 'capture'); const commands = [];
   const apk = `/data/local/d31-remote/releases/${SHA}/remote.apk`;
@@ -93,17 +93,49 @@ function harness(mode) {
       if (mode === 'invalid') text = 'PRIVATE_SYNTHETIC_NON_JSON';
       else if (mode === 'timeout') throw Object.assign(Error('PRIVATE_SYNTHETIC_ERROR'), {stdout: Buffer.from('PRIVATE_PARTIAL'), stderr: Buffer.from('PRIVATE_STDERR')});
       else if (mode === 'busy') { text = JSON.stringify(busyReceipt()); exitCode = 1; }
-      else text = JSON.stringify(receipt());
+      else {
+        const value = receipt();
+        if (version >= 128 && mode !== 'old-receipt') {
+          const id = /read-local-metadata [a-f0-9]{64} ([A-Za-z0-9_-]+)/.exec(wrapped)[1];
+          addReservation(value, id);
+        }
+        text = JSON.stringify(value);
+      }
     } else if (wrapped.includes('id -u;')) text = `0\n23\nhct6735_66_m0\nhct6737t_66_m0\nvendor/device:6.0/test\n${BOOT}`;
-    else if (wrapped.includes('active.json')) text = JSON.stringify({package: 'net.elfradio.d31bootstrap', path: apk, sha256: SHA, versionCode: 124});
+    else if (wrapped.includes('active.json')) text = JSON.stringify({package: 'net.elfradio.d31bootstrap', path: apk, sha256: SHA, versionCode: version});
     else if (wrapped.includes('sha256sum')) text = `${SHA}  /synthetic.apk`;
-    else if (wrapped.includes('dumpsys package')) text = 'versionCode=124 targetSdk=23';
+    else if (wrapped.includes('dumpsys package')) text = `versionCode=${version} targetSdk=23`;
     else if (wrapped.includes('pm path')) text = 'package:/data/app/net.elfradio.d31bootstrap-1/base.apk';
     else text = '(nothing)';
     return {stdout: Buffer.from(`${text}\n${marker}_${exitCode}\n`), stderr: Buffer.alloc(0)};
   };
-  return {capture, commands, run, invoke: () => main(['127.0.0.1:5654', '124', SHA, capture], {run, delay: async () => {}})};
+  return {capture, commands, run, invoke: () => main(['127.0.0.1:5654', String(version), SHA, capture], {run, delay: async () => {}})};
 }
+
+function addReservation(value, id = 'contacts-test') {
+  Object.assign(value, {operation_id: id, operation_request_id: BOOT, operation_apk_sha256: SHA,
+    app_operation: {operation_id: id, operation: 'read-local-metadata', apk_sha256: SHA, operation_request_id: BOOT,
+      record_boot_id: BOOT, current_boot_id: BOOT, state: 'RELEASED', reservation_released: true,
+      release_reason: 'MATCHED_RELEASE_RECEIPT', managed_media: false, network_write: false}});
+  return value;
+}
+test('128绑定新预留及旧回执回放兼容，嵌套个人字段仍拒绝', () => {
+  assert.equal(validateRead(receipt(), 0, SHA, 124).reservationVerified, false);
+  assert.throws(() => validateRead(receipt(), 0, SHA, 128));
+  assert.equal(validateRead(addReservation(receipt()), 0, SHA, 128, 'contacts-test', BOOT).reservationVerified, true);
+  for (const change of [v => v.app_operation.reservation_released = false, v => v.app_operation.state = 'ARMED',
+    v => v.app_operation.operation_id = 'other', v => v.app_operation.operation_request_id = '00000000-0000-0000-0000-000000000002',
+    v => v.app_operation.current_boot_id = '00000000-0000-0000-0000-000000000002', v => v.operation_apk_sha256 = 'b'.repeat(64),
+    v => v.app_operation.items = [{name: 'PRIVATE_SYNTHETIC'}], v => v.app_operation.apk_sha256 = 'b'.repeat(64)]) {
+    const value = addReservation(receipt()); change(value); assert.throws(() => validateRead(value, 0, SHA, 128, 'contacts-test', BOOT));
+  }
+});
+test('128宿主显式传入操作ID且验真实释放，不自动恢复或重复读', async () => {
+  const good = harness('good', 128); assert.equal((await good.invoke()).reservationVerified, true);
+  assert.equal(good.commands.filter(c => c.includes('read-local-metadata')).length, 1);
+  const old = harness('old-receipt', 128); await assert.rejects(old.invoke(), /CONTACTS_HOST_RESERVATION_NOT_RELEASED/);
+  assert.equal(old.commands.filter(c => c.includes('read-local-metadata')).length, 1);
+});
 test('宿主完整流程仅发一次读取，保留原件及严格通过结果', async () => {
   const h = harness('good'); const result = await h.invoke();
   assert.equal(result.passed, true);

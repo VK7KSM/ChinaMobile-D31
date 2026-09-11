@@ -1,0 +1,57 @@
+{
+  "baseline": "555b8822c654b8ee85bb9d3f961eb30f232b1079",
+  "overlayVersion": "0.4.0-dev",
+  "buildExit": 0,
+  "tests": 6,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "passed": true,
+  "sharedBuildUsed": false,
+  "apkBuilt": false,
+  "deviceUsed": false,
+  "capture": "research/d31/staging/quik-overlay040-worker-20260912-034856-738",
+  "testCases": [
+    "housekeepingReceivesItsRepositoryAndIsNotExecutedDuringCreation",
+    "mmsRetainsSyncVisibilityAndNotificationDependencies",
+    "realConstraintWrapperReproducesOldCastAndUsesDefaultFallback",
+    "unownedWorkerAndUnknownClassAreDelegatedWithoutReflection",
+    "retriesCreateFreshWorkersAndDefaultFactoryStillUsesInjection",
+    "smsRetainsEveryNotificationFilteringAndConversationDependency"
+  ],
+  "overlayFilesVerified": 335,
+  "unchangedOverlayFilesVerified": 333,
+  "unexpectedOverlayMismatch": 0,
+  "evidence": [
+    {
+      "path": "result.json",
+      "bytes": 277,
+      "sha256": "2EF77FDD8C0E16BE016E68CC604A1CCA45BF0210B273B5D0F73A2AA78B1A1008"
+    },
+    {
+      "path": "inputs.json",
+      "bytes": 462,
+      "sha256": "5DC38BCA489BDEEE4A0CF785C37AEBF1AC34BB75208BC622C40A14A90150903C"
+    },
+    {
+      "path": "build-test.txt",
+      "bytes": 66368,
+      "sha256": "D0E7A55D3AFB148C0AE1A1CC2BFFFF8E9EA94F6A94884F96E2E84E14DA4970BF"
+    },
+    {
+      "path": "gradle-version.txt",
+      "bytes": 442,
+      "sha256": "BAAA53F96539F0E71B49877D2477B99B36BE40DB87660A8D9DC655CF83DEA77E"
+    },
+    {
+      "path": "source-sha256.json",
+      "bytes": 361663,
+      "sha256": "4735DFF8AF546E6B27DF9840441AF8B72AAAD2D108CE22309C576C8E46EF81F0"
+    },
+    {
+      "path": "source/presentation/build/test-results/testDebugUnitTest/TEST-dev.octoshrimpy.quik.worker.InjectionWorkerFactoryTest.xml",
+      "bytes": 1303,
+      "sha256": "BB0758B5BAE71E44586A8D23AAB0F7494DCE4CD73A31D246C7B6D65A32AB4500"
+    }
+  ]
+}

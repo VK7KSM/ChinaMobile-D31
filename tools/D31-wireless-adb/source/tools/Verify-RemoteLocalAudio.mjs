@@ -6,6 +6,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {WebTransport} from './fault-transfer/WebTransport.mjs';
 import {validateTarget} from './fault-transfer/FaultTransferQueue.mjs';
+import {validateAppOperation} from './Verify-AppOperation.mjs';
 
 const SERVICES = ['media.audio_flinger', 'media.audio_policy'];
 const TERMINAL = ['success', 'failed', 'rejected', 'expired', 'cancelled'];
@@ -29,7 +30,7 @@ export function parseDeviceOutput(raw, marker) {
     deviceFinishedElapsedMs: ended, deviceFinishedUpperElapsedMs: ended + 10};
 }
 
-export function validateReceipt(response, id, versionCode) {
+export function validateReceipt(response, id, versionCode, sha, boot) {
   const v = response?.result;
   requireThat(response?.query_completed === true && response.operation === 'local_audio_capture'
     && response.managed_media === false && response.capture_started === true && response.version_code === versionCode
@@ -51,6 +52,8 @@ export function validateReceipt(response, id, versionCode) {
     && v.worker_finished === true && v.stop_completed === true && v.stop_error === '' && v.release_error === ''
     && v.record_state_after_release === 0 && v.recording_state_after_release === 1
     && v.audio_persisted === false && v.network_started === false, '真实创建、释放或无保存合同不符');
+  validateAppOperation(response.app_operation, {operation: 'local_audio_capture', id, version: versionCode,
+    requestId: v.operation_request_id, sha, boot});
   return v;
 }
 
@@ -178,7 +181,7 @@ export async function verifyLocalAudio(argv, deps = {}) {
     requireThat(task?.state === 'success' && task.result?.exit_code === 0 && task.result.truncated !== true
       && typeof task.result.text === 'string' && task.result.text.length <= 16000, '原采音任务未成功或被截断，不自动重发');
     const response = JSON.parse(task.result.text); save('parsed-private.json', response);
-    receipt = validateReceipt(response, diagnosticId, active.versionCode);
+    receipt = validateReceipt(response, diagnosticId, active.versionCode, active.sha256);
   } catch (error) {
     failure = true; failureReason = error.safe ? error.message : '任务查询或回执解析失败';
   } finally {

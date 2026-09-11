@@ -27,7 +27,7 @@ final class RemoteFaultRuntime implements AutoCloseable {
         try {
             if (!ready.get() || RemoteMaintenance.reserved()) return;
             if (monitor == null) monitor = new FaultMonitor(new File(AndroidFaultSources.ARCHIVE_ROOT),
-                    new AndroidFaultSources(), AndroidCollectionAccess.systemClock(), FaultPolicy.defaults());
+                    new AndroidFaultSources(), AndroidCollectionAccess.systemClock(), FaultPolicy.continuousDefaults());
             monitor.tick();
         } catch (Exception unavailable) {
             // 下轮按原周期再查，不唤醒报告、不紧密重试、不阻塞本地维护。

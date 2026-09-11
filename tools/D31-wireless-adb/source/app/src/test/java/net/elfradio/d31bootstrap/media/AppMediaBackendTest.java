@@ -10,6 +10,29 @@ import org.json.JSONObject;
 import static org.junit.Assert.*;
 
 public class AppMediaBackendTest {
+    @Test public void prepareCannotPassWithConflictingOrUnknownFinalOccupancy()throws Exception{
+        JSONObject occupancy=new JSONObject().put("state","IDLE").put("idle",true)
+                .put("cellular","IDLE").put("sip","IDLE").put("other","IDLE");
+        JSONObject result=new JSONObject().put("record_permission","GRANTED").put("record_appop","ALLOWED")
+                .put("process_package_match",true).put("framework_package_match",true)
+                .put("audio_occupancy","IDLE_OBSERVED").put("audio_occupancy_snapshot",occupancy);
+        assertTrue(AppMediaBackend.preconditionsSatisfied(result,true,true));
+        for(String key:new String[]{"state","cellular","sip","other"}){
+            for(String state:new String[]{"BUSY","UNKNOWN",""}){
+                occupancy.put(key,state);assertFalse(AppMediaBackend.preconditionsSatisfied(result,true,true));
+            }
+            occupancy.put(key,"IDLE");
+        }
+        occupancy.put("idle",false);assertFalse(AppMediaBackend.preconditionsSatisfied(result,true,true));
+        occupancy.put("idle",true);
+        result.put("audio_occupancy","NOT_CONFIRMED_IDLE");assertFalse(AppMediaBackend.preconditionsSatisfied(result,true,true));
+        result.put("audio_occupancy","IDLE_OBSERVED");
+        result.put("framework_package_match","true");assertFalse(AppMediaBackend.preconditionsSatisfied(result,true,true));
+        result.put("framework_package_match",true);
+        assertFalse(AppMediaBackend.preconditionsSatisfied(result,false,true));
+        assertFalse(AppMediaBackend.preconditionsSatisfied(result,true,false));
+        result.remove("audio_occupancy_snapshot");assertFalse(AppMediaBackend.preconditionsSatisfied(result,true,true));
+    }
     @Test public void diagnosticStartsOnlyWithIdentityPermissionAndThreeIdleSources()throws Exception {
         JSONObject snapshot=new JSONObject().put("cellular","IDLE").put("sip","IDLE").put("other","IDLE");
         JSONObject readiness=new JSONObject().put("record_permission","GRANTED").put("process_package_match",true)

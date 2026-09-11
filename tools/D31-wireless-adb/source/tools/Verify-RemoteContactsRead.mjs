@@ -5,6 +5,7 @@ import {promisify} from 'node:util';
 import {randomUUID} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {parseOutput} from './Verify-RemoteContactsBridge.mjs';
+import {validateAppOperation} from './Verify-AppOperation.mjs';
 
 // 显式运行才操作设备；沿用第八批四参数，新增严格LOCAL结束帧验收。
 // node tools/Verify-RemoteContactsRead.mjs <完整D31序列号> <版本号> <活动SHA256> <全新私有目录>
@@ -15,7 +16,7 @@ const safeCode = error => error?.message === 'CONTACTS_MAINTENANCE_BUSY'
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const integer = (value, min, max) => Number.isSafeInteger(value) && value >= min && value <= max;
 
-export function validateRead(value, exitCode, sha) {
+export function validateRead(value, exitCode, sha, version = 0, operationId, boot) {
   check(object(value) && value.schemaVersion === 1 && value.kind === 'NEXUI_APP_LOCAL_METADATA'
     && value.operation === 'read_local_metadata' && value.contact_type === 'LOCAL'
     && value.ownerPackage === 'com.starnet.dial' && value.bindFlags === 1
@@ -50,21 +51,29 @@ export function validateRead(value, exitCode, sha) {
     && integer(value.elapsedMs, 0, 12000) && local.android_equivalence === 'NOT_VERIFIED'
     && local.service_implementation === 'NOT_DECRYPTED' && local.max_records === 4096 && local.max_frames === 128
     && local.max_received_chars === 1048576 && local.wait_budget_ms === 8000, 'CONTACTS_HOST_LOCAL_BUDGET');
+  let reservationVerified;
+  try {
+    reservationVerified = validateAppOperation(value.app_operation, {operation: 'read-local-metadata',
+      id: operationId ?? value.operation_id, version, requestId: value.operation_request_id, sha, boot});
+  } catch { throw Error('CONTACTS_HOST_RESERVATION_NOT_RELEASED'); }
+  if (reservationVerified) check(value.operation_id === value.app_operation.operation_id
+    && value.operation_apk_sha256 === sha, 'CONTACTS_HOST_OPERATION_BINDING');
   // 严格字段白名单防止未来误把原厂条目或个人值附加到本次元数据回执。
   const topKeys = new Set(('schemaVersion kind state ok readOnly ownerPackage bindFlags vendorServiceStartRequested '
     + 'contactRequestSent contacts_requested contactValuesRead contactValuesEmitted listComplete operation contact_type '
     + 'vendorServiceStopRequested all_sources_complete contactDataReadOnly vendorLifecycleRestored vendorStartupEffects '
     + 'appIdentityMatched installedApkHashMatched componentMatched vendorServiceStartAccepted bindingRequested bindAccepted '
     + 'messengerBinderVerified unbindAttempted unbindConfirmed replyChannelClosed remoteOutcomeKnown elapsedMs local '
-    + 'app_pid app_uid appServiceStartRequested bridgeHandshake expectedApkSha256 maintenanceGatePassed activeApkHashMatched').split(' '));
+    + 'app_pid app_uid appServiceStartRequested bridgeHandshake expectedApkSha256 maintenanceGatePassed activeApkHashMatched '
+    + 'app_operation operation_id operation_request_id operation_apk_sha256').split(' '));
   const localKeys = new Set(('ok read_only source owner_package contact_type snapshot_id status sampled_at_ms elapsed_ms '
     + 'record_count frames_received received_chars start_observed end_observed list_complete contact_values_emitted '
     + 'completion_scope all_sources_complete snapshot_consistency android_equivalence service_implementation max_records '
     + 'max_frames max_received_chars wait_budget_ms effective_wait_budget_ms').split(' '));
   check(Object.keys(value).every(key => topKeys.has(key)) && Object.keys(local).every(key => localKeys.has(key)), 'CONTACTS_HOST_UNEXPECTED_FIELDS');
-  check(Object.entries(value).every(([key, item]) => key === 'local' || !object(item) && !Array.isArray(item))
+  check(Object.entries(value).every(([key, item]) => key === 'local' || key === 'app_operation' || !object(item) && !Array.isArray(item))
     && Object.values(local).every(item => !object(item) && !Array.isArray(item)), 'CONTACTS_HOST_PERSONAL_PAYLOAD_REJECTED');
-  return {localEndVerified: true, listVerified: true, contactValuesEmitted: false,
+  return {localEndVerified: true, listVerified: true, contactValuesEmitted: false, reservationVerified,
     recordCount: local.record_count, framesReceived: local.frames_received, source: 'LOCAL',
     completionScope: 'SELECTED_SOURCE_ALL_CONTACTS_REPLY', vendorStartupEffects: 'NOT_VERIFIED', vendorLifecycleRestored: false};
 }
@@ -81,6 +90,8 @@ export async function main(args, {run = execute, delay = ms => new Promise(resol
   const save = (name, value) => fs.writeFileSync(path.join(capture, name), JSON.stringify(value, null, 2), {flag: 'wx', mode: 0o600});
   fs.copyFileSync(new URL(import.meta.url), path.join(capture, 'Verify-RemoteContactsRead.mjs'), fs.constants.COPYFILE_EXCL);
   fs.copyFileSync(new URL('./Verify-RemoteContactsBridge.mjs', import.meta.url), path.join(capture, 'Verify-RemoteContactsBridge.mjs'), fs.constants.COPYFILE_EXCL);
+  fs.copyFileSync(new URL('./Verify-AppOperation.mjs', import.meta.url), path.join(capture, 'Verify-AppOperation.mjs'), fs.constants.COPYFILE_EXCL);
+  const operationId = 'contacts-' + randomUUID();
   let sequence = 0, readAttempted = false, result, failure, boot;
   async function command(label, commandText, requireZero = true) {
     const prefix = `${String(++sequence).padStart(2, '0')}-${label}`;
@@ -127,13 +138,13 @@ export async function main(args, {run = execute, delay = ms => new Promise(resol
   }
   try {
     save('scope.json', {kind: 'D31_LOCAL_CONTACTS_METADATA', expectedVersionCode: version, expectedApkSha256: sha,
-      adbPort: 5042, retries: 0, vendorStartAuthorized: true, vendorStopRequested: false, personalValuesRequestedForOutput: false});
+      adbPort: 5042, retries: 0, operationId, vendorStartAuthorized: true, vendorStopRequested: false, personalValuesRequestedForOutput: false});
     await identity('before');
     await command('vendor-before', 'dumpsys activity services com.starnet.dial');
     readAttempted = true;
-    const response = await command('local-read', `CLASSPATH='${apk}' /system/bin/app_process /system/bin net.elfradio.d31bootstrap.management.ContactsAppCommand read-local-metadata ${sha}`, false);
+    const response = await command('local-read', `CLASSPATH='${apk}' /system/bin/app_process /system/bin net.elfradio.d31bootstrap.management.ContactsAppCommand read-local-metadata ${sha}${version >= 128 ? ' ' + operationId : ''}`, false);
     const value = JSON.parse(response.text); save('receipt-private.json', value);
-    result = validateRead(value, response.exitCode, sha);
+    result = validateRead(value, response.exitCode, sha, version, version >= 128 ? operationId : undefined, boot);
   } catch (error) { failure = safeCode(error); }
   if (readAttempted) {
     // 后置只读取证，失败也不重新读取通讯录、不停止原厂或APP服务。
@@ -149,7 +160,7 @@ export async function main(args, {run = execute, delay = ms => new Promise(resol
       try { await inspect(); } catch (error) { failure ??= safeCode(error); }
     }
   }
-  const summary = {passed: !failure && !!result, ...result, failure: failure ?? null, readAttempted,
+  const summary = {passed: !failure && !!result, ...result, failure: failure ?? null, readAttempted, operationId,
     automaticRetry: false, webVerified: false, serviceExitConfirmed: !failure && !!result};
   save('result.json', summary);
   if (failure) throw Error(failure);

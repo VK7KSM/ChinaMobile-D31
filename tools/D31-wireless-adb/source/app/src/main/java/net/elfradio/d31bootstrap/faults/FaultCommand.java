@@ -16,7 +16,7 @@ public final class FaultCommand {
             File root = new File(AndroidFaultSources.ARCHIVE_ROOT); JSONObject result;
             if (args.length == 1 && "collect".equals(args[0])) {
                 try (FaultMonitor monitor = new FaultMonitor(root, new AndroidFaultSources(),
-                        AndroidCollectionAccess.systemClock(), FaultPolicy.defaults())) {
+                        AndroidCollectionAccess.systemClock(), FaultPolicy.continuousDefaults())) {
                     monitor.collect(); long start = android.os.SystemClock.elapsedRealtime();
                     while (monitor.isBusy() && android.os.SystemClock.elapsedRealtime() - start < 90000) Thread.sleep(20);
                     boolean finished = !monitor.isBusy();

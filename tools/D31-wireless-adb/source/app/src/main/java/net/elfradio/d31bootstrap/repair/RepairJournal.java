@@ -80,6 +80,7 @@ final class RepairJournal {
     }
 
     JSONObject append(Loaded job, JSONObject state, long now) throws Exception {
+        RepairTransactions.checkInterrupted();
         int sequence = job.events.length();
         if (sequence >= MAX_RECORDS) throw new IOException("事务日志已达上限，停止执行");
         JSONObject event = new JSONObject().put("sequence", sequence).put("time_ms", now)

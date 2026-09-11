@@ -134,6 +134,24 @@ class TransactionTests(unittest.TestCase):
         self.assertIn('original-hook', (self.root / 'system/bin/install-recovery.sh').read_text())
         self.assertFalse((self.root / 'system/etc/d31-elfremote.system').exists())
 
+    def test_partial_copy_never_publishes_incomplete_system_file(self):
+        self.state['partial_copy'] = 'remote.apk'; self.save()
+        self.assertNotEqual(0, self.run_script())
+        self.assert_restored()
+        self.assertFalse((self.root / 'system/priv-app/D31ElfRemote').exists())
+
+    def test_partial_start_copy_restores_originals(self):
+        self.state['partial_copy'] = 'start.sh'; self.save()
+        self.assertNotEqual(0, self.run_script())
+        self.assert_restored()
+        self.assertFalse((self.root / 'system/bin/d31-elfremote-start.new').exists())
+
+    def test_partial_marker_copy_restores_originals(self):
+        self.state['partial_copy'] = 'marker'; self.save()
+        self.assertNotEqual(0, self.run_script())
+        self.assert_restored()
+        self.assertFalse((self.root / 'system/etc/d31-elfremote.system.new').exists())
+
     def test_rollback_install_failure_is_attention(self):
         self.assertEqual(0, self.run_script())
         self.load(); self.state['fail'] = 'restore-install'; self.save()
@@ -265,6 +283,28 @@ class TransactionTests(unittest.TestCase):
         self.state['fail'] = 'mount-ro'; self.save()
         self.assertNotEqual(0, self.run_script())
         self.assert_restored()
+
+    def test_original_readwrite_mount_preserved_after_install_and_rollback(self):
+        self.state['mount'] = 'rw'; self.save()
+        (self.root / 'proc/mounts').write_text('none ' + posix(self.root) + '/system ext4 rw 0 0\n')
+        self.assertEqual(0, self.run_script())
+        self.assertEqual('rw', self.load()['mount'])
+        self.assertEqual('rw', (self.stage / 'backup/system-mount-mode').read_text().strip())
+        self.assertEqual(0, self.run_script('rollback'))
+        self.assertEqual('rw', self.load()['mount'])
+        self.assertEqual('RESTORED_APK_AND_SETTINGS_RUNTIME_NOT_VERIFIED', self.status())
+
+    def test_unknown_mount_state_rejects_before_backup(self):
+        (self.root / 'proc/mounts').write_text('')
+        self.assertNotEqual(0, self.run_script())
+        self.assertFalse((self.stage / 'backup').exists())
+
+    def test_existing_start_temporary_file_not_overwritten(self):
+        pending = self.root / 'system/bin/d31-elfremote-start.new'
+        pending.write_bytes(b'other-owner')
+        self.assertNotEqual(0, self.run_script())
+        self.assertEqual(b'other-owner', pending.read_bytes())
+        self.assertFalse((self.stage / 'backup').exists())
 
 
 if __name__ == '__main__':

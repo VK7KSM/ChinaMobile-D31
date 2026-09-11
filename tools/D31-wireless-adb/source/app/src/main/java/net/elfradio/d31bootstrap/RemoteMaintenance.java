@@ -29,24 +29,30 @@ final class RemoteMaintenance {
         file.close(); return null;
     }
     static boolean reserved() throws Exception {
-        return new File(ROOT, "repair.json").exists() || RemoteWindowsMaintenance.reserved();
+        return existsNoFollow(new File(ROOT, "repair.json")) || RemoteWindowsMaintenance.reserved();
+    }
+    @android.annotation.SuppressLint("NewApi")
+    static boolean existsNoFollow(File path)throws Exception {
+        if(File.separatorChar=='\\')return java.nio.file.Files.exists(path.toPath(),java.nio.file.LinkOption.NOFOLLOW_LINKS);
+        try{android.system.Os.lstat(path.getPath());return true;}
+        catch(android.system.ErrnoException failure){if(failure.errno==android.system.OsConstants.ENOENT)return false;throw failure;}
     }
     static void requireUnreserved() throws Exception {
         if (reserved()) throw new IOException("系统修复尚未完成，保留现有业务并暂缓其它维护");
     }
     static void reserve(File root, String task, String digest) throws Exception {
         File file = new File(root, "repair.json");
-        if (file.exists()) {
+        if (existsNoFollow(file)) {
             JSONObject old = read(file);
-            if (!task.equals(old.getString("task_id")) || !digest.equals(old.getString("plan_sha256")))
+            if (old.has("kind") || !task.equals(old.getString("task_id")) || !digest.equals(old.getString("plan_sha256")))
                 throw new IOException("另一系统修复尚未完成");
         } else RescueFiles.write(file, new JSONObject().put("task_id", task).put("plan_sha256", digest).toString());
     }
     static void release(File root, String task, String digest) throws Exception {
         File file = new File(root, "repair.json");
-        if (!file.exists()) return;
+        if (!existsNoFollow(file)) return;
         JSONObject old = read(file);
-        if (!task.equals(old.getString("task_id")) || !digest.equals(old.getString("plan_sha256")))
+        if (old.has("kind") || !task.equals(old.getString("task_id")) || !digest.equals(old.getString("plan_sha256")))
             throw new IOException("不能释放另一修复的维护预留");
         if (!file.delete()) throw new IOException("维护预留无法释放");
     }

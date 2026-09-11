@@ -175,6 +175,9 @@ public final class AndroidFaultSources implements FaultSources {
         return false;
     }
     @Override public Capture capture(Candidate candidate, File newAttempt, FaultPolicy policy) throws Exception {
+        return capture(candidate, newAttempt, policy, null);
+    }
+    Capture capture(Candidate candidate, File newAttempt, FaultPolicy policy, FaultEvidenceCollector.Store injectedStore) throws Exception {
         if (!allowed(candidate)) throw new IOException("SOURCE_NOT_REGISTERED");
         CollectionAccess.Stat current = access.lstat(candidate.path);
         if (!candidate.fingerprint.equals(signature(candidate.path, current, policy.maxFileBytes,
@@ -184,7 +187,7 @@ public final class AndroidFaultSources implements FaultSources {
                 policy.scanMs, 0, 65536, policy.windowMs == 0 ? 1 : policy.windowMs);
         String category = candidate.category.equals("DROPBOX") ? "CUSTOM" : candidate.category;
         final String[] prefixHash = new String[1];
-        final FaultEvidenceCollector.Store delegate = store(newAttempt);
+        final FaultEvidenceCollector.Store delegate = injectedStore == null ? store(newAttempt) : injectedStore;
         JSONObject result = new FaultEvidenceCollector(access, clock).collect("fault",
                 Collections.singletonList(new FaultEvidenceCollector.Source("source", category, candidate.path)),
                 limits, new FaultEvidenceCollector.Store() {
@@ -203,14 +206,21 @@ public final class AndroidFaultSources implements FaultSources {
             long prefixLength = Math.min(captured.size, Math.min(policy.maxFileBytes, 4096));
             if (prefixHash[0] != null && item.optLong("capturedBytes", 0) >= prefixLength
                     && !candidate.fingerprint.equals(FaultArchive.hash(fingerprint(captured) + ":" + prefixHash[0]))) {
-                result.put("state", "PARTIAL").put("reason", "SOURCE_CHANGED"); return new Capture(result, false);
+                return incompleteSource(result, item, "UNSTABLE", "SOURCE_CHANGED");
             }
         }
-        if (candidate.path.endsWith(".lost")) {
-            result.put("state", "PARTIAL").put("reason", "DROPBOX_ENTRY_LOST"); return new Capture(result, false);
+        if (candidate.path.endsWith(".lost") || candidate.path.endsWith(".lost.gz")) {
+            return incompleteSource(result, item, "UNAVAILABLE", "DROPBOX_ENTRY_LOST");
         }
         boolean retry = item.optString("state").matches("READ_FAILED|UNSTABLE|STORE_FAILED|NOT_CHECKED");
         return new Capture(result, retry);
+    }
+    private static Capture incompleteSource(JSONObject result, JSONObject item, String state, String reason) throws Exception {
+        // 此适配器每次只采集一个源；来源身份不符或丢失标记不能保留单项COMPLETE计数。
+        item.put("state", state).put("reason", reason);
+        result.getJSONObject("counts").put("complete", 0).put("unchecked", 0).put("failed", 0).put("partial", 1);
+        result.put("state", "PARTIAL").put("reason", reason);
+        return new Capture(result, false);
     }
     FaultEvidenceCollector.Store store(File attempt) { return new AndroidEvidenceStore(attempt.getAbsolutePath()); }
     private static Capture unavailable(String reason, boolean retry) throws Exception {

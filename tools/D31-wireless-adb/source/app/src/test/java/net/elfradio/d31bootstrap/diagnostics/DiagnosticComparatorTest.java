@@ -115,6 +115,31 @@ public class DiagnosticComparatorTest {
         count(report, "verified", 1); count(report, "same", 1);
     }
 
+    @Test public void unreadableEnumerationCannotImplyAbsentChildFromCompleteHeader() throws Exception {
+        for (boolean presenceFailure : new boolean[]{true, false}) {
+            Fixture f = new Fixture();
+            JSONObject parent = entry("/system/bin");
+            if (presenceFailure) parent.put("presence", unavailable("READ_FAILED")).put("fields", new JSONObject());
+            else parent.getJSONObject("fields").put("type", observed("directory"))
+                    .put("semantic.enumeration", unavailable("NOT_CHECKED"));
+            f.target.put("entries", new JSONArray().put(parent));
+            JSONObject report = f.compare();
+            assertFalse(report.getBoolean("inventoryTotalKnown"));
+            JSONObject evidence = field(report, PATH, "presence").getJSONObject("evidence").getJSONObject("target");
+            assertEquals("NOT_CHECKED", evidence.getString("state")); assertFalse(evidence.has("value"));
+            assertEquals("INSUFFICIENT_EVIDENCE", report.getString("offlineComparison"));
+        }
+    }
+
+    @Test public void identicalImpossibleFileTreesAreRejectedInsteadOfMatching() throws Exception {
+        for (String kind : new String[]{"file", "symlink", "block"}) {
+            JSONObject snapshot = manifest("BOARD"), parent = entry("/system/bin");
+            parent.getJSONObject("fields").put("type", observed(kind)); snapshot.getJSONArray("entries").put(parent);
+            try { DiagnosticManifest.parse(snapshot); fail("普通文件或叶链接不能作为枚举子项的目录"); }
+            catch (DiagnosticContract.Invalid expected) { assertEquals("CONTRADICTORY_ANCESTOR_TYPE", expected.getMessage()); }
+        }
+    }
+
     @Test public void everyMissingRequiredFieldOnAllSidesIsUnknownNotEqual() throws Exception {
         for (String name : DiagnosticContract.REQUIRED_FIELDS) {
             Fixture f = new Fixture();

@@ -1,0 +1,37 @@
+[
+  {
+    "path": "data/src/main/java/com/moez/QKSMS/worker/InjectionWorkerFactory.kt",
+    "bytes": 4410,
+    "sha256": "7DD25DFEF68DE514520184D18A5F1467B3C2F50785B404C1EC2CB01029C5870D"
+  },
+  {
+    "path": "LICENSE",
+    "bytes": 35815,
+    "sha256": "53927BD0B739D38C87A0A82236FD9B070C2DFFF11C0C119BE50372005D5047AD"
+  },
+  {
+    "path": "presentation/src/test/java/com/moez/QKSMS/worker/InjectionWorkerFactoryTest.kt",
+    "bytes": 7510,
+    "sha256": "5A4FB79E87C55C70DBEB32AB1FC105CF6D69B94450C1233D316BF178EC39E402"
+  },
+  {
+    "path": "README.md",
+    "bytes": 5301,
+    "sha256": "D77553AB4E0B84B5CF11ABB745B63FD2D757CA3579F9A8A7187D59F532E2C97A"
+  },
+  {
+    "path": "test-config.patch",
+    "bytes": 973,
+    "sha256": "BEE466BB246E98D7C97FE5F8257FADE908D328083982D253D8C46BAE2783AFB4"
+  },
+  {
+    "path": "verification-result.json",
+    "bytes": 1949,
+    "sha256": "CA0E246CCE1A2F2714E326D9B92FBF6500C2D198A06465DD243E20F69173EBAF"
+  },
+  {
+    "path": "Verify-Overlay.ps1",
+    "bytes": 6534,
+    "sha256": "B204C8876BEB6813987E81F5E7D9226AA257618A176214D786CBD255D15FD7E9"
+  }
+]

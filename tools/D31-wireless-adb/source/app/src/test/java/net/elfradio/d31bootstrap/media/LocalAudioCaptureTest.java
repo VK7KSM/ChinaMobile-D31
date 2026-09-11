@@ -81,6 +81,28 @@ public class LocalAudioCaptureTest {
             assertEquals(1,record.stops);assertEquals(1,record.releases);assertFalse(capture.active());
         }finally{capture.cancel();record.unblock.countDown();executor.shutdownNow();}
     }
+    @Test public void cancellationDuringNativeReleaseCannotBecomeCompleted()throws Exception {
+        for(boolean rootRequest:new boolean[]{false,true}){
+            CountDownLatch releasing=new CountDownLatch(1),allow=new CountDownLatch(1);
+            Cancellation request=new Cancellation();
+            Recorder record=new Recorder(){@Override public void release()throws Exception{
+                releasing.countDown();
+                while(allow.getCount()!=0){try{allow.await();}catch(InterruptedException ignored){}}
+                super.release();
+            }};
+            LocalAudioCapture capture=capture(record,10,request);
+            ExecutorService executor=Executors.newSingleThreadExecutor();
+            try{
+                Future<JSONObject> job=executor.submit(()->run(capture));
+                assertTrue(releasing.await(1,TimeUnit.SECONDS));
+                if(rootRequest)request.cancel();else capture.cancel();
+                allow.countDown();JSONObject result=job.get(2,TimeUnit.SECONDS);
+                assertEquals("CANCELLED",result.getString("state"));
+                assertTrue(result.getBoolean("release_verified"));assertFalse(capture.active());
+                assertEquals(1,record.stops);assertEquals(1,record.releases);
+            }finally{allow.countDown();executor.shutdownNow();assertTrue(executor.awaitTermination(2,TimeUnit.SECONDS));}
+        }
+    }
     @Test public void totalDeadlineStopsReadAndDoesNotWaitFullRequestedDuration()throws Exception {
         Recorder record=new Recorder();record.result=0;long began=CLOCK.elapsed();
         JSONObject result=capture(record,5000,new Cancellation()).run(began+850);

@@ -78,7 +78,8 @@ public final class FaultExports {
                     .put("scope", "ALL_FROZEN_EVENT_FILES").put("sourceCompleteness", "SEE_MANIFEST_GAPS")
                     .put("downloadState", "NOT_ACKNOWLEDGED").put("rawContentInSummary", false);
             verify(event, receipt, true);
-            FaultArchive.jsonNew(new File(output, "receipt.json"), receipt);
+            // 完整回执先同步临时缓存再提交，进程中断不会留下半份正式回执。
+            archive.state(output, "receipt.json", receipt);
             return receipt;
         }
     }
@@ -110,7 +111,7 @@ public final class FaultExports {
             if (archive.bytes() + FaultArchive.JSON_LIMIT > policy.maxArchiveBytes
                     || archive.root.getUsableSpace() < policy.minFreeBytes + FaultArchive.JSON_LIMIT)
                 throw new IOException("ARCHIVE_CAPACITY_LIMIT");
-            FaultArchive.jsonNew(record, acknowledgment);
+            archive.state(event, "archived.json", acknowledgment);
             return acknowledgment;
         }
     }
@@ -194,7 +195,14 @@ public final class FaultExports {
         for (int i = 1; i <= 3; i++) {
             File report = new File(event, "attempt-" + i + "/report.json");
             if (!report.exists()) continue;
-            JSONObject diagnostic = FaultArchive.read(report).getJSONObject("diagnostic");
+            JSONObject diagnostic;
+            try { diagnostic = FaultArchive.read(report).getJSONObject("diagnostic"); }
+            catch (Exception damaged) {
+                partial++;
+                items.put(new JSONObject().put("artifact", "attempt-" + i + "/report.json")
+                        .put("completeOriginal", false).put("state", "REPORT_UNREADABLE"));
+                continue;
+            }
             JSONArray sources = diagnostic.optJSONArray("items");
             if (sources == null) continue;
             if (sources.length() > 64) throw new IOException("REPORT_ENTRY_LIMIT");
@@ -254,7 +262,7 @@ public final class FaultExports {
         List<Entry> entries = new ArrayList<Entry>();
         for (File file : children) {
             FaultArchive.checked(file); String name = file.getName();
-            if (name.equals("exports") || name.equals("archived.json")) continue;
+            if (name.equals("exports") || name.equals("archived.json") || name.equals("archived.json.next")) continue;
             if (name.matches("attempt-[1-3]")) {
                 if (!file.isDirectory()) throw new IOException("EXPORT_DIRECTORY_REQUIRED");
                 File[] leaves = file.listFiles(); if (leaves == null || leaves.length > 10) throw new IOException("EXPORT_ENTRY_LIMIT");
@@ -309,6 +317,9 @@ public final class FaultExports {
                 JSONObject diagnostic = FaultArchive.read(e.file).getJSONObject("diagnostic");
                 if (!"COMPLETE".equals(diagnostic.optString("state"))) gaps.put(new JSONObject().put("code", "CAPTURE_PARTIAL").put("path", e.path));
                 JSONArray items = diagnostic.optJSONArray("items");
+                if (!"COMPLETE".equals(diagnostic.optString("state")))
+                    gaps.put(new JSONObject().put("code", "CAPTURE_INCOMPLETE").put("path", e.path)
+                            .put("reason", safeState(diagnostic.optString("reason", "UNKNOWN"))));
                 if (items != null) for (int i = 0; i < items.length(); i++) {
                     JSONObject item = items.getJSONObject(i);
                     if (!"COMPLETE".equals(item.optString("state"))) gaps.put(new JSONObject().put("code", "SOURCE_INCOMPLETE")

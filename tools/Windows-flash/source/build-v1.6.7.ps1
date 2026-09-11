@@ -274,10 +274,10 @@ $result = [PSCustomObject]@{
     急救测试入口SHA256 = $rescueTestHash
     aria2版本 = "1.37.0 win-32bit"
     aria2SHA256 = $aria2Hash
-    自检 = (Get-Content -Tail 1 -LiteralPath $selfTestReport)
-    选择流程 = (Get-Content -Tail 1 -LiteralPath $packageReport)
-    高速下载进度解析 = (Get-Content -Tail 1 -LiteralPath $downloadParserReport)
-    PowerShell5兼容 = (Get-Content -Tail 1 -LiteralPath $compatibilityReport)
+    自检 = [IO.File]::ReadAllLines($selfTestReport)[-1]
+    选择流程 = [IO.File]::ReadAllLines($packageReport)[-1]
+    高速下载进度解析 = [IO.File]::ReadAllLines($downloadParserReport)[-1]
+    PowerShell5兼容 = [IO.File]::ReadAllLines($compatibilityReport)[-1]
 }
 Write-ProbeJson (Join-Path $objectDirectory 'candidate-result.json') $result
 $result

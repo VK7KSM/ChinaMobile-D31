@@ -68,11 +68,15 @@ final class RemoteUpdateEngine {
             return;
         }
         if (phase.equals("verifying")) {
+            if (!RemoteUpdatePolicy.matches(s.getJSONObject("backup"), platform.current())) {
+                transition(s, "rejected", "安装版本在准备后变化，未执行覆盖", now); return;
+            }
             // 先把安装意图和真实备份落盘，再停止远程核心和调用安装器。
             transition(s, "installing", "准备安装", now); return;
         }
         if (phase.equals("installing")) {
             JSONObject target = s.getJSONObject("target");
+            if (preserveExternalInstall(s, now)) return;
             if (!s.optBoolean("install_intent")) {
                 platform.stopCore(); s.put("install_intent", true); save(s);
                 try { platform.install(target, false); }
@@ -85,7 +89,8 @@ final class RemoteUpdateEngine {
             transition(s, "wait_health", "等待新核心与云连接核验", now); return;
         }
         if (phase.equals("wait_health")) {
-            if (!platform.session().equals(s.optString("health_session"))) {
+            if (preserveExternalInstall(s, now)) return;
+            if (!platform.session().equals(s.optString("health_session")) || now < s.optLong("phase_at")) {
                 s.put("health_session", platform.session()).put("phase_at", now); save(s);
             }
             JSONObject target = s.getJSONObject("target");
@@ -101,6 +106,7 @@ final class RemoteUpdateEngine {
             return;
         }
         if (phase.equals("rollback")) {
+            if (preserveExternalInstall(s, now)) return;
             JSONObject backup = s.getJSONObject("backup");
             if (!installedMatches(backup)) {
                 if (s.optBoolean("rollback_intent")) { s.put("attention", "恢复安装未确认，保留原件等待处理"); save(s); return; }
@@ -154,6 +160,23 @@ final class RemoteUpdateEngine {
         return Math.max(delay, Math.min(86400000L, state.optLong("progress_server_delay")));
     }
     private void save(JSONObject state) throws Exception { RescueFiles.write(stateFile, state.toString()); }
+    private boolean preserveExternalInstall(JSONObject state, long now) throws Exception {
+        JSONObject installed;
+        try { installed = platform.current(); }
+        catch (Exception unavailable) {
+            // 已经观察到外部安装后，读取失败不能被解释成原版本，从而重新允许覆盖。
+            return state.has("external_installed");
+        }
+        if (RemoteUpdatePolicy.matches(state.getJSONObject("target"), installed)
+                || RemoteUpdatePolicy.matches(state.getJSONObject("backup"), installed)) return false;
+        // 外部安装不受本维护锁约束；不能用旧任务的备份覆盖用户后来安装的第三个版本。
+        String detail = "检测到本任务之外的安装版本，保留现场等待核查，不安装或回滚覆盖";
+        if (!detail.equals(state.optString("attention"))) {
+            state.put("attention", detail).put("external_installed", installed);
+            transition(state, state.getString("phase"), detail, now);
+        }
+        return true;
+    }
     private boolean installedMatches(JSONObject archive) {
         try { return RemoteUpdatePolicy.matches(archive, platform.current()); }
         catch (Exception unavailable) { return false; }

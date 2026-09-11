@@ -45,13 +45,13 @@ function Run-Case([string]$Name, [string[]]$Arguments, [bool]$Pass, [bool]$MayRe
     }
     if ($Name -eq 'repair-late' -and ([regex]::Matches($commands, 'D31_MAINTENANCE_ABSENT_V1').Count -ne 2 -or $commands -notmatch 'busybox sha256sum /data/local/tmp/')) { throw '未模拟上传后的修复竞争' }
     if ($Name -in @('success','legacy95') -and $commands -match 'RemoteWindowsMaintenance') { throw '旧设备不应调用新维护协议' }
-    if ($Name -in @('full96-success','full96-system','full96-reboot-failed','full96-command-mismatch')) {
+    if ($Name -in @('full96-success','full96-system','full96-reboot-failed','full96-command-mismatch','full96-command-remote-failed','full96-command-marker-missing')) {
         $reserve = [regex]::Match($commands, 'RemoteWindowsMaintenance reserve ([a-f0-9]{32})')
         if (-not $reserve.Success -or $reserve.Index -gt $commands.IndexOf('mkdir -p /cache/recovery')) { throw "未先取得预留：$Name" }
         $release = [regex]::Match($commands, 'RemoteWindowsMaintenance release ([a-f0-9]{32})')
         if ($release.Success) { throw 'Recovery交接后不应自动释放跨步骤预留' }
         if (-not $Pass -and ($output -join "`n") -notmatch '保留本次维护预留') { throw "交接失败未明确保留预留：$Name" }
-        if ($Name -eq 'full96-command-mismatch' -and $commands -match 'reboot recovery') { throw '回读不符仍触发重启' }
+        if ($Name -in @('full96-command-mismatch','full96-command-remote-failed','full96-command-marker-missing') -and $commands -match 'reboot recovery') { throw '回读或设备退出未确认仍触发重启' }
     }
     if ($Name -eq 'success' -and ($commands -notmatch 'reboot recovery' -or ($output -join "`n") -notmatch '完整Recovery刷机和首次启动验证全部完成')) { throw '完整模拟流程未完成' }
     Write-Output "通过：$Name"
@@ -81,7 +81,7 @@ try {
     Run-Case 'success' $base $true $true
     Run-Case 'success-5654' @('-Serial','192.0.2.31:5654','-PackagePath',$Package,'-SkipBackup') $true $true
     foreach($name in @('legacy95','full96-success','full96-system')) { Run-Case $name $base $true $true }
-    foreach($name in @('full96-reboot-failed','full96-command-mismatch')) { Run-Case $name $base $false $true }
+    foreach($name in @('full96-reboot-failed','full96-command-mismatch','full96-command-remote-failed','full96-command-marker-missing')) { Run-Case $name $base $false $true }
     Run-Case 'upload-resume' $base $true $true
     Run-Case 'bad-installed' $base $false $true
     Run-Case 'bad-handover' $base $false $true

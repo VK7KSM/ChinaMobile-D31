@@ -133,7 +133,9 @@ public final class FaultMonitor implements Closeable {
                 int work = 0, indexErrors = 0;
                 List<String> existing = archive.ids();
                 java.util.Set<String> archived = new java.util.HashSet<String>();
+                java.util.Set<String> collecting = new java.util.HashSet<String>();
                 for (String id : existing) if (FaultExports.isArchived(archive.event(id))) archived.add(id);
+                for (String id : existing) if (!archived.contains(id) && !captureTerminal(archive.event(id))) collecting.add(id);
                 if (Thread.currentThread().isInterrupted()) return;
                 FaultSources.Scan scan = sources.discover(policy, discovery);
                 if (scan.candidates.size() > 256) throw new IOException("SOURCE_COUNT_LIMIT");
@@ -155,23 +157,29 @@ public final class FaultMonitor implements Closeable {
                 fresh = FaultOrdering.fair(fresh, turn);
                 int cursor = 0;
                 for (int round = 0; round < 2; round++) {
+                    capacity = false;
                     int newLimit = round == 1 ? policy.maxCandidates
                             : policy.maxCandidates == 1 && existingFirst ? 0 : (policy.maxCandidates + 1) / 2;
                     while (cursor < fresh.size() && work < newLimit && !capacity) {
                         if (Thread.currentThread().isInterrupted()) return;
                         FaultSources.Candidate candidate = fresh.get(cursor);
-                        if (count >= policy.maxEvents || retained >= FaultExports.MAX_RETAINED_EVENTS
-                            || (count + 1L) * policy.reservationBytes() > policy.maxArchiveBytes
+                        int admissionCount = policy.continueWhileAwaitingArchive ? collecting.size() : count;
+                        long reservations = (policy.continueWhileAwaitingArchive ? admissionCount + 1L : 1L) * policy.reservationBytes();
+                        if (admissionCount >= policy.maxEvents || retained >= FaultExports.MAX_RETAINED_EVENTS
+                            || (admissionCount + 1L) * policy.reservationBytes() + policy.exportHeadroomBytes() > policy.maxArchiveBytes
                             || diskBytes + policy.reservationBytes() > policy.maxArchiveBytes
-                            || archive.root.getUsableSpace() < policy.minFreeBytes + policy.reservationBytes()) {
+                            || diskBytes + reservations + policy.exportHeadroomBytes() > policy.maxArchiveBytes
+                            || archive.root.getUsableSpace() < policy.minFreeBytes + reservations + policy.exportHeadroomBytes()) {
                             capacity = true; break;
                         }
                         File event = archive.event(candidate.id());
                         create(event, candidate, boot, clock.elapsedRealtimeMillis());
                         accepted++; count++; retained++; work++; cursor++;
+                        collecting.add(candidate.id());
                         for (int category = 0; category < FaultOrdering.CATEGORIES.length; category++)
                             if (FaultOrdering.CATEGORIES[category].equals(candidate.category)) nextTurn = (category + 1) % 4;
                         advance(event, boot, clock.elapsedRealtimeMillis());
+                        if (captureTerminal(event)) collecting.remove(candidate.id());
                         diskBytes = archive.bytes();
                     }
                     if (round == 0) for (String id : FaultOrdering.after(existing, existingAfter)) {
@@ -179,7 +187,10 @@ public final class FaultMonitor implements Closeable {
                         if (work >= policy.maxCandidates) break;
                         existingAfter = id;
                         if (archived.contains(id)) continue;
-                        try { if (advance(archive.event(id), boot, clock.elapsedRealtimeMillis())) work++; }
+                        try {
+                            if (advance(archive.event(id), boot, clock.elapsedRealtimeMillis())) work++;
+                            if (captureTerminal(archive.event(id))) collecting.remove(id);
+                        }
                         catch (Exception damaged) { indexErrors++; }
                     }
                     diskBytes = archive.bytes();
@@ -196,22 +207,35 @@ public final class FaultMonitor implements Closeable {
                     while (history.size() > policy.preSamples) history.removeFirst();
                 }
                 JSONArray blocked = new JSONArray();
-                if (count >= policy.maxEvents) blocked.put("ACTIVE_EVENT_LIMIT");
+                int admissionCount = policy.continueWhileAwaitingArchive ? collecting.size() : count;
+                long reservations = (policy.continueWhileAwaitingArchive ? admissionCount + 1L : 1L) * policy.reservationBytes();
+                if (admissionCount >= policy.maxEvents) blocked.put(policy.continueWhileAwaitingArchive ? "COLLECTING_EVENT_LIMIT" : "ACTIVE_EVENT_LIMIT");
                 if (retained >= FaultExports.MAX_RETAINED_EVENTS) blocked.put("RETAINED_EVENT_LIMIT");
-                if ((count + 1L) * policy.reservationBytes() > policy.maxArchiveBytes) blocked.put("ACTIVE_RESERVATION_LIMIT");
+                if ((admissionCount + 1L) * policy.reservationBytes() + policy.exportHeadroomBytes() > policy.maxArchiveBytes) blocked.put("ACTIVE_RESERVATION_LIMIT");
                 if (archive.bytes() + policy.reservationBytes() > policy.maxArchiveBytes) blocked.put("ARCHIVE_BYTE_LIMIT");
-                if (archive.root.getUsableSpace() < policy.minFreeBytes + policy.reservationBytes()) blocked.put("FREE_SPACE_RESERVE");
+                if (archive.bytes() + reservations + policy.exportHeadroomBytes() > policy.maxArchiveBytes)
+                    blocked.put("EXPORT_HEADROOM_LIMIT");
+                if (archive.root.getUsableSpace() < policy.minFreeBytes + reservations + policy.exportHeadroomBytes()) blocked.put("FREE_SPACE_RESERVE");
                 capacity = blocked.length() > 0;
+                boolean discoveryComplete = discoveryComplete(scan.coverage);
+                String outcome = capacity ? "CAPACITY_LIMIT" : deferred > 0 || indexErrors > 0 || !discoveryComplete ? "PARTIAL" : "FINISHED";
                 archive.state(archive.root, "scan.json", new JSONObject().put("capturedAtMs", clock.wallTimeMillis())
-                        .put("state", capacity ? "CAPACITY_LIMIT" : deferred > 0 || indexErrors > 0 ? "PARTIAL" : "FINISHED")
+                        .put("state", outcome).put("sourceDiscoveryComplete", discoveryComplete)
                         .put("accepted", accepted).put("deferred", deferred).put("eventIndexErrors", indexErrors).put("coverage", scan.coverage)
                         .put("activeEvents", count).put("archivedEvents", archived.size()).put("retainedEvents", retained)
+                        .put("collectingEvents", collecting.size()).put("awaitingArchiveEvents", count - collecting.size())
+                        .put("admissionPolicy", policy.continueWhileAwaitingArchive ? "IN_FLIGHT_AND_RETAINED_BUDGETS" : "UNARCHIVED_EVENT_LIMIT")
                         .put("retainedBytes", archive.bytes()).put("maxArchiveBytes", policy.maxArchiveBytes)
-                        .put("maxActiveEvents", policy.maxEvents).put("maxRetainedEvents", FaultExports.MAX_RETAINED_EVENTS)
+                        .put("maxActiveEvents", policy.continueWhileAwaitingArchive ? FaultExports.MAX_RETAINED_EVENTS : policy.maxEvents)
+                        .put("maxCollectingEvents", policy.maxEvents).put("maxRetainedEvents", FaultExports.MAX_RETAINED_EVENTS)
                         .put("admissionBlockedBy", blocked)
+                        .put("exportHeadroomBytes", policy.exportHeadroomBytes())
+                        .put("automaticArchive", false).put("originalsDeleted", false)
+                        .put("continuationAction", capacity ? "HOST_VERIFY_EXPORT_AND_ACK_OR_RETAINED_CAPACITY_REVIEW" : "NONE")
+                        .put("uncollectedSourcesMayExpire", deferred > 0)
                         .put("contextRetention", "BOUNDED_PROCESS_MEMORY_UNTIL_EVENT_FREEZE")
                         .put("automaticEviction", false).put("rawContentInSummary", false));
-                lastOutcome = capacity ? "CAPACITY_LIMIT" : "FINISHED";
+                lastOutcome = outcome;
             } finally { lock.release(); }
         }
     }
@@ -236,6 +260,14 @@ public final class FaultMonitor implements Closeable {
                 .put("diagnosticSchemaVersion", 1).put("rootCause", "NOT_ESTABLISHED");
         FaultArchive.jsonNew(new File(event, "event.json"), descriptor);
         archive.state(event, "state.json", initial());
+    }
+    private static boolean captureTerminal(File event) {
+        try {
+            JSONObject descriptor = FaultArchive.read(new File(event, "event.json"));
+            if (!event.getName().equals(FaultSources.Candidate.parse(descriptor.getJSONObject("source")).id())) return false;
+            String phase = FaultArchive.read(new File(event, "state.json")).getString("phase");
+            return "COMPLETE".equals(phase) || "PARTIAL".equals(phase);
+        } catch (Exception unconfirmed) { return false; }
     }
     private JSONObject initial() throws Exception {
         return new JSONObject().put("phase", "PENDING").put("attempts", 0).put("observations", 1)
@@ -269,7 +301,13 @@ public final class FaultMonitor implements Closeable {
             if (!path.exists()) break;
             attempts = i;
             File report = new File(path, "report.json");
-            last = report.isFile() ? FaultArchive.read(report) : null;
+            try {
+                last = report.isFile() ? FaultArchive.read(report) : null;
+                if (last != null) last.getJSONObject("diagnostic").getString("state");
+            } catch (Exception damaged) {
+                // 截断回执与原始字节都保留；该次仍消耗尝试，后续使用新目录。
+                last = null;
+            }
         }
         boolean captured = last != null && "COMPLETE".equals(last.getJSONObject("diagnostic").optString("state"));
         boolean retry = last == null || last.optBoolean("retryable", false);
@@ -279,9 +317,13 @@ public final class FaultMonitor implements Closeable {
             long lastElapsed = state.optLong("attemptElapsedMs", -1);
             if (sameBoot && lastElapsed >= 0 && elapsed >= lastElapsed
                     && elapsed - lastElapsed < policy.retryMs * Math.max(1, attempts)) return false;
-            if (archive.bytes() + policy.maxFileBytes + 65536L > policy.maxArchiveBytes
-                    || archive.root.getUsableSpace() < policy.minFreeBytes + policy.maxFileBytes + 65536L) {
-                archive.state(event, "state.json", state.put("phase", "CAPACITY_BLOCKED")); return false;
+            if (archive.bytes() + policy.maxFileBytes + 65536L + policy.exportHeadroomBytes() > policy.maxArchiveBytes
+                    || archive.root.getUsableSpace() < policy.minFreeBytes + policy.maxFileBytes + 65536L + policy.exportHeadroomBytes()) {
+                // 保全现有有限证据进入可导出终态；永久非终态会阻断验包归档，反而无法周转。
+                archive.state(event, "state.json", state.put("phase", "PARTIAL").put("capture", "PARTIAL")
+                        .put("attempts", attempts).put("reason", "CAPTURE_CAPACITY_LIMIT")
+                        .put("postWindow", "MISSING_CAPACITY").put("continuousPreFaultLogs", "UNAVAILABLE"));
+                return true;
             }
             File attempt = new File(event, "attempt-" + (++attempts)); FaultArchive.directory(attempt);
             state.put("phase", "CAPTURING").put("attempts", attempts).put("attemptBoot", boot).put("attemptElapsedMs", elapsed);
@@ -332,6 +374,14 @@ public final class FaultMonitor implements Closeable {
         JSONObject memory = sample.optJSONObject("meminfo"), load = sample.optJSONObject("loadavg");
         return memory != null && load != null && "CAPTURED".equals(memory.optString("state"))
                 && "CAPTURED".equals(load.optString("state"));
+    }
+    private static boolean discoveryComplete(JSONObject coverage) throws Exception {
+        JSONArray sources = coverage.optJSONArray("sources");
+        if (sources == null) return "CHECKED".equals(coverage.optString("state"));
+        if (sources.length() == 0) return false;
+        for (int i = 0; i < sources.length(); i++)
+            if (!"CHECKED".equals(sources.getJSONObject(i).optString("state"))) return false;
+        return true;
     }
     private static final class Sample {
         final long elapsed, wall; final JSONObject context;

@@ -2,6 +2,7 @@ package net.elfradio.d31bootstrap.faults;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +38,7 @@ public class FaultMonitorTest {
         final List<Candidate> capturedOrder = new ArrayList<Candidate>();
         int captures; boolean fail, nonRetry, missingContext, failCommit;
         String boot = FaultArchive.hash("boot-a");
+        String scanState = "CHECKED";
         CountDownLatch entered, release;
         JSONObject lastContinuation, nextContinuation = new JSONObject();
         Candidate add(String name, String raw) throws Exception {
@@ -48,7 +50,7 @@ public class FaultMonitorTest {
         }
         public Scan discover(FaultPolicy p) throws Exception {
             if (entered != null) { entered.countDown(); release.await(3, TimeUnit.SECONDS); }
-            return new Scan(candidates, new JSONObject().put("state", "CHECKED"));
+            return new Scan(candidates, new JSONObject().put("state", scanState));
         }
         public Scan discover(FaultPolicy p, JSONObject continuation) throws Exception {
             lastContinuation = new JSONObject(continuation.toString());
@@ -75,7 +77,10 @@ public class FaultMonitorTest {
         }
     }
     private void tick() throws Exception {
-        assertEquals(FaultMonitor.Submission.ACCEPTED, monitor.tick()); await();
+        tick(5);
+    }
+    private void tick(int seconds) throws Exception {
+        assertEquals(FaultMonitor.Submission.ACCEPTED, monitor.tick()); await(seconds);
         assertEquals("NONE", monitor.lastFailure()); clock.add(1000);
     }
     private void await() throws Exception {
@@ -160,6 +165,13 @@ public class FaultMonitorTest {
         assertEquals("CAPACITY_LIMIT", monitor.index(8).getJSONObject("scan").getString("state"));
         assertEquals("original", new String(Files.readAllBytes(new File(evidence, a.id() + "/attempt-1/fault-source.bin").toPath()), "UTF-8"));
     }
+    @Test public void failedDiscoveryWithNoCandidatesCannotReportFinishedCoverage() throws Exception {
+        source.scanState = "READ_FAILED"; tick();
+        assertEquals("PARTIAL", monitor.lastOutcome());
+        JSONObject scan = monitor.index(1).getJSONObject("scan");
+        assertFalse(scan.getBoolean("sourceDiscoveryComplete")); assertEquals(0, scan.getInt("accepted"));
+        assertEquals("PARTIAL", FaultMonitor.readPending(evidence, 1, "").getJSONObject("capacity").getString("state"));
+    }
     @Test public void diskReserveRefusesBeforeCreatingEvent() throws Exception {
         monitor.close(); policy = policy(8, 3, 1024L * 1024 * 1024 * 1024);
         monitor = new FaultMonitor(evidence, source, clock, policy); source.add("a", "raw"); tick();
@@ -224,12 +236,18 @@ public class FaultMonitorTest {
         assertEquals("PARTIAL", monitor.query(c.id()).getString("preWindowState"));
         assertEquals("PARTIAL", state(c.id()).getString("phase"));
     }
-    @Test public void oneCorruptReportDoesNotBlockOtherEvidence() throws Exception {
+    @Test public void corruptReportRecoversInNewAttemptAndDoesNotBlockOtherEvidence() throws Exception {
         FaultSources.Candidate first = source.add("first", "raw"); tick();
         Files.write(new File(evidence, first.id() + "/attempt-1/report.json").toPath(), new byte[]{0});
         FaultSources.Candidate second = source.add("second", "new"); tick();
-        assertEquals(2, source.captures); assertEquals(second.id(), monitor.query(second.id()).getString("eventId"));
-        assertTrue(monitor.index(8).getJSONObject("scan").getInt("eventIndexErrors") > 0);
+        assertEquals(3, source.captures); assertEquals(second.id(), monitor.query(second.id()).getString("eventId"));
+        assertArrayEquals(new byte[]{0}, Files.readAllBytes(new File(evidence, first.id() + "/attempt-1/report.json").toPath()));
+        assertEquals("REPORT_UNREADABLE", monitor.query(first.id()).getJSONArray("attempts").getJSONObject(0).getString("state"));
+        assertEquals(2, state(first.id()).getInt("attempts"));
+        assertEquals("PARTIAL", state(first.id()).getString("phase"));
+        JSONObject receipt = new FaultExports(evidence, source, policy).exportEvent(first.id());
+        JSONObject manifest = FaultArchive.read(new File(new File(receipt.getString("path")).getParentFile(), "manifest.json"));
+        assertTrue(manifest.getJSONArray("gaps").toString().contains("REPORT_UNREADABLE"));
     }
     @Test public void queryRejectsTraversal() throws Exception {
         try { monitor.query("../escape"); fail(); } catch (IOException expected) { assertEquals("INVALID_EVENT_ID", expected.getMessage()); }
@@ -370,6 +388,55 @@ public class FaultMonitorTest {
         assertEquals(128, capacity.getInt("maxRetainedEvents")); assertEquals(67108864, capacity.getLong("maxArchiveBytes"));
         assertEquals("ACTIVE_EVENT_LIMIT", capacity.getJSONArray("admissionBlockedBy").getString(0));
         assertEquals(33, source.access.resolve("/data/anr").toFile().listFiles().length);
+        assertFalse(capacity.getBoolean("automaticArchive"));
+        String released = source.capturedOrder.get(0).id();
+        File raw = new File(evidence, released + "/attempt-1/fault-source.bin");
+        byte[] original = Files.readAllBytes(raw.toPath());
+        FaultExports export = new FaultExports(evidence, source, policy);
+        JSONObject receipt = export.exportEvent(released);
+        // 仅导出不释放槽位；重建监控也不得绕过32项门。
+        reopen(); tick(30); assertEquals(32, source.captures); clock.add(61000);
+        export.archiveEvent(released, receipt.getString("sha256"), receipt.getLong("bytes"), receipt.getString("manifestSha256"));
+        reopen(); tick(30);
+        assertEquals(33, source.captures);
+        assertEquals(33, monitor.index(1).getInt("total"));
+        assertArrayEquals(original, Files.readAllBytes(raw.toPath()));
+        assertEquals(1, FaultMonitor.readPending(evidence, 1, "").getJSONObject("capacity").getInt("archivedEvents"));
+    }
+    @Test public void admissionKeepsExportHeadroomAndExistingEventCanStillDrain() throws Exception {
+        FaultSources.Candidate first = source.add("first", "original"); tick(); tick();
+        long bytes = new FaultArchive(evidence, source).bytes();
+        File kept = new File(evidence, "retained-evidence.bin");
+        try (RandomAccessFile padding = new RandomAccessFile(kept, "rw")) {
+            padding.setLength(policy.maxArchiveBytes - policy.reservationBytes() - policy.exportHeadroomBytes() - bytes + 32768);
+        }
+        FaultSources.Candidate next = source.add("next", "new"); tick();
+        assertFalse(new File(evidence, next.id()).exists());
+        JSONObject capacity = FaultMonitor.readPending(evidence, 1, "").getJSONObject("capacity");
+        assertTrue(capacity.getJSONArray("admissionBlockedBy").toString().contains("EXPORT_HEADROOM_LIMIT"));
+        FaultExports export = new FaultExports(evidence, source, policy);
+        JSONObject receipt = export.exportEvent(first.id());
+        assertTrue(export.archiveEvent(first.id(), receipt.getString("sha256"), receipt.getLong("bytes"),
+                receipt.getString("manifestSha256")).getBoolean("activeSlotReleased"));
+        assertTrue(kept.exists()); assertTrue(new File(evidence, first.id() + "/attempt-1/fault-source.bin").exists());
+    }
+    @Test public void blockedRetryBecomesHonestPartialAndCanBeExportedInsteadOfStallingForever() throws Exception {
+        source.fail = true; FaultSources.Candidate candidate = source.add("failure", "raw"); tick();
+        assertEquals("RETRY_WAIT", state(candidate.id()).getString("phase"));
+        File raw = new File(evidence, candidate.id() + "/attempt-1/partial.bin");
+        long bytes = new FaultArchive(evidence, source).bytes();
+        try (RandomAccessFile padding = new RandomAccessFile(new File(evidence, "retained-evidence.bin"), "rw")) {
+            padding.setLength(policy.maxArchiveBytes - policy.exportHeadroomBytes() - policy.maxFileBytes - 65536L - bytes + 32768);
+        }
+        reopen(); tick();
+        assertEquals("PARTIAL", state(candidate.id()).getString("phase"));
+        assertEquals("CAPTURE_CAPACITY_LIMIT", state(candidate.id()).getString("reason"));
+        assertEquals(1, source.captures);
+        FaultExports export = new FaultExports(evidence, source, policy); JSONObject receipt = export.exportEvent(candidate.id());
+        assertEquals("PARTIAL", receipt.getString("captureState"));
+        assertTrue(export.archiveEvent(candidate.id(), receipt.getString("sha256"), receipt.getLong("bytes"),
+                receipt.getString("manifestSha256")).getBoolean("activeSlotReleased"));
+        assertArrayEquals(new byte[]{1, 2, 3}, Files.readAllBytes(raw.toPath()));
     }
     @Test public void totalDiskLimitPreservesExistingBytesAndDoesNotCreateNewEvent() throws Exception {
         monitor.close(); policy = FaultPolicy.defaults(); monitor = new FaultMonitor(evidence, source, clock, policy);
@@ -383,5 +450,78 @@ public class FaultMonitorTest {
         try (java.io.FileInputStream in = new java.io.FileInputStream(kept)) { assertEquals(9, in.read()); }
         JSONObject capacity = FaultMonitor.readPending(evidence, 1, "").getJSONObject("capacity");
         assertTrue(capacity.getJSONArray("admissionBlockedBy").toString().contains("ARCHIVE_BYTE_LIMIT"));
+    }
+
+    private FaultSources.Candidate retainedTerminal(int number) throws Exception {
+        FaultSources.Candidate candidate = source.add("retained-" + number, "original-" + number);
+        File event = new File(evidence, candidate.id()); FaultArchive.directory(event);
+        FaultArchive.jsonNew(new File(event, "event.json"), new JSONObject().put("source", candidate.json())
+                .put("detectedAtMs", clock.wall).put("preWindowState", "MISSING").put("preWindow", new JSONArray()));
+        FaultArchive.jsonNew(new File(event, "state.json"), new JSONObject().put("phase", "PARTIAL")
+                .put("capture", "PARTIAL").put("attempts", 1).put("postWindow", "MISSING_DEADLINE"));
+        File attempt = new File(event, "attempt-1"); FaultArchive.directory(attempt);
+        FaultArchive.writeNew(new File(attempt, "partial.bin"), new byte[]{(byte) number, 1, 2});
+        return candidate;
+    }
+
+    @Test public void continuousPolicyAdmitsAfter32TerminalRecordsWithoutArchiveOrOriginalDeletion() throws Exception {
+        List<FaultSources.Candidate> old = new ArrayList<FaultSources.Candidate>();
+        for (int i = 0; i < 32; i++) old.add(retainedTerminal(i));
+        source.candidates.clear(); FaultSources.Candidate fresh = source.add("fresh-after-32", "new-original");
+        monitor.close(); policy = FaultPolicy.continuousDefaults();
+        monitor = new FaultMonitor(evidence, source, clock, policy); tick(30);
+        assertEquals(1, source.captures); assertTrue(new File(evidence, fresh.id() + "/attempt-1/fault-source.bin").isFile());
+        JSONObject capacity = FaultMonitor.readPending(evidence, 1, "").getJSONObject("capacity");
+        assertEquals(33, capacity.getInt("activeEvents")); assertEquals(1, capacity.getInt("collectingEvents"));
+        assertEquals(32, capacity.getInt("awaitingArchiveEvents")); assertEquals(0, capacity.getInt("archivedEvents"));
+        assertEquals(32, capacity.getInt("maxCollectingEvents")); assertEquals(128, capacity.getInt("maxActiveEvents"));
+        assertEquals("IN_FLIGHT_AND_RETAINED_BUDGETS", capacity.getString("admissionPolicy"));
+        assertFalse(capacity.getBoolean("automaticArchive"));
+        source.candidates.addAll(old); clock.add(60000); reopen(); tick(30);
+        assertEquals(1, source.captures);
+        for (int i = 0; i < old.size(); i++) {
+            File event = new File(evidence, old.get(i).id());
+            assertArrayEquals(new byte[]{(byte) i, 1, 2}, Files.readAllBytes(new File(event, "attempt-1/partial.bin").toPath()));
+            assertFalse(new File(event, "archived.json").exists()); assertFalse(new File(event, "exports").exists());
+        }
+    }
+
+    @Test public void continuousPolicyLimitsInFlightAndReusesSlotOnlyAfterTerminalReadback() throws Exception {
+        monitor.close(); policy = policy(2, 3, 0).withContinuousCollection();
+        monitor = new FaultMonitor(evidence, source, clock, policy);
+        for (int i = 0; i < 3; i++) source.add("inflight-" + i, "original-" + i);
+        tick(); assertEquals(2, source.captures);
+        JSONObject capacity = FaultMonitor.readPending(evidence, 1, "").getJSONObject("capacity");
+        assertEquals(2, capacity.getInt("collectingEvents"));
+        assertTrue(capacity.getJSONArray("admissionBlockedBy").toString().contains("COLLECTING_EVENT_LIMIT"));
+        reopen(); tick(); assertEquals(3, source.captures);
+        capacity = FaultMonitor.readPending(evidence, 1, "").getJSONObject("capacity");
+        assertEquals(1, capacity.getInt("collectingEvents")); assertEquals(2, capacity.getInt("awaitingArchiveEvents"));
+        assertEquals(0, capacity.getInt("archivedEvents"));
+    }
+
+    @Test public void continuousPolicyStillStopsAt128RetainedAndPreservesEveryOriginal() throws Exception {
+        List<FaultSources.Candidate> old = new ArrayList<FaultSources.Candidate>();
+        for (int i = 0; i < 128; i++) old.add(retainedTerminal(i));
+        source.candidates.clear(); FaultSources.Candidate fresh = source.add("after-128", "not-captured");
+        monitor.close(); policy = FaultPolicy.continuousDefaults();
+        monitor = new FaultMonitor(evidence, source, clock, policy); tick(30);
+        assertEquals(0, source.captures); assertFalse(new File(evidence, fresh.id()).exists());
+        JSONObject capacity = FaultMonitor.readPending(evidence, 1, "").getJSONObject("capacity");
+        assertEquals(128, capacity.getInt("retainedEvents")); assertEquals(128, capacity.getInt("awaitingArchiveEvents"));
+        assertEquals(0, capacity.getInt("collectingEvents"));
+        assertTrue(capacity.getJSONArray("admissionBlockedBy").toString().contains("RETAINED_EVENT_LIMIT"));
+        for (int i = 0; i < old.size(); i++) assertArrayEquals(new byte[]{(byte) i, 1, 2},
+                Files.readAllBytes(new File(evidence, old.get(i).id() + "/attempt-1/partial.bin").toPath()));
+    }
+
+    @Test public void continuousPolicyNeverTreatsDamagedStateAsAReleasedCaptureSlot() throws Exception {
+        FaultSources.Candidate old = retainedTerminal(1);
+        Files.write(new File(evidence, old.id() + "/state.json").toPath(), new byte[]{0});
+        source.candidates.clear(); FaultSources.Candidate fresh = source.add("after-damaged", "new");
+        monitor.close(); policy = policy(1, 3, 0).withContinuousCollection();
+        monitor = new FaultMonitor(evidence, source, clock, policy); tick();
+        assertFalse(new File(evidence, fresh.id()).exists()); assertEquals(0, source.captures);
+        assertArrayEquals(new byte[]{0}, Files.readAllBytes(new File(evidence, old.id() + "/state.json").toPath()));
     }
 }

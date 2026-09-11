@@ -31,6 +31,14 @@ function Test-ArchiveMapping([string]$Maps,[string]$Apk){
  }
  return $false
 }
+function Get-SystemMountMode([string]$Mounts){
+ $entries=@($Mounts -split "`n" | Where-Object {$_ -match '^\S+ /system \S+ \S+ '})
+ if($entries.Count -ne 1){throw '系统挂载项不唯一'}
+ $options=($entries[0] -split '\s+')[3] -split ','
+ $modes=@($options | Where-Object {$_ -ceq 'ro' -or $_ -ceq 'rw'})
+ if($modes.Count -ne 1){throw '系统挂载模式不明确'}
+ return $modes[0]
+}
 if((Read-Device 'getprop ro.product.device') -ne 'hct6735_66_m0'){throw '设备类型不符'}
 $active=(Save-Device 'active-before-private.json' 'cat /data/local/d31-remote/runtime/active.json') | ConvertFrom-Json
 if($active.versionCode -ne $ExpectedVersion -or $active.sha256 -cne $ExpectedSha256){throw '目标完整候选尚未接替，不升级监督'}
@@ -38,6 +46,7 @@ $apk="/data/local/d31-remote/releases/$ExpectedSha256/remote.apk"
 if($active.path -cne $apk){throw '活动原件路径不符'}
 [void](Save-Device 'supervisor-before-private.json' 'cat /data/local/d31-remote/runtime/updates/supervisor.json')
 [void](Save-Device 'before-private.txt' 'date; getprop ro.build.fingerprint; ps; mount; ls -lZ /system/priv-app/D31ElfRemote/D31ElfRemote.apk')
+$beforeMode=Get-SystemMountMode (Save-Device 'mount-before-private.txt' 'cat /proc/mounts')
 & $adb -P 5042 -s $Serial pull /system/priv-app/D31ElfRemote/D31ElfRemote.apk "$capture/system-before.apk" *> "$capture/pull-before.txt"
 if($LASTEXITCODE -ne 0){throw '原系统APK未备份'}
 $beforeHash=(Read-Device '/system/bin/busybox sha256sum /system/priv-app/D31ElfRemote/D31ElfRemote.apk').Split(' ')[0]
@@ -73,7 +82,7 @@ if(!(Test-ArchiveMapping $maps $apk)){throw '实际核心映射不符'}
 $supervisorMaps=Save-Device 'supervisor-maps-private.txt' "cat /proc/$([int]$supervisor.pid)/maps"
 if(!(Test-ArchiveMapping $supervisorMaps '/system/priv-app/D31ElfRemote/D31ElfRemote.apk')){throw '实际监督映射不符'}
 [void](Read-Device 'test ! -e /data/local/d31-remote/runtime/updates/stop-supervisor')
-$mount=Read-Device 'cat /proc/mounts'
-if($mount -notmatch '(?m)^\S+ /system \S+ ro(?:,| )'){throw '系统只读状态未恢复'}
-[ordered]@{通过=$true;仅只读核验=[bool]$VerifyOnly;监督版本=$ExpectedVersion;核心版本=$ExpectedVersion;系统原像摘要=$beforeHash;候选摘要=$actual;重启整机=$false} | ConvertTo-Json | Out-File "$capture/result.json" -Encoding utf8 -NoClobber
-'固定监督及活动核心均支持维护协议，系统已恢复只读。'
+$afterMode=Get-SystemMountMode (Save-Device 'mount-after-private.txt' 'cat /proc/mounts')
+if($afterMode -cne $beforeMode){throw '系统挂载模式与本次操作前不符'}
+[ordered]@{通过=$true;仅只读核验=[bool]$VerifyOnly;监督版本=$ExpectedVersion;核心版本=$ExpectedVersion;系统原像摘要=$beforeHash;候选摘要=$actual;原挂载模式=$beforeMode;当前挂载模式=$afterMode;重启整机=$false} | ConvertTo-Json | Out-File "$capture/result.json" -Encoding utf8 -NoClobber
+'固定监督及活动核心核验通过，系统挂载模式与本次操作前一致。'

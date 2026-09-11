@@ -205,7 +205,7 @@ public final class RemoteSystemMigrationCheck {
             String actual=hash(f);
             require(actual.equals(next.getString(p))||actual.equals(old.optString(p)),"系统文件已被其他写入改变，保留原像待处理");
         }
-        for(String p:new String[]{BASE.getPath()+".new",HOOK+".elfremote-new"})safe(new File(p));
+        for(String p:new String[]{BASE.getPath()+".new",HOOK+".elfremote-new",START+".new",MARKER+".new"})safe(new File(p));
     }
     private void restoreSettings(JSONObject s) throws Exception {
         JSONObject old=s.getJSONObject("settings"),components=old.getJSONObject("components");

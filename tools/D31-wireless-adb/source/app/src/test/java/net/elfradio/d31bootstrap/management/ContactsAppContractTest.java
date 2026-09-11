@@ -13,6 +13,16 @@ public class ContactsAppContractTest {
     private static final String BOOT = "00000000-0000-0000-0000-000000000002";
     private static final String HASH = new String(new char[64]).replace('\0', 'a');
     interface Attempt { void run() throws Exception; }
+    @Test public void recoveryCannotBorrowAnotherRequestsCleanupOrMutateCache()throws Exception{
+        JSONObject cached=new JSONObject().put("operation_request_id",ID).put("operation_apk_sha256",HASH)
+                .put("kind","NEXUI_APP_LOCAL_METADATA").put("remoteOutcomeKnown",true).put("bindingRequested",true)
+                .put("unbindConfirmed",true).put("replyChannelClosed",true);
+        assertFalse(ContactsAppBridge.cleanupConfirmed(ContactsAppContract.localReceipt(cached,BOOT,HASH)));
+        assertFalse(ContactsAppBridge.cleanupConfirmed(ContactsAppContract.localReceipt(cached,ID,HASH.replace('a','b'))));
+        assertFalse(ContactsAppBridge.cleanupConfirmed(ContactsAppContract.localReceipt(null,ID,HASH)));
+        JSONObject recovered=ContactsAppContract.localReceipt(cached,ID,HASH);assertTrue(ContactsAppBridge.cleanupConfirmed(recovered));
+        recovered.put("replyChannelClosed",false);assertTrue(cached.getBoolean("replyChannelClosed"));
+    }
     private static void rejects(String code, Attempt attempt) throws Exception {
         try { attempt.run(); fail("应当拒绝"); } catch (IOException expected) { assertEquals(code, expected.getMessage()); }
     }

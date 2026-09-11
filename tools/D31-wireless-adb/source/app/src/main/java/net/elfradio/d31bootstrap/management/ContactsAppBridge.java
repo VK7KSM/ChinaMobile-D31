@@ -12,6 +12,7 @@ import org.json.JSONObject;
 
 /** root工作线程上的单请求桥。调用者须持有公共维护租约；close只请求取消。 */
 public final class ContactsAppBridge implements AutoCloseable {
+    public interface BeforeExecute { void verified(String requestId,int pid,int uid)throws Exception; }
     private final Context context;
     private final IBinder owner = new Binder();
     private final AtomicBoolean active = new AtomicBoolean();
@@ -26,12 +27,23 @@ public final class ContactsAppBridge implements AutoCloseable {
     public JSONObject readLocalMetadata(String verifiedApkSha256, SystemManagement.Control control) throws Exception {
         return execute(verifiedApkSha256, control, true);
     }
+    public JSONObject readLocalMetadata(String hash,SystemManagement.Control control,BeforeExecute before)throws Exception {
+        return execute(hash,control,true,before,null);
+    }
+    public JSONObject recoverLocalMetadata(String hash,String requestId,SystemManagement.Control control,BeforeExecute before)throws Exception {
+        if(requestId==null||!requestId.matches("[a-f0-9-]{36}"))throw new IOException("CONTACTS_QUERY_INVALID");
+        return execute(hash,control,true,before,requestId);
+    }
+    public static boolean cleanupConfirmed(JSONObject result){return ContactsAppWatchdog.cleanupConfirmed(result);}
 
     private JSONObject execute(String verifiedApkSha256, SystemManagement.Control control, boolean localRead) throws Exception {
+        return execute(verifiedApkSha256,control,localRead,null,null);
+    }
+    private JSONObject execute(String verifiedApkSha256, SystemManagement.Control control, boolean localRead,BeforeExecute before,String inspectRequest) throws Exception {
         ContactsAppContract.digest(verifiedApkSha256);
         if (control == null) throw new IOException("CONTACTS_CONTROL_REQUIRED");
         if (!active.compareAndSet(false, true)) throw new IOException("CONTACTS_BRIDGE_BUSY");
-        Call call = new Call(localRead); current = call;
+        Call call = new Call(localRead,before,inspectRequest); current = call;
         try {
             if (closed) throw new IOException("CONTACTS_BRIDGE_CLOSED");
             return call.run(verifiedApkSha256, control);
@@ -41,7 +53,10 @@ public final class ContactsAppBridge implements AutoCloseable {
     private final class Call {
         final String id = UUID.randomUUID().toString();
         final boolean localRead;
-        Call(boolean localRead) { this.localRead = localRead; }
+        final BeforeExecute before;
+        final String inspectRequest;
+        int appPid=-1;
+        Call(boolean localRead,BeforeExecute before,String inspectRequest) { this.localRead = localRead; this.before=before; this.inspectRequest=inspectRequest; }
         String boot;
         long started;
         IBinder endpoint;
@@ -77,6 +92,7 @@ public final class ContactsAppBridge implements AutoCloseable {
                                     endpoint = data.getBinder("control");
                                     if (endpoint == null) throw new IOException("CONTACTS_CONTROL_MISSING");
                                     endpoint.linkToDeath(death, 0); linked = true; handshake = true;
+                                    appPid=data.getInt("app_pid",-1);
                                 } else if (code == ContactsAppContract.RESULT && result == null) {
                                     result = envelope.getJSONObject("result");
                                 }
@@ -86,7 +102,8 @@ public final class ContactsAppBridge implements AutoCloseable {
                     }
                 };
                 Intent intent = new Intent(ContactsAppContract.ACTION).setComponent(target).putExtra("request_id", id)
-                        .putExtra("boot_id", boot).putExtra("started_elapsed_ms", started).putExtra("reply", receiver);
+                        .putExtra("boot_id", boot).putExtra("started_elapsed_ms", started).putExtra("reply", receiver)
+                        .putExtra("inspect_only",inspectRequest!=null);
                 Object manager = Class.forName("android.app.ActivityManagerNative").getMethod("getDefault").invoke(null);
                 synchronized (this) { if (cancelled || closed) throw new IOException("CONTACTS_CANCELLED"); }
                 appStarted = true;
@@ -94,13 +111,16 @@ public final class ContactsAppBridge implements AutoCloseable {
                 await(true, control, started + ContactsAppContract.HANDSHAKE_MS);
                 synchronized (this) { if (result != null) return decorate(result, digest); }
                 control.check();
+                if(before!=null)before.verified(id,appPid,expectedUid);
                 synchronized (this) {
                     if (cancelled || closed) throw new IOException("CONTACTS_CANCELLED");
                     Parcel parcel = Parcel.obtain();
                     try {
-                        parcel.writeInterfaceToken(ContactsAppContract.DESCRIPTOR); parcel.writeString(digest); parcel.writeStrongBinder(owner);
+                        parcel.writeInterfaceToken(ContactsAppContract.DESCRIPTOR); parcel.writeString(digest);
+                        if(inspectRequest==null)parcel.writeStrongBinder(owner);
+                        else {parcel.writeString(inspectRequest);parcel.writeInt(1);}
                         executed = true;
-                        if (!endpoint.transact(localRead ? ContactsAppContract.EXECUTE_LOCAL : ContactsAppContract.EXECUTE, parcel, null, IBinder.FLAG_ONEWAY))
+                        if (!endpoint.transact(inspectRequest!=null ? ContactsAppContract.INSPECT_LOCAL : localRead ? ContactsAppContract.EXECUTE_LOCAL : ContactsAppContract.EXECUTE, parcel, null, IBinder.FLAG_ONEWAY))
                             throw new IOException("CONTACTS_EXECUTE_FAILED");
                     } finally { parcel.recycle(); }
                 }

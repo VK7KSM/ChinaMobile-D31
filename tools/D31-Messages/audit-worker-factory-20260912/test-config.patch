@@ -1,0 +1,26 @@
+diff --git a/presentation/build.gradle b/presentation/build.gradle
+--- a/presentation/build.gradle
++++ b/presentation/build.gradle
+@@ -97,6 +97,14 @@ android {
+     lint {
+         abortOnError false
+     }
++    testOptions {
++        unitTests.all {
++            systemProperty 'robolectric.offline', 'true'
++            if (project.hasProperty('robolectricDependencyDir')) {
++                systemProperty 'robolectric.dependency.dir', project.property('robolectricDependencyDir')
++            }
++        }
++    }
+     namespace 'dev.octoshrimpy.quik'
+     buildFeatures {
+         buildConfig true
+@@ -198,6 +206,7 @@ dependencies {
+     testImplementation "androidx.test:runner:$androidx_testrunner_version"
+     testImplementation "junit:junit:$junit_version"
+     testImplementation "org.mockito:mockito-core:$mockito_version"
++    testImplementation 'org.robolectric:robolectric:4.10.3'
+ 
+     // moshi
+     implementation "com.squareup.moshi:moshi:$moshi_version"

@@ -124,6 +124,13 @@ class BackendFakeAdb
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         File.WriteAllText(statePath, json.Serialize(state));
         Console.WriteLine(result);
+        Match exitMarker = Regex.Match(command, @"D31_RECOVERY_EXIT_[a-f0-9]{32}_");
+        if (exitMarker.Success) {
+            if (mode == "full96-command-marker-missing" && command.Contains("mkdir -p /cache/recovery")) return 0;
+            int remoteExit = mode == "full96-command-remote-failed" && command.Contains("mkdir -p /cache/recovery") ? 7 : 0;
+            Console.WriteLine();
+            Console.WriteLine(exitMarker.Value + remoteExit);
+        }
         return 0;
     }
 }

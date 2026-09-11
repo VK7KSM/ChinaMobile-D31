@@ -109,6 +109,21 @@ function Get-DeviceValue {
     return ((Invoke-Adb -s $Serial shell $Command) -join "`n").Trim()
 }
 
+function Get-CheckedDeviceValue {
+    param([string]$Command)
+    # 旧ADB可能吞掉远端退出码；关键交接须有本次唯一结束标记。
+    $prefix = 'D31_RECOVERY_EXIT_' + [guid]::NewGuid().ToString('N') + '_'
+    $wrapped = '( ' + $Command + ' ); d31_recovery_exit=$?; echo; echo ' + $prefix + '$d31_recovery_exit'
+    $raw = (Invoke-Adb -s $Serial shell $wrapped) -join "`n"
+    $text = $raw.Replace("`r", '')
+    $match = [regex]::Match($text, '(?s)\A(?<body>.*)\n' + [regex]::Escape($prefix) + '(?<code>[0-9]{1,3})\n?\z')
+    if (-not $match.Success -or [regex]::Matches($text, [regex]::Escape($prefix)).Count -ne 1 -or
+        [int]$match.Groups['code'].Value -ne 0) {
+        throw '关键交接设备退出未确认，保留日志与维护预留，不重启或自动重发'
+    }
+    return $match.Groups['body'].Value.Trim()
+}
+
 function Assert-NoActiveRepair {
     $command = '[ "$(id -u)" = 0 ] || exit 70; p=/data/local; for n in d31-remote runtime maintenance repair.json; do [ -d "$p" ] && [ ! -L "$p" ] || exit 71; names=$(busybox ls -a "$p") || exit 72; printf ''%s\n'' "$names" | busybox grep -Fx "$n" >/dev/null; r=$?; if [ "$r" = 1 ]; then echo D31_MAINTENANCE_ABSENT_V1; exit 0; fi; [ "$r" = 0 ] || exit 73; p="$p/$n"; done; echo D31_MAINTENANCE_PRESENT_V1'
     if ((Get-DeviceValue $command) -ne 'D31_MAINTENANCE_ABSENT_V1') { throw 'D31修复未结束或状态无法读取，禁止刷写交接' }
@@ -124,7 +139,7 @@ function Enter-FlashMaintenance {
     if ($apk -notmatch '^/data/local/d31-remote/releases/[a-f0-9]{64}/remote\.apk$' -and $apk -ne '/system/priv-app/D31ElfRemote/D31ElfRemote.apk') { throw '维护载荷路径无效' }
     $id = [guid]::NewGuid().ToString('N')
     $prefix = "CLASSPATH='$apk' /system/bin/app_process /system/bin net.elfradio.d31bootstrap.RemoteWindowsMaintenance"
-    if ((Get-DeviceValue "$prefix reserve $id") -ne 'D31_WINDOWS_RESERVED_V1') { throw '未取得Windows刷机维护预留' }
+    if ((Get-CheckedDeviceValue "$prefix reserve $id") -ne 'D31_WINDOWS_RESERVED_V1') { throw '未取得Windows刷机维护预留' }
     return @{ Prefix=$prefix; Id=$id }
 }
 
@@ -544,7 +559,7 @@ Write-Step "[7/8] 写入Recovery安装命令并重启；从此步骤开始会清
 $flashMaintenance = Enter-FlashMaintenance
 $recoveryCommand = "set -e; mkdir -p /cache/recovery; printf '%s\n' '--update_package=$RemotePackage' '--locale=zh_CN' > /cache/recovery/command; chmod 0600 /cache/recovery/command; cat /cache/recovery/command; sync"
 try {
-$commandResult = Get-DeviceValue $recoveryCommand
+$commandResult = Get-CheckedDeviceValue $recoveryCommand
 if ($commandResult -notmatch [regex]::Escape("--update_package=$RemotePackage")) {
     throw "Recovery命令回读不一致，尚未重启"
 }

@@ -33,7 +33,7 @@ final class RemoteFileTransfers {
         if(record.isFile()) {
             JSONObject saved=read(record),old=saved.getJSONObject("task");
             if(!device.equals(saved.optString("device"))||!old.getString("type").equals(task.getString("type"))
-                    ||!old.getJSONObject("params").toString().equals(task.getJSONObject("params").toString()))throw new IOException("同号文件任务冲突");
+                    ||!RemoteProtocol.sameJson(old.getJSONObject("params"),task.getJSONObject("params")))throw new IOException("同号文件任务冲突");
             if(task.optBoolean("cancel_requested"))RescueFiles.write(new File(dir,"cancel"),"cancel\n");
             return;
         }
@@ -64,11 +64,27 @@ final class RemoteFileTransfers {
         File[] dirs=root.listFiles(File::isDirectory);if(dirs==null)throw new IOException("文件任务不可读取");
         java.util.Arrays.sort(dirs,(a,b)->a.getName().compareTo(b.getName()));
         long now=clock.now();
+        Exception first = null;
         for(File dir:dirs) {
-            JSONObject s=read(new File(dir,"state.json"));
+            JSONObject s;
+            try {
+                s=read(new File(dir,"state.json"));
+                JSONObject task=s.getJSONObject("task");
+                if (!device.equals(s.getString("device"))
+                        || !dir.getName().equals(RemoteProtocol.localJobId(device,task.getString("id"))))
+                    throw new IOException("文件任务记录身份不符");
+                task.getJSONObject("params");
+                task.getString("type");
+            } catch (Exception damaged) {
+                // 保留原件并报告错误，但不能让一个中断目录阻塞其它任务。
+                if (first == null) first = damaged;
+                continue;
+            }
             if(s.optBoolean("acknowledged")||now<s.optLong("retry_at"))continue;
-            worker=new Thread(()->run(dir,s),"d31-file-receive");worker.start();return;
+            worker=new Thread(()->run(dir,s),"d31-file-receive");worker.start();
+            break;
         }
+        if (first != null) throw first;
     }
     private void run(File dir,JSONObject s) {
         JSONObject task=s.optJSONObject("task");String id=task.optString("id");

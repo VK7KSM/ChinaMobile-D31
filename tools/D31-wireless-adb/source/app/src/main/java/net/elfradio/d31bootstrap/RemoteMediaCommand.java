@@ -21,6 +21,31 @@ public final class RemoteMediaCommand {
 
     static JSONObject execute(String[] args) throws Exception {
         validate(args);
+        if("local_audio_capture".equals(args[0])){
+            Context context=RemoteAppOperation.context();
+            try(RemoteAppOperation operation=RemoteAppOperation.begin(context,RemoteAppOperation.AUDIO,args[2],args[1],
+                    new JSONObject().put("duration_ms",Integer.parseInt(args[3])))){
+                JSONObject result;
+                if(!operation.shouldExecute())result=operation.previousResult();
+                else{
+                    CountDownLatch completed=new CountDownLatch(1);
+                    AtomicReference<JSONObject> value=new AtomicReference<>();AtomicReference<String> error=new AtomicReference<>();
+                    try(AppMediaBridge bridge=new AppMediaBridge(context)){
+                        bridge.captureLocalAudio(args[1],args[2],Integer.parseInt(args[3]),operation::arm,new AppMediaBridge.Callback(){
+                            public void completed(JSONObject reply){value.set(reply);completed.countDown();}
+                            public void failed(String code){error.set(code);completed.countDown();}
+                        });
+                        if(!completed.await(20,TimeUnit.SECONDS))throw new IOException("MEDIA_COMMAND_TIMEOUT");
+                        if(error.get()!=null)throw new IOException(error.get());
+                        result=value.get();if(result==null)throw new IOException("MEDIA_REPLY_MISSING");
+                        operation.finish(result);
+                    }
+                }
+                return new JSONObject().put("operation",args[0]).put("query_completed",true).put("managed_media",false)
+                        .put("capture_started",result.optBoolean("recording_started",false)).put("version_code",BuildConfig.VERSION_CODE)
+                        .put("result",result).put("app_operation",operation.status());
+            }
+        }
         try (RemoteMaintenance.Lease lease = RemoteMaintenance.acquire()) {
             if (lease == null) throw new IOException("MEDIA_MAINTENANCE_BUSY");
             RemoteMaintenance.requireUnreserved();
@@ -43,8 +68,6 @@ public final class RemoteMediaCommand {
             };
             try (AppMediaBridge bridge = new AppMediaBridge(context)) {
                 if (args[0].equals("prepare")) bridge.prepare(args[1], callback);
-                else if (args[0].equals("local_audio_capture"))
-                    bridge.captureLocalAudio(args[1], args[2], Integer.parseInt(args[3]), callback);
                 else bridge.query("", callback);
                 if (!completed.await(20, TimeUnit.SECONDS)) throw new IOException("MEDIA_COMMAND_TIMEOUT");
                 if (error.get() != null) throw new IOException(error.get());
@@ -67,7 +90,7 @@ public final class RemoteMediaCommand {
             System.exit(0);
         } catch (Exception failure) {
             String code = failure.getMessage();
-            if (code == null || !code.matches("MEDIA_[A-Z0-9_]{1,80}")) code = "MEDIA_COMMAND_FAILED";
+            if (code == null || !code.matches("(?:MEDIA|APP_OPERATION)_[A-Z0-9_]{1,80}")) code = "MEDIA_COMMAND_FAILED";
             System.out.println("{\"query_completed\":false,\"managed_media\":false,\"error\":\"" + code + "\"}");
             System.exit(1);
         }

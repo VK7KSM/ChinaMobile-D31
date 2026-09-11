@@ -18,7 +18,7 @@ final class ContactsAppContract {
     static final String SERVICE = PACKAGE + ".management.ContactsAppService";
     static final String ACTION = PACKAGE + ".management.CONTACTS_BIND_CHECK";
     static final String DESCRIPTOR = PACKAGE + ".management.IContactsBindCheck";
-    static final int EXECUTE = 1, CANCEL = 2, EXECUTE_LOCAL = 3, HELLO = 1, RESULT = 2, MAX_BYTES = 8192;
+    static final int EXECUTE = 1, CANCEL = 2, EXECUTE_LOCAL = 3, INSPECT_LOCAL = 4, HELLO = 1, RESULT = 2, MAX_BYTES = 8192;
     static final long HANDSHAKE_MS = 3000, WORK_MS = 10000, REPLY_MS = 12000, BIND_MS = 5000;
 
     static void request(String id, String boot, long started, long now, long window) throws IOException {
@@ -101,6 +101,12 @@ final class ContactsAppContract {
     static String code(Exception error) {
         String value = error.getMessage();
         return value != null && value.matches("CONTACTS_[A-Z_0-9]{1,80}") ? value : "CONTACTS_BIND_CHECK_FAILED";
+    }
+    /** 恢复只取原请求的脱敏回执；错误编号/摘要不得借用另一任务的清理结果。 */
+    static JSONObject localReceipt(JSONObject cached,String id,String hash)throws Exception{
+        if(cached==null||!id.equals(cached.optString("operation_request_id"))||!hash.equals(cached.optString("operation_apk_sha256")))
+            return ContactsLocalRead.unknown("CONTACTS_OPERATION_PENDING_OR_UNKNOWN",true);
+        return new JSONObject(cached.toString());
     }
 
     /** 同一进程只保留有效期限内的编号；满时拒绝，不能淘汰仍可重放的编号。 */

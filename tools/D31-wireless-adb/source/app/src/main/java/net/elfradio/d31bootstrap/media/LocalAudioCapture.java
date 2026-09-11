@@ -42,7 +42,7 @@ final class LocalAudioCapture {
     private volatile long bytes,reads,began=-1,ended=-1,captureBegan=-1;
     private volatile int sessionId=-1,initialState=-1,afterState=-1,afterRecording=-1,readError;
     private volatile boolean created,initialized,startAttempted,recordingStarted,released,returned;
-    private volatile boolean durationEnded,captureFinished;
+    private volatile boolean durationEnded,captureFinished,cancellationRequested;
     LocalAudioCapture(String id,int durationMs,int pid,int uid,Factory factory,Cancellation cancellation,MediaCapture.Clock clock)throws IOException {
         if(id==null||!id.matches("[A-Za-z0-9_-]{1,96}")||durationMs<1||durationMs>MAX_DURATION_MS)
             throw new IOException("MEDIA_LOCAL_AUDIO_ARGUMENT");
@@ -54,6 +54,9 @@ final class LocalAudioCapture {
             ||(recorder!=null&&recorder.releasePending())||factory.releasePending();}
     void tick(){Recorder value=recorder;if(value!=null)value.tick();}
     void cancel(){
+        cancellationRequested=true;requestStop();
+    }
+    private void requestStop(){
         cancellation.cancel();Thread current=worker;if(current!=null)current.interrupt();
         final Recorder value=recorder;
         if(value!=null&&startAttempted){Thread stopper=new Thread(()->stop(value),"d31-local-audio-stop");stopper.setDaemon(true);
@@ -70,7 +73,7 @@ final class LocalAudioCapture {
                 if(clock.elapsed()>=deadline){outcome="TIMED_OUT";cancel();break;}
                 if(cancellation.isCancelled()||requestCancellation.isCancelled()){outcome="CANCELLED";cancel();break;}
                 tick();
-                if(captureBegan>=0&&!captureFinished&&clock.elapsed()>=captureBegan+durationMs){durationEnded=true;cancel();break;}
+                if(captureBegan>=0&&!captureFinished&&clock.elapsed()>=captureBegan+durationMs){durationEnded=true;requestStop();break;}
             }
         }catch(InterruptedException cancelled){interrupted=true;outcome="CANCELLED";cancel();}
         finally {
@@ -109,7 +112,8 @@ final class LocalAudioCapture {
         }catch(Exception|LinkageError failure){
             String code=failure.getMessage();error=failure instanceof SecurityException?"MEDIA_LOCAL_AUDIO_PERMISSION_DENIED"
                     :code!=null&&code.matches("MEDIA_[A-Z0-9_]{1,80}")?code:failure.getClass().getSimpleName();
-            if(durationEnded&&("MEDIA_CANCELLED".equals(code)||failure instanceof InterruptedException)){
+            if(durationEnded&&!cancellationRequested&&!requestCancellation.isCancelled()
+                    &&("MEDIA_CANCELLED".equals(code)||failure instanceof InterruptedException)){
                 outcome=bytes>0?"COMPLETED":"FAILED";error=bytes>0?"":"MEDIA_LOCAL_AUDIO_NO_DATA";
             }else if(!"TIMED_OUT".equals(outcome))outcome=cancellation.isCancelled()||requestCancellation.isCancelled()||failure instanceof InterruptedException?"CANCELLED"
                     :"MEDIA_LOCAL_AUDIO_TIMEOUT".equals(code)?"TIMED_OUT":"FAILED";
@@ -125,6 +129,10 @@ final class LocalAudioCapture {
                 try{afterState=value.state();afterRecording=value.recordingState();}catch(Exception|LinkageError ignored){}
                 if("COMPLETED".equals(outcome)&&!value.completionAllowed()){
                     outcome="FAILED";error="MEDIA_INPUT_LIFECYCLE_REVOKED";
+                }
+                // 样本完成不代表请求已完成；清理期间的外部取消仍属于本次诊断。
+                if("COMPLETED".equals(outcome)&&(cancellationRequested||requestCancellation.isCancelled())){
+                    outcome="CANCELLED";error="MEDIA_CANCELLED";
                 }
                 if(interrupted)Thread.currentThread().interrupt();
             }

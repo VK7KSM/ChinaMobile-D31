@@ -60,15 +60,20 @@ final class FaultPending {
         JSONObject capacity = new JSONObject().put("scope", "LAST_SCAN_NOT_LIVE")
                 .put("state", token(scan.optString("state"), "CAPACITY_LIMIT|PARTIAL|FINISHED"));
         for (String key : new String[]{"capturedAtMs", "activeEvents", "archivedEvents", "retainedEvents", "retainedBytes",
-                "maxActiveEvents", "maxRetainedEvents", "maxArchiveBytes", "eventIndexErrors"})
+                "maxActiveEvents", "maxRetainedEvents", "maxArchiveBytes", "eventIndexErrors", "exportHeadroomBytes",
+                "collectingEvents", "awaitingArchiveEvents", "maxCollectingEvents"})
             capacity.put(key, Math.max(-1, scan.optLong(key, -1)));
         JSONArray reasons = new JSONArray(), recorded = scan.optJSONArray("admissionBlockedBy");
-        for (String reason : new String[]{"ACTIVE_EVENT_LIMIT", "RETAINED_EVENT_LIMIT", "ACTIVE_RESERVATION_LIMIT",
-                "ARCHIVE_BYTE_LIMIT", "FREE_SPACE_RESERVE"}) {
+        for (String reason : new String[]{"ACTIVE_EVENT_LIMIT", "COLLECTING_EVENT_LIMIT", "RETAINED_EVENT_LIMIT", "ACTIVE_RESERVATION_LIMIT",
+                "ARCHIVE_BYTE_LIMIT", "EXPORT_HEADROOM_LIMIT", "FREE_SPACE_RESERVE"}) {
             if (recorded == null) break;
             for (int i = 0; i < recorded.length(); i++) if (reason.equals(recorded.optString(i))) { reasons.put(reason); break; }
         }
         capacity.put("admissionBlockedBy", reasons);
+        capacity.put("admissionPolicy", token(scan.optString("admissionPolicy"), "IN_FLIGHT_AND_RETAINED_BUDGETS|UNARCHIVED_EVENT_LIMIT"));
+        capacity.put("automaticArchive", false).put("originalsDeleted", false)
+                .put("continuationAction", "CAPACITY_LIMIT".equals(capacity.optString("state"))
+                        ? "HOST_VERIFY_EXPORT_AND_ACK_OR_RETAINED_CAPACITY_REVIEW" : "NONE");
         JSONObject result = new JSONObject().put("schemaVersion", 1).put("kind", "FAULT_PENDING_INDEX")
                 .put("events", items).put("total", ids.size()).put("hasMore", first + items.length() < ids.size())
                 .put("nextAfter", next).put("capacity", capacity).put("verificationScope", "METADATA_ONLY")

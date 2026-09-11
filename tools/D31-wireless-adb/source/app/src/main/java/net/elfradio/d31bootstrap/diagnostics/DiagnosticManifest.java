@@ -81,6 +81,12 @@ public final class DiagnosticManifest {
                 if (ancestor != null && "ABSENT".equals(object(ancestor, "presence").optString("value"))) {
                     throw invalid("CONTRADICTORY_PRESENCE");
                 }
+                if (ancestor != null) {
+                    JSONObject type = object(ancestor, "fields").optJSONObject("type");
+                    if (type != null && "OBSERVED".equals(type.optString("state"))
+                            && ("file".equals(type.optString("value")) || "block".equals(type.optString("value"))
+                            || "symlink".equals(type.optString("value")))) throw invalid("CONTRADICTORY_ANCESTOR_TYPE");
+                }
             }
         }
     }
@@ -101,6 +107,12 @@ public final class DiagnosticManifest {
     boolean inventoryComplete() {
         if (!"COMPLETE".equals(raw.optString("completeness"))) return false;
         for (JSONObject scope : scopes.values()) if (!"COMPLETE".equals(scope.optString("state"))) return false;
+        // 显式未读到的路径/子目录优先于顶层COMPLETE，不能据此把省略项推导为缺失。
+        for (JSONObject entry : entries.values()) {
+            if (!"OBSERVED".equals(entry.optJSONObject("presence").optString("state"))) return false;
+            JSONObject enumeration = entry.optJSONObject("fields").optJSONObject("semantic.enumeration");
+            if (enumeration != null && !"OBSERVED".equals(enumeration.optString("state"))) return false;
+        }
         return true;
     }
 

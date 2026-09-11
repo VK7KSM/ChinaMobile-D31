@@ -218,4 +218,46 @@ public class RemoteUpdateTest {
         f.installed=archive(67); f.healthy=true; f.cloud=true; e.step(NOW+10);
         assertEquals("rollback",e.state().getString("phase"));
     }
+
+    @Test public void externalInstallDuringPreparationRejectsBeforeStoppingCore() throws Exception {
+        Fake f=new Fake();RemoteUpdateEngine e=engine(job(sign(manifest())),f);advance(e,3);
+        assertEquals("verifying",e.state().getString("phase"));
+        f.installed=archive(69);e.step(NOW+10);
+        assertEquals("rejected",e.state().getString("phase"));
+        assertEquals(0,f.stops);assertEquals(0,f.installs);assertEquals(0,f.rollbacks);
+        assertEquals(69,f.installed.getInt("versionCode"));
+    }
+
+    @Test public void externalInstallIsNeverClobberedByPendingInstallOrRollback() throws Exception {
+        for(String phase:new String[]{"installing","wait_health","rollback"}) {
+            Fake f=new Fake();File dir=job(sign(manifest()));RemoteUpdateEngine e=engine(dir,f);advance(e,4);
+            JSONObject s=e.state().put("phase",phase);RescueFiles.write(new File(dir,"state.json"),s.toString());
+            f.installed=archive(69);f.healthy=true;f.cloud=true;
+            engine(dir,f).step(NOW+100);engine(dir,f).step(NOW+200);
+            assertEquals(69,f.installed.getInt("versionCode"));
+            assertEquals(0,f.installs);assertEquals(0,f.rollbacks);assertEquals(0,f.stops);
+            assertEquals(phase,e.state().getString("phase"));assertTrue(e.state().has("attention"));
+            assertEquals(67,e.state().getJSONObject("backup").getInt("versionCode"));
+        }
+    }
+
+    @Test public void clockRollbackDoesNotExtendFailedCoreDeadlineIndefinitely() throws Exception {
+        Fake f=new Fake();RemoteUpdateEngine e=engine(job(sign(manifest())),f);advance(e,5);
+        long reset=NOW-3600000;e.step(reset);
+        assertEquals("wait_health",e.state().getString("phase"));
+        e.step(reset+150000);assertEquals("rollback",e.state().getString("phase"));
+    }
+
+    @Test public void knownExternalInstallIsPreservedWhenLaterInspectionFails() throws Exception {
+        for(String phase:new String[]{"installing","wait_health","rollback"}) {
+            Fake f=new Fake();File dir=job(sign(manifest()));RemoteUpdateEngine e=engine(dir,f);advance(e,4);
+            RescueFiles.write(new File(dir,"state.json"),e.state().put("phase",phase).toString());
+            f.installed=archive(69);engine(dir,f).step(NOW+100);
+            assertTrue(e.state().has("external_installed"));
+            f.unreadable=true;engine(dir,f).step(NOW+200);engine(dir,f).step(NOW+300000);
+            assertEquals(0,f.stops);assertEquals(0,f.installs);assertEquals(0,f.rollbacks);
+            assertEquals(69,f.installed.getInt("versionCode"));
+            assertEquals(phase,e.state().getString("phase"));
+        }
+    }
 }

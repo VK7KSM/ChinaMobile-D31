@@ -32,9 +32,18 @@ check() { /system/bin/busybox timeout 200 /system/bin/app_process /system/bin ne
 if [ "$locked" = 0 ] && [ "$action" != finalize ]; then
   exec /system/bin/app_process /system/bin net.elfradio.d31bootstrap.RemoteSystemMigrationCheck locked-run "$0" "$action" "$stage" "$expected" "$anchor" "$checker"
 fi
-readonly_system() {
-  mount -o remount,ro /system || return 1
-  busybox awk '$2=="/system" { n++; if ($4 ~ /(^|,)ro(,|$)/) ok++ } END {exit !(n==1 && ok==1)}' /proc/mounts
+system_mount_mode() {
+  busybox awk '$2=="/system" { n++; if ($4 ~ /(^|,)ro(,|$)/) { modes++; mode="ro" } if ($4 ~ /(^|,)rw(,|$)/) { modes++; mode="rw" } } END { if (n!=1 || modes!=1) exit 1; print mode }' /proc/mounts
+}
+original_mode=$(system_mount_mode)
+if [ "$action" = rollback ]; then
+  [ -f "$backup/system-mount-mode" ] && [ ! -L "$backup/system-mount-mode" ] || exit 2
+  original_mode=$(cat "$backup/system-mount-mode")
+fi
+case "$original_mode" in ro|rw) ;; *) exit 2;; esac
+restore_system_mount() {
+  mount -o remount,"$original_mode" /system || return 1
+  [ "$(system_mount_mode)" = "$original_mode" ]
 }
 write_result() { printf '%s\n' "$1" > "$stage/status"; sync; echo "$1"; }
 restore_files() {
@@ -43,7 +52,7 @@ restore_files() {
   if [ "$(cat "$backup/route")" = install ]; then
     cp -p "$backup/install-recovery.sh" "$hook" || return 1
     check restore-file-metadata "$stage" || return 1
-    rm -f "$marker" "$start" "$target" "$hook.elfremote-new" || return 1
+    rm -f "$marker" "$start" "$target" "$hook.elfremote-new" "$target.new" "$start.new" "$marker.new" || return 1
     if [ -d /system/priv-app/D31ElfRemote ]; then rmdir /system/priv-app/D31ElfRemote || return 1; fi
   else
     cp -p "$backup/system.apk" "$target" || return 1
@@ -51,7 +60,7 @@ restore_files() {
     rm -f "$target.new" || return 1
   fi
   sync
-  readonly_system
+  restore_system_mount
 }
 rollback() {
   check guard-rollback "$stage" || return 1
@@ -69,7 +78,7 @@ failed() {
   set +e
   if [ -f "$backup/ready" ]; then
     if ! rollback > "$stage/rollback.log" 2>&1; then
-      readonly_system >> "$stage/rollback.log" 2>&1
+      restore_system_mount >> "$stage/rollback.log" 2>&1
       write_result ATTENTION_ROLLBACK_INCOMPLETE
     fi
   fi
@@ -78,7 +87,7 @@ failed() {
 }
 if [ "$action" = rollback ]; then
   [ -f "$backup/ready" ]
-  if rollback; then exit 0; else readonly_system || true; write_result ATTENTION_ROLLBACK_INCOMPLETE; exit 1; fi
+  if rollback; then exit 0; else restore_system_mount || true; write_result ATTENTION_ROLLBACK_INCOMPLETE; exit 1; fi
 fi
 if [ "$action" = finalize ]; then
   [ -f "$backup/ready" ]
@@ -98,7 +107,7 @@ if [ "$action" = finalize ]; then
   exit 0
 fi
 [ ! -e "$backup" ] && [ ! -L "$backup" ] || { echo '已有备份，禁止重放' >&2; exit 2; }
-for file in "$target.new" "$hook.elfremote-new"; do
+for file in "$target.new" "$hook.elfremote-new" "$start.new" "$marker.new"; do
   [ ! -e "$file" ] && [ ! -L "$file" ] || { echo '已有临时文件，禁止覆盖' >&2; exit 2; }
 done
 if [ "$action" = install ]; then
@@ -117,18 +126,31 @@ trap failed EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
+printf '%s\n' "$original_mode" > "$backup/system-mount-mode"
+sync
 check quiesce "$stage"
 mount -o remount,rw /system
+[ "$(system_mount_mode)" = rw ]
 if [ "$action" = install ]; then
   mkdir /system/priv-app/D31ElfRemote
   chmod 0755 /system/priv-app/D31ElfRemote
-  cp "$stage/remote.apk" "$target"
-  cp "$stage/start.sh" "$start"
-  cp "$stage/marker" "$marker"
-  chown 0:0 /system/priv-app/D31ElfRemote "$target" "$start" "$marker"
-  chmod 0644 "$target" "$marker"
-  chmod 0755 "$start"
-  chcon u:object_r:system_file:s0 /system/priv-app/D31ElfRemote "$target" "$start" "$marker"
+  # 半写入只留在本事务暂存名，不把不完整正式文件误判为第三方改写。
+  cp "$stage/remote.apk" "$target.new"
+  cp "$stage/start.sh" "$start.new"
+  cp "$stage/marker" "$marker.new"
+  chown 0:0 /system/priv-app/D31ElfRemote "$target.new" "$start.new" "$marker.new"
+  chmod 0644 "$target.new" "$marker.new"
+  chmod 0755 "$start.new"
+  chcon u:object_r:system_file:s0 /system/priv-app/D31ElfRemote "$target.new" "$start.new" "$marker.new"
+  hash_check "$expected" "$target.new"
+  for name in start marker; do
+    if [ "$name" = start ]; then source="$stage/start.sh"; destination="$start.new"; else source="$stage/marker"; destination="$marker.new"; fi
+    digest=$(busybox sha256sum "$source")
+    hash_check "${digest%% *}" "$destination"
+  done
+  mv "$target.new" "$target"
+  mv "$start.new" "$start"
+  mv "$marker.new" "$marker"
   cp -p "$hook" "$hook.elfremote-new"
   cat "$stage/install-recovery.sh" > "$hook.elfremote-new"
   mv "$hook.elfremote-new" "$hook"
@@ -142,7 +164,7 @@ else
   mv "$target.new" "$target"
 fi
 sync
-readonly_system
+restore_system_mount
 hash_check "$expected" "$target"
 check install "$stage" > "$stage/pm-install.log" 2>&1
 check verify-installed "$stage" > "$stage/installed-verification.json"

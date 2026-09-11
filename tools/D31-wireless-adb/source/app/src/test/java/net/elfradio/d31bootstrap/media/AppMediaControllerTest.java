@@ -37,8 +37,9 @@ public class AppMediaControllerTest {
             Future<JSONObject> job=worker.submit(()->controller.execute("diag-request",AppMediaContractTest.diagnostic(),owner,new Cancellation()));
             assertTrue(record.reading.await(1,TimeUnit.SECONDS));
             MediaCaptureTest.rejects("BUSY",()->controller.execute("other",AppMediaContractTest.diagnostic().put("diagnostic_id","other"),new Object(),new Cancellation()));
-            controller.execute("stop-request",command("stop").put("session_id","local-1"),new Object(),new Cancellation());
+            assertEquals("diag-request",controller.execute("stop-request",command("stop").put("session_id","local-1"),new Object(),new Cancellation()).getString("operation_request_id"));
             assertEquals("CANCELLED",job.get(2,TimeUnit.SECONDS).getString("state"));assertEquals(1,record.releases);
+            assertEquals("diag-request",controller.query("local-1",new Object()).getString("operation_request_id"));
             MediaCaptureTest.rejects("ALREADY_USED",()->controller.execute("replay",AppMediaContractTest.diagnostic(),owner,new Cancellation()));
         }finally{record.unblock.countDown();controller.serviceDestroyed();worker.shutdownNow();}
     }

@@ -133,17 +133,27 @@ public final class RemoteManualBootstrap {
         throw new IOException("监督未退出，保留交接记录");
     }
     private static void replaceBaseline(JSONObject archive)throws Exception{
+        run(baselineReplaceCommand(archive));
+    }
+    static String baselineReplaceCommand(JSONObject archive)throws Exception{
         String staged=RemoteUpdatePlatform.BASELINE.getPath()+".manual-new";
         String hash=archive.getString("sha256");
         if(!hash.matches("[a-f0-9]{64}"))throw new IOException("基线摘要无效");
-        run("set -e\nmount -o remount,rw /system\n"
-                +"trap 'mount -o remount,ro /system' EXIT\n"
+        // 读取唯一挂载项；成功和失败都恢复真实前像，并以回读失败影响最终退出码。
+        String mode="/system/bin/busybox awk '$2==\"/system\" { n++; if ($4 ~ /(^|,)ro(,|$)/) { modes++; mode=\"ro\" } "
+                +"if ($4 ~ /(^|,)rw(,|$)/) { modes++; mode=\"rw\" } } END { if (n!=1 || modes!=1) exit 1; print mode }' /proc/mounts";
+        return "set -eu\noriginal_mode=$("+mode+")\n"
+                +"restore_mount() { status=$?; trap - EXIT HUP INT TERM; "
+                +"mount -o remount,\"$original_mode\" /system || exit 1; "
+                +"observed=$("+mode+") || exit 1; [ \"$observed\" = \"$original_mode\" ] || exit 1; exit \"$status\"; }\n"
+                +"trap restore_mount EXIT\ntrap 'exit 129' HUP\ntrap 'exit 130' INT\ntrap 'exit 143' TERM\n"
+                +"mount -o remount,rw /system\n[ \"$("+mode+")\" = rw ]\n"
                 +"cp "+RescueFiles.quote(archive.getString("path"))+" "+RescueFiles.quote(staged)+"\n"
                 +"chown 0:0 "+RescueFiles.quote(staged)+"\nchmod 0644 "+RescueFiles.quote(staged)+"\n"
                 +"chcon u:object_r:system_file:s0 "+RescueFiles.quote(staged)+"\n"
                 +"actual=$(/system/bin/busybox sha256sum "+RescueFiles.quote(staged)+")\n"
                 +"[ \"${actual%% *}\" = "+RescueFiles.quote(hash)+" ]\n"
-                +"sync\nmv "+RescueFiles.quote(staged)+" "+RescueFiles.quote(RemoteUpdatePlatform.BASELINE.getPath())+"\nsync\n");
+                +"sync\nmv "+RescueFiles.quote(staged)+" "+RescueFiles.quote(RemoteUpdatePlatform.BASELINE.getPath())+"\nsync\n";
     }
     interface LaunchAccess {
         long wallTime();

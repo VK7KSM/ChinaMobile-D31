@@ -24,7 +24,7 @@ public final class RemoteBusinessCommand {
         File file = new File(ROOT, id + ".request.json");
         if (file.exists()) {
             checkPath(file);
-            if (!request.toString().equals(RescueFiles.read(file, 16000)))
+            if (!RemoteProtocol.sameJson(request, new JSONObject(RescueFiles.read(file, 16000))))
                 throw new IOException("管理任务编号对应的参数已经变化");
         } else {
             RescueFiles.write(file, request.toString());
@@ -85,7 +85,7 @@ public final class RemoteBusinessCommand {
             if (!job.isDirectory()) throw new IOException("管理任务目录不可用");
             File previous = new File(job, "request.json");
             checkPath(previous);
-            if (!normalized.toString().equals(RescueFiles.read(previous, 16000)))
+            if (!RemoteProtocol.sameJson(normalized, new JSONObject(RescueFiles.read(previous, 16000))))
                 throw new IOException("管理任务参数冲突");
             return readResult(root, id, type, params);
         }
@@ -129,7 +129,7 @@ public final class RemoteBusinessCommand {
         File previous = new File(new File(root, id), "request.json");
         checkPath(previous);
         JSONObject recorded = new JSONObject(RescueFiles.read(previous, 16000));
-        if (!normalized.toString().equals(request(recorded.getString("type"), recorded.getJSONObject("params")).toString()))
+        if (!RemoteProtocol.sameJson(normalized, request(recorded.getString("type"), recorded.getJSONObject("params"))))
             throw new IOException("管理回执对应的完整请求不符");
         File file = new File(new File(root, id), "result.json");
         checkPath(file);

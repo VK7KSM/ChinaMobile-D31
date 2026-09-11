@@ -5,6 +5,9 @@ import org.json.JSONObject;
 
 /** 通讯录APP桥复用核心维护租约，不创建第二套维护锁。 */
 public final class RemoteContactsAccess {
+    public static RemoteAppOperation beginLocal(android.content.Context context,String id,String digest)throws Exception{
+        return RemoteAppOperation.begin(context,RemoteAppOperation.CONTACTS,id,digest,new JSONObject());
+    }
     public static AutoCloseable acquire(String digest) throws Exception {
         if (android.os.Process.myUid() != 0 || android.os.Build.VERSION.SDK_INT != 23
                 || !"hct6735_66_m0".equals(android.os.Build.DEVICE)

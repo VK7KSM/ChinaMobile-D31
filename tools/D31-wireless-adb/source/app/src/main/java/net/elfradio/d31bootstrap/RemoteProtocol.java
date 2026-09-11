@@ -40,6 +40,35 @@ final class RemoteProtocol {
         return hash(deviceId + ":" + cloudId);
     }
 
+    static boolean sameJson(Object first, Object second) throws Exception {
+        return sameJson(first, second, 0);
+    }
+
+    private static boolean sameJson(Object first, Object second, int depth) throws Exception {
+        if (depth > 32) throw new IOException("任务参数嵌套过深");
+        if (first == null || first == JSONObject.NULL) return second == null || second == JSONObject.NULL;
+        if (first instanceof JSONObject && second instanceof JSONObject) {
+            JSONObject left = (JSONObject) first, right = (JSONObject) second;
+            if (left.length() != right.length()) return false;
+            java.util.Iterator<String> keys = left.keys();
+            while (keys.hasNext()) {
+                String key = keys.next();
+                if (!right.has(key) || !sameJson(left.get(key), right.get(key), depth + 1)) return false;
+            }
+            return true;
+        }
+        if (first instanceof org.json.JSONArray && second instanceof org.json.JSONArray) {
+            org.json.JSONArray left = (org.json.JSONArray) first, right = (org.json.JSONArray) second;
+            if (left.length() != right.length()) return false;
+            for (int i = 0; i < left.length(); i++)
+                if (!sameJson(left.get(i), right.get(i), depth + 1)) return false;
+            return true;
+        }
+        if (first instanceof Number && second instanceof Number)
+            return new java.math.BigDecimal(first.toString()).compareTo(new java.math.BigDecimal(second.toString())) == 0;
+        return first.equals(second);
+    }
+
     static JSONObject commandRequest(String deviceId, JSONObject task, long now) throws Exception {
         return commandRequest(deviceId, task, now, System.getenv("CLASSPATH"));
     }

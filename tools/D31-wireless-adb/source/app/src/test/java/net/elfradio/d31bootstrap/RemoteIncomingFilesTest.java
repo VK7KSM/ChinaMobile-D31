@@ -51,4 +51,37 @@ public class RemoteIncomingFilesTest {
         assertThrows(IOException.class,()->RemoteFileTransfers.validate(task,now));
         task.getJSONObject("params").put("path","/a/../b");assertThrows(IOException.class,()->RemoteFileTransfers.validate(task,now));
     }
+
+    @Test public void interruptedAndCorruptDirectoriesDoNotBlockOtherReceipts() throws Exception {
+        File state=temp.newFolder(); long now=System.currentTimeMillis();
+        JSONObject task=offer(new File(temp.newFolder(),"file"),new byte[0],now).put("cancel_requested",true);
+        RemoteFileTransfers files=new RemoteFileTransfers(state,"test","token",body->new JSONObject().put("ok",true)
+                .put("task",new JSONObject().put("id",body.getString("task_id")).put("state",body.getString("state"))),
+                new RemoteFileDownload(url->{throw new AssertionError("不能下载已取消任务");}),new RemoteFileUpload(),()->now,()->"ethernet");
+        files.accept(task,now);
+        File broken=new File(state,"incoming-files/000-broken"); assertTrue(broken.mkdir());
+        File record=new File(broken,"state.json"); RescueFiles.write(record,"original-broken-record");
+        File interrupted=new File(state,"incoming-files/001-interrupted"); assertTrue(interrupted.mkdir());
+        try {
+            assertThrows(Exception.class,files::tick);
+            await(state,true);
+            assertEquals("original-broken-record",RescueFiles.read(record,1000));
+            assertEquals(0,interrupted.list().length);
+            assertEquals("rejected",saved(state).getJSONObject("receipt").getString("state"));
+        } finally { files.close(); }
+    }
+
+    @Test public void reorderedFileRequestDoesNotConflictOrChangeStoredIntent() throws Exception {
+        File state=temp.newFolder(); long now=System.currentTimeMillis();
+        JSONObject task=offer(new File(temp.newFolder(),"file"),new byte[0],now);
+        task.getJSONObject("params").put("extra",new JSONObject().put("Aa",1).put("BB",2));
+        RemoteFileTransfers files=new RemoteFileTransfers(state,"test","token",body->{throw new AssertionError("不执行任务");},()->"ethernet");
+        try {
+            files.accept(task,now); String original=saved(state).toString();
+            task.getJSONObject("params").put("extra",new JSONObject().put("BB",2).put("Aa",1));
+            files.accept(task,now); assertEquals(original,saved(state).toString());
+            task.getJSONObject("params").getJSONObject("extra").put("Aa",3);
+            assertThrows(IOException.class,()->files.accept(task,now));
+        } finally { files.close(); }
+    }
 }

@@ -105,6 +105,28 @@ public class RemoteCoreTest {
         assertEquals(1, fake.submissions);
     }
 
+    @Test public void reorderedNestedParametersReuseReceiptWithoutRepeatingCommand() throws Exception {
+        File dir=temporary.newFolder(); Fake fake=new Fake(); JSONObject task=offer();
+        task.getJSONObject("params").put("extra",new JSONObject().put("Aa",1).put("BB",2));
+        RemoteTasks tasks=new RemoteTasks(dir,"dev_a",fake);
+        tasks.accept(task,System.currentTimeMillis());
+        JSONObject repeated=new JSONObject(task.toString());
+        repeated.getJSONObject("params").put("extra",new JSONObject().put("BB",2).put("Aa",1));
+        tasks.accept(repeated,System.currentTimeMillis());
+        assertEquals(1,fake.submissions);
+        repeated.getJSONObject("params").getJSONObject("extra").put("Aa",3);
+        assertThrows(IOException.class,()->tasks.accept(repeated,System.currentTimeMillis()));
+        assertEquals(1,fake.submissions);
+    }
+
+    @Test public void semanticParametersKeepArrayOrderAndJsonTypes() throws Exception {
+        assertTrue(RemoteProtocol.sameJson(new JSONObject("{\"a\":1,\"b\":[null,{\"x\":2,\"y\":3}]}"),
+                new JSONObject("{\"b\":[null,{\"y\":3,\"x\":2.0}],\"a\":1.0}")));
+        assertFalse(RemoteProtocol.sameJson(new JSONObject("{\"a\":1}"),new JSONObject("{\"a\":\"1\"}")));
+        assertFalse(RemoteProtocol.sameJson(new JSONObject("{\"a\":null}"),new JSONObject()));
+        assertFalse(RemoteProtocol.sameJson(new org.json.JSONArray("[1,2]"),new org.json.JSONArray("[2,1]")));
+    }
+
     @Test public void credentialsPersistAndCorruptionDoesNotCreateNewIdentity() throws Exception {
         File dir = temporary.newFolder(); RemoteState state = new RemoteState(dir);
         String token = state.snapshot().getString("token");

@@ -5,6 +5,21 @@ import static org.junit.Assert.*;
 
 /** 只mock结束自身，不调用Android kill，不故意阻塞真实Binder。 */
 public class ContactsAppWatchdogTest {
+    @Test public void unknownOrCoercedCleanupDoesNotReleaseAdmission() throws Exception {
+        org.json.JSONObject result = new org.json.JSONObject().put("remoteOutcomeKnown", true)
+                .put("bindingRequested", true).put("unbindConfirmed", true);
+        assertTrue(ContactsAppWatchdog.cleanupConfirmed(result));
+        for (Object value : new Object[]{false, "true", org.json.JSONObject.NULL}) {
+            result.put("unbindConfirmed", value); assertFalse(ContactsAppWatchdog.cleanupConfirmed(result));
+        }
+        result.put("bindingRequested", false);
+        assertTrue(ContactsAppWatchdog.cleanupConfirmed(result));
+        result.put("kind", "NEXUI_APP_LOCAL_METADATA");
+        assertFalse(ContactsAppWatchdog.cleanupConfirmed(result));
+        result.put("replyChannelClosed", true); assertTrue(ContactsAppWatchdog.cleanupConfirmed(result));
+        result.put("remoteOutcomeKnown", false); assertFalse(ContactsAppWatchdog.cleanupConfirmed(result));
+        assertFalse(ContactsAppWatchdog.cleanupConfirmed(null));
+    }
     private static final class Effects implements ContactsAppWatchdog.Actions {
         int cancellations, exits;
         public void flagCancellation() { cancellations++; }

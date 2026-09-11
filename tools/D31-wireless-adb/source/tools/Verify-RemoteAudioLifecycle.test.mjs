@@ -47,7 +47,7 @@ test('拒绝跨会话、未知输入及未结束状态', () => {
   assert.throws(() => validateLifecycle(retained, 'case-1', 124));
 });
 
-function host(t, mode = {}) {
+function host(t, mode = {}, version = 124) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'd31-audio-host-'));
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   const capture = path.join(root, 'capture'), sha = 'a'.repeat(64);
@@ -60,10 +60,12 @@ function host(t, mode = {}) {
     calls.push({command, timeout: options.timeout});
     let text = '', code = 0;
     if (command.includes('getprop ro.product.device')) text = `hct6735_66_m0\nhct6737t_66_m0\n23\nsynthetic-build\n${boot}`;
-    else if (command.includes('active.json')) text = JSON.stringify({path: `/data/local/d31-remote/releases/${sha}/remote.apk`, sha256: sha, versionCode: 124});
+    else if (command.includes('active.json')) text = JSON.stringify({path: `/data/local/d31-remote/releases/${sha}/remote.apk`, sha256: sha, versionCode: version});
     else if (command.includes('local_audio_capture')) {
       const id = command.match(/local_audio_capture [a-f0-9]{64} (lifecycle-[a-f0-9-]+) /)[1];
       const value = receipt(); value.result.diagnostic_id = id; value.result.input_lifecycle.session_id = id;
+      value.version_code = version;
+      if (version >= 128 && !mode.oldReceipt) addReservation(value, id, boot);
       if (mode.captureFails) { value.result.state = 'FAILED'; code = 1; }
       text = mode.malformed ? 'NOT_JSON' : JSON.stringify(value);
     } else if (command.includes('dumpsys activity services')) text = mode.serviceStuck ? 'synthetic running service' : '(nothing)';
@@ -76,9 +78,35 @@ function host(t, mode = {}) {
     else assert.fail('未预期命令：' + command);
     return {stdout: Buffer.from(`${text}\r\r\n\r\r\n${marker}_${code}\r\r\n`), stderr: Buffer.alloc(0)};
   }
-  return {capture, partial, calls, run: () => main(['192.0.2.7:5555', '124', sha, capture], {execute, sleep: async () => {}, log() {}}),
+  return {capture, partial, calls, run: () => main(['192.0.2.7:5555', String(version), sha, capture], {execute, sleep: async () => {}, log() {}}),
     result: () => JSON.parse(fs.readFileSync(path.join(capture, 'result.json'), 'utf8'))};
 }
+
+function addReservation(value, id = 'case-1', boot = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee') {
+  const request = '00000000-0000-0000-0000-000000000001';
+  value.version_code = 128; value.result.operation_request_id = request;
+  value.app_operation = {operation_id: id, operation: 'local_audio_capture', apk_sha256: 'a'.repeat(64), operation_request_id: request,
+    record_boot_id: boot, current_boot_id: boot, state: 'RELEASED', reservation_released: true,
+    release_reason: 'MATCHED_RELEASE_RECEIPT', managed_media: false, network_write: false};
+  return value;
+}
+test('128成功需新预留释放，124回放仍走旧门', () => {
+  assert.equal(validateLifecycle(receipt(), 'case-1', 124).reservationVerified, false);
+  const old = receipt(); old.version_code = 128; assert.throws(() => validateLifecycle(old, 'case-1', 128));
+  assert.equal(validateLifecycle(addReservation(receipt()), 'case-1', 128, 'a'.repeat(64)).reservationVerified, true);
+  for (const patch of [{reservation_released: false}, {reservation_released: 'true'}, {state: 'ARMED'},
+    {operation_id: 'other'}, {operation: 'read-local-metadata'}, {apk_sha256: 'b'.repeat(64)},
+    {operation_request_id: '00000000-0000-0000-0000-000000000002'}, {release_reason: 'OLD_BOOT_RESOURCES_ENDED'},
+    {current_boot_id: '00000000-0000-0000-0000-000000000002'}]) {
+    const value = addReservation(receipt()); Object.assign(value.app_operation, patch);
+    assert.throws(() => validateLifecycle(value, 'case-1', 128, 'a'.repeat(64)));
+  }
+});
+test('128宿主全流程通过新回执且不能用旧回执冒充', async t => {
+  const good = host(t, {}, 128); await good.run(); assert.equal(good.result().reservationVerified, true);
+  const old = host(t, {oldReceipt: true}, 128); await assert.rejects(old.run(), /APP_OPERATION_HOST_RELEASE_NOT_VERIFIED/);
+  assert.equal(old.calls.filter(c => c.command.includes('local_audio_capture')).length, 1);
+});
 
 test('服务未退出且转储失败仍保存后续线程、策略、版本和boot证据', async t => {
   const h = host(t, {serviceStuck: true, flingerFails: true, threadsStuck: true, bootChanged: true});

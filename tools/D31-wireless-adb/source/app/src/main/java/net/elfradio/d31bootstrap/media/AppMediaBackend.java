@@ -52,15 +52,25 @@ final class AppMediaBackend implements AppMediaController.Backend,AutoCloseable 
         // 仅prepare工作线程有界等待首轮结果；完成或失败均不等同空闲。
         if(current instanceof AndroidAudioOccupancy)((AndroidAudioOccupancy)current).awaitFirstSample(1500);
         cancel.check();
+        boolean loaded=new ApkMediaLibrary(apk,hash,new File(appDirectory(app.getCodeCacheDir()),"media-native")).load("jingle_peerconnection_so");cancel.check();
+        // JNI加载耗时不能续用加载前的空闲证据；只消费加载后的现有缓存，不另启采样。
         JSONObject result=MediaReadiness.snapshot(app,AppMediaContract.PACKAGE,current);
         appendGuardSnapshot(result,current);cancel.check();
-        boolean loaded=new ApkMediaLibrary(apk,hash,new File(appDirectory(app.getCodeCacheDir()),"media-native")).load("jingle_peerconnection_so");cancel.check();
-        boolean ready=loaded&&"GRANTED".equals(result.optString("record_permission"))&&result.optBoolean("process_package_match")
-                &&result.optBoolean("framework_package_match")&&"ALLOWED".equals(result.optString("record_appop"))
-                &&"IDLE_OBSERVED".equals(result.optString("audio_occupancy"))&&AppMediaService.configuration().origin!=null;
+        boolean ready=preconditionsSatisfied(result,loaded,AppMediaService.configuration().origin!=null);
         return result.put("operation","prepare").put("state",ready?"PREPARED":"PREPARED_WITH_GAPS").put("preconditions_satisfied",ready)
                 .put("process_64bit",false).put("app_identity","MATCH").put("apk_hash_match",true).put("jni_loaded",loaded)
                 .put("audio_record_created",false).put("network_started",false);
+    }
+    static boolean preconditionsSatisfied(JSONObject result,boolean loaded,boolean originConfigured){
+        JSONObject occupancy=result.optJSONObject("audio_occupancy_snapshot");
+        return loaded&&originConfigured&&"GRANTED".equals(result.optString("record_permission"))
+                &&Boolean.TRUE.equals(result.opt("process_package_match"))
+                &&Boolean.TRUE.equals(result.opt("framework_package_match"))
+                &&"ALLOWED".equals(result.optString("record_appop"))
+                &&"IDLE_OBSERVED".equals(result.optString("audio_occupancy"))&&occupancy!=null
+                &&"IDLE".equals(occupancy.optString("state"))&&Boolean.TRUE.equals(occupancy.opt("idle"))
+                &&"IDLE".equals(occupancy.optString("cellular"))&&"IDLE".equals(occupancy.optString("sip"))
+                &&"IDLE".equals(occupancy.optString("other"));
     }
     static void appendGuardSnapshot(JSONObject result,AudioGuard current)throws Exception {
         // 只消费脱敏缓存，不触发采样或等待；与readiness可能相邻跨越一次后台刷新。

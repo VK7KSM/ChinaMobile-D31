@@ -130,6 +130,28 @@ public class ContactsLocalReadTest {
         failed(result, "CONTACTS_UNBIND_UNCONFIRMED"); assertTrue(result.getJSONObject("local").getBoolean("list_complete"));
         assertEquals("LOCAL_METADATA_VERIFIED", result.getString("beforeCleanupState")); assertFalse(result.getBoolean("unbindConfirmed"));
     }
+    @Test public void cleanupFailureKeepsAdmissionClosedUntilDedicatedWatchdogExit() throws Exception {
+        for (String failure : new String[]{"closeReplies", "unbind"}) {
+            Platform p = new Platform(); p.failAt = failure;
+            ContactsAppWatchdog.Lifecycle<Object> life = new ContactsAppWatchdog.Lifecycle<Object>();
+            Object request = new Object(); assertTrue(life.accept(request));
+            JSONObject result = run(p, new Clock());
+            assertFalse(result.getBoolean("ok"));
+            life.complete(request, ContactsAppWatchdog.cleanupConfirmed(result));
+            assertSame(request, life.get()); assertFalse(life.accept(new Object()));
+            assertEquals(ContactsAppWatchdog.Action.EXIT_SELF, ContactsAppWatchdog.decision(0,
+                    ContactsAppWatchdog.HARD_MS, life.get() != request, true, ContactsAppWatchdog.PROCESS));
+            assertTrue(life.claimExit(request));
+        }
+    }
+    @Test public void cleanedBusinessFailureAllowsNextRequestWithoutKillingProcess() throws Exception {
+        Platform p = new Platform(); p.valid = false;
+        ContactsAppWatchdog.Lifecycle<Object> life = new ContactsAppWatchdog.Lifecycle<Object>();
+        Object old = new Object(), next = new Object(); assertTrue(life.accept(old));
+        JSONObject result = run(p, new Clock()); assertFalse(result.getBoolean("ok"));
+        life.complete(old, ContactsAppWatchdog.cleanupConfirmed(result));
+        assertTrue(life.accept(next)); assertFalse(life.claimExit(old));
+    }
     @Test public void cancellationBeforePrepareDoesNotStartVendor() throws Exception {
         Platform p = new Platform(); JSONObject value = ContactsLocalRead.run(p, () -> { throw new InterruptedException(); }, new Clock(), 10000);
         failed(value, "CONTACTS_CANCELLED"); assertFalse(p.calls.contains("start")); assertFalse(value.getBoolean("contacts_requested"));
@@ -177,6 +199,8 @@ public class ContactsLocalReadTest {
         String hash = new String(new char[64]).replace('\0', 'a');
         assertEquals(hash, ContactsAppCommand.validate(new String[]{"read-local-metadata", hash}));
         assertEquals(hash, ContactsAppCommand.validate(new String[]{"metadata", hash}));
-        try { ContactsAppCommand.validate(new String[]{"read-local-metadata", hash, "BLUETOOTH"}); fail(); } catch (IOException expected) { }
+        assertEquals(hash,ContactsAppCommand.validate(new String[]{"read-local-metadata",hash,"local-operation-1"}));
+        try { ContactsAppCommand.validate(new String[]{"metadata", hash, "local-operation-1"}); fail(); } catch (IOException expected) { }
+        try { ContactsAppCommand.validate(new String[]{"read-local-metadata", hash, "../other"}); fail(); } catch (IOException expected) { }
     }
 }

@@ -74,6 +74,74 @@ public final class RepairTransactionsTest {
         assertTrue(result.contains("SWITCH_INTENT")); assertTrue(result.contains("CONTENT_AND_EFFECT_VERIFIED"));
     }
 
+    @Test public void cancelledStepDoesNotAcquireLeaseOrAdvanceJournal() throws Exception {
+        Fixture f = new Fixture(1); f.submit(); String before = f.engine.query(f.plan.taskId).toString();
+        try {
+            Thread.currentThread().interrupt();
+            assertThrows(InterruptedException.class, () -> f.engine.step(f.plan.taskId, 2));
+            assertTrue(Thread.currentThread().isInterrupted()); assertFalse(f.platform.acquired);
+            assertEquals(before, f.engine.query(f.plan.taskId).toString());
+        } finally { Thread.interrupted(); }
+        f.reopen(); f.finish(); assertEquals("SUCCEEDED", f.phase());
+    }
+
+    @Test public void interruptedPreparationPreservesPhaseAndReusesCompletedArtifacts() throws Exception {
+        for (String phase : Arrays.asList("BACKUP", "STAGE")) {
+            Fixture f = new Fixture(1); f.submit(); f.until(phase);
+            String operation = phase.equals("BACKUP") ? "backup-a" : "stage-a";
+            f.platform.hook = event -> { if (event.equals("after-" + operation)) throw new InterruptedException("取消"); };
+            try {
+                assertThrows(InterruptedException.class, () -> f.engine.step(f.plan.taskId, 20));
+                assertTrue(Thread.currentThread().isInterrupted()); assertFalse(f.platform.acquired);
+                assertEquals(phase, f.phase());
+            } finally { Thread.interrupted(); }
+            f.platform.hook = event -> { }; f.reopen(); f.finish();
+            assertEquals("SUCCEEDED", f.phase()); assertEquals(1, f.platform.countOf(operation));
+        }
+    }
+
+    @Test public void interruptedSwitchRetainsIntentAndNeverReplaysUnknownWrite() throws Exception {
+        for (boolean after : new boolean[]{false, true}) {
+            Fixture f = new Fixture(1); f.submit(); f.until("SWITCH_READY");
+            f.platform.hook = event -> { if (event.equals((after ? "after-" : "before-") + "switch-a"))
+                throw new InterruptedException("未知写入结果"); };
+            try {
+                assertThrows(InterruptedException.class, () -> f.engine.step(f.plan.taskId, 20));
+                assertEquals("SWITCH_INTENT", f.phase()); assertTrue(Thread.currentThread().isInterrupted());
+                assertFalse(f.platform.acquired);
+            } finally { Thread.interrupted(); }
+            f.platform.hook = event -> { }; f.reopen(); f.finish();
+            assertEquals(after ? "SUCCEEDED" : "ROLLED_BACK", f.phase()); f.contents(after);
+            assertEquals(1, f.platform.countOf("call-switch-a"));
+        }
+    }
+
+    @Test public void interruptedRollbackKeepsIntentAndDoesNotReplay() throws Exception {
+        for (boolean after : new boolean[]{false, true}) {
+            Fixture f = new Fixture(1); f.submit(); f.until("VERIFY"); f.platform.healthy = false;
+            f.engine.step(f.plan.taskId, 20); assertEquals("ROLLBACK_READY", f.phase());
+            f.platform.hook = event -> { if (event.equals((after ? "after-" : "before-") + "restore-a"))
+                throw new InterruptedException("恢复结果待查"); };
+            try {
+                assertThrows(InterruptedException.class, () -> f.engine.step(f.plan.taskId, 21));
+                assertEquals("ROLLBACK_INTENT", f.phase()); assertTrue(Thread.currentThread().isInterrupted());
+            } finally { Thread.interrupted(); }
+            f.platform.hook = event -> { }; f.reopen(); f.finish();
+            assertEquals(after ? "ROLLED_BACK" : "NEEDS_ATTENTION", f.phase());
+            assertEquals(1, f.platform.countOf("call-restore-a")); f.contents(!after);
+        }
+    }
+
+    @Test public void verificationReturningAfterCancellationCannotCommitSuccess() throws Exception {
+        Fixture f = new Fixture(1); f.submit(); f.until("VERIFY");
+        f.platform.hook = event -> { if (event.equals("verify")) Thread.currentThread().interrupt(); };
+        try {
+            assertThrows(InterruptedException.class, () -> f.engine.step(f.plan.taskId, 20));
+            assertEquals("VERIFY", f.phase()); assertTrue(Thread.currentThread().isInterrupted());
+        } finally { Thread.interrupted(); }
+        f.platform.hook = event -> { }; f.reopen(); f.finish(); assertEquals("SUCCEEDED", f.phase());
+    }
+
     @Test public void rejectsConflictingTaskWithoutOverwritingPlan() throws Exception {
         Fixture f = new Fixture(1); f.submit();
         JSONObject other = f.plan.toJson().put("revision", "v2");

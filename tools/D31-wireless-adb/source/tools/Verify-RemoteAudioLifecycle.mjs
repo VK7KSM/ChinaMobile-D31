@@ -9,8 +9,8 @@ import {validateReceipt} from './Verify-RemoteLocalAudio.mjs';
 
 const check = (value, message) => { if (!value) throw Error(message); };
 
-export function validateLifecycle(value, id, version) {
-  const receipt = validateReceipt(value, id, version);
+export function validateLifecycle(value, id, version, sha, boot) {
+  const receipt = validateReceipt(value, id, version, sha, boot);
   const lifecycle = receipt.input_lifecycle;
   check(lifecycle?.session_id === id && lifecycle.state === 'closed'
     && lifecycle.managed_media === false && lifecycle.atomic_reservation === false
@@ -23,7 +23,8 @@ export function validateLifecycle(value, id, version) {
     && lifecycle.reader_finished === true && lifecycle.completion_allowed === true
     && lifecycle.stop_reason === 'STOP_REQUESTED' && receipt.factory_release_pending === false,
   '实际输入归属或生命周期释放未通过');
-  return {lifecycleVerified: true, releaseVerified: true, audioSaved: false, mediaNetworkStarted: false};
+  return {lifecycleVerified: true, releaseVerified: true, reservationVerified: value.app_operation?.reservation_released === true,
+    audioSaved: false, mediaNetworkStarted: false};
 }
 
 // 依赖注入仅供离线测试；命令行仍使用固定ADB与真实有界等待。
@@ -78,6 +79,7 @@ export async function main(args, deps = {}) {
     && baseline[2] === '23', '目标不是已验证D31');
   activeMatches(JSON.parse(await required('02-active-before', 'cat /data/local/d31-remote/runtime/active.json')));
   const id = 'lifecycle-' + randomUUID();
+  save('operation.json', {operationId: id, expectedVersionCode: version, expectedApkSha256: sha});
   let result, failure, appPid;
   try {
     const response = await read('03-capture', `CLASSPATH='${apk}' /system/bin/app_process /system/bin net.elfradio.d31bootstrap.RemoteMediaCommand local_audio_capture ${sha} ${id} 2500`);
@@ -85,7 +87,7 @@ export async function main(args, deps = {}) {
     save('receipt-private.json', receipt);
     if (Number.isSafeInteger(receipt?.result?.app_pid) && receipt.result.app_pid > 0) appPid = receipt.result.app_pid;
     check(response.exitCode === 0, '设备采音诊断未成功，保留原始回执');
-    result = validateLifecycle(receipt, id, version);
+    result = validateLifecycle(receipt, id, version, sha, baseline[4]);
   } catch (error) { failure = error; }
   const finalEvidence = {};
   // 最多六项、每项8秒；任一采集或断言失败都不能跳过其它现场。
