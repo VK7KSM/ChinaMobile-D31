@@ -253,6 +253,7 @@ public final class NetworkChangeTransaction {
     static JSONObject report(JSONObject job) throws Exception {
         JSONObject out = new JSONObject();
         for (String key : new String[]{"task_id", "key", "target", "before", "state", "reason", "window_ms",
+                "boot_id", "started_elapsed", "last_elapsed",
                 "deadline_elapsed", "apply_attempted", "rollback_attempted", "rollback_returned", "rollback_attempts", "original_verified", "target_verified"})
             out.put(key, job.get(key));
         String state = job.getString("state");

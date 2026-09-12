@@ -30,7 +30,8 @@ public final class ContactsPageCommand {
                 .put("contact_type", "LOCAL").put("ownerPackage", ContactsNexuiAndroid.PACKAGE)
                 .put("vendorRequestSent", false).put("all_sources_complete", false);
     }
-    public static void main(String[] args) {
+    /** 生产任务适配复用同一执行与异常路径；调用者负责有界结果和原任务回执。 */
+    public static JSONObject execute(String[] args) {
         JSONObject result;
         try {
             String hash = validate(args); ContactsAppContract.device();
@@ -65,6 +66,10 @@ public final class ContactsPageCommand {
                 result = receipt(code != null && code.matches("APP_OPERATION_[A-Z0-9_]{1,80}") ? code : ContactsAppContract.code(failure));
             } catch (Exception ignored) { result = new JSONObject(); }
         }
+        return result;
+    }
+    public static void main(String[] args) {
+        JSONObject result = execute(args);
         System.out.println(result.toString());
         System.exit(result.optBoolean("ok", false) ? 0 : 1);
     }

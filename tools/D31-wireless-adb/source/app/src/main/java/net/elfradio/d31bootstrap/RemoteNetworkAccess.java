@@ -17,6 +17,33 @@ public final class RemoteNetworkAccess implements NetworkAndroidPlatform.Mainten
 
     private RemoteNetworkAccess(String digest) { this.digest = digest; }
 
+    static NetworkAndroidPlatform platform(String digest) throws Exception {
+        return new NetworkAndroidPlatform(digest, new RemoteNetworkAccess(digest));
+    }
+
+    static void prepare(String digest) throws Exception {
+        try (RemoteMaintenance.Lease lease = RemoteMaintenance.acquire()) {
+            if (lease == null) throw new IOException("NETWORK_MAINTENANCE_BUSY");
+            RemoteMaintenance.requireUnreserved();
+            new RemoteNetworkAccess(digest).current();
+            NetworkAndroidPlatform.prepareStorage();
+        }
+    }
+
+    static boolean released(String task, String digest) throws Exception {
+        try (RemoteMaintenance.Lease lease = RemoteMaintenance.acquire()) {
+            if (lease == null) return false;
+            if (!RemoteMaintenance.existsNoFollow(RESERVATION)) return true;
+            JSONObject record = readReservation();
+            if ("network".equals(record.optString("kind")) && task.equals(record.optString("network_task"))) {
+                requireOwner(record, task, digest);
+                return false;
+            }
+            // 其他原号已占用时，旧号的持久终态仍可独立补传。
+            return true;
+        }
+    }
+
     static void validate(String[] args) throws IOException {
         if (args == null || args.length < 2) throw new IOException("NETWORK_ARGUMENTS_INVALID");
         if (args.length == 2 && "prepare".equals(args[0])) { hash(args[1]); return; }
@@ -122,7 +149,11 @@ public final class RemoteNetworkAccess implements NetworkAndroidPlatform.Mainten
             } else {
                 NetworkAndroidPlatform platform = new NetworkAndroidPlatform(digest, access);
                 if ("resume".equals(args[0])) {
-                    try { result = platform.resumeRecovery(args[1]); }
+                    try {
+                        result = platform.resumeRecovery(args[1]);
+                        if ("AWAITING_CONFIRM".equals(result.optString("state")))
+                            RemoteNetworkConfirmation.ensure(args[1], digest);
+                    }
                     catch (IOException attention) {
                         if (!"NETWORK_RECOVERY_ATTENTION_REQUIRED".equals(attention.getMessage())) throw attention;
                         result = new JSONObject().put("state", "NEEDS_ATTENTION")

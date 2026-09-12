@@ -213,6 +213,9 @@ public final class RemoteDaemon {
                     .put("managed_media", false)
                     .put("managed_media_modes", new org.json.JSONArray())
                     .put("managed_system_settings", false)
+                    .put("managed_contacts_page_v1", false)
+                    .put("managed_network_confirmation_v1", ready)
+                    .put("network_write", false)
                     .put("maintenance", new JSONObject().put("ready", ready)
                             .put("state", ready ? "ready" : "unavailable"))
                     .put("hardware_identity", state.snapshot().getJSONObject("hardware_identity"));
@@ -239,6 +242,7 @@ public final class RemoteDaemon {
                         && SystemClock.elapsedRealtime() - managementStarted < 5000)
                     throw new RemoteTelemetry.PreparationPending();
                 body.put("managed_system_settings", ready && managementReady);
+                body.put("managed_contacts_page_v1", ready && managementReady);
                 try{
                     if(sipReading==null)sipReading=sipReader.submit(()->RemoteSip.snapshot(context()));
                     JSONObject sip=sipReading.get(5,java.util.concurrent.TimeUnit.SECONDS);sipReading=null;
