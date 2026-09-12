@@ -1,6 +1,7 @@
 package net.elfradio.d31bootstrap;
 
 import net.elfradio.d31bootstrap.telemetry.TelemetryCollector;
+import net.elfradio.d31bootstrap.telemetry.RemoteLocationSampler;
 import org.json.JSONObject;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -19,6 +20,23 @@ final class RemoteTelemetry implements AutoCloseable {
     });
     private Future<TelemetryCollector.Sample> pending;
     private TelemetryCollector.Sample latest;
+    private RemoteLocationSampler location;
+
+    /** 初始化一次；回调由后台线程执行，主线应只置位并唤醒，不在回调内同步上报。 */
+    synchronized void enableLocation(android.content.Context context, Runnable wakeCallback) {
+        if (location == null) location = new RemoteLocationSampler(context, wakeCallback);
+    }
+
+    synchronized void tickLocation() { if (location != null) location.tick(); }
+
+    /** 只读脱敏缓存快照；不触发采样、Binder或报告唤醒。 */
+    synchronized JSONObject locationSnapshot() throws Exception {
+        return location == null ? RemoteLocationSampler.emptySnapshot() : location.snapshot();
+    }
+
+    private synchronized JSONObject mergeLocation(JSONObject report) throws Exception {
+        return location == null ? report : location.merge(report);
+    }
 
     RemoteTelemetry() { this(5000); }
     RemoteTelemetry(long preparationMs) {
@@ -35,7 +53,7 @@ final class RemoteTelemetry implements AutoCloseable {
         }
         if (latest != null) {
             long captured = latest.toJson().getLong("captured_at_ms"), now = System.currentTimeMillis();
-            if (now >= captured && now - captured <= 60000) return latest.mergeReport(report, now, 60000);
+            if (now >= captured && now - captured <= 60000) return mergeLocation(latest.mergeReport(report, now, 60000));
             latest = null;
         }
         if (pending == null) { startedNanos = System.nanoTime(); pending = worker.submit(collect); }
@@ -51,12 +69,13 @@ final class RemoteTelemetry implements AutoCloseable {
         } catch (Exception unavailable) {
             pending = null; latest = null; reason = "sampling_unavailable";
         }
-        if (latest != null) return latest.mergeReport(report, System.currentTimeMillis(), 60000);
-        return new JSONObject(report.toString()).put("gps", JSONObject.NULL).put("location_reason", reason)
-                .put("battery", JSONObject.NULL).put("charging", JSONObject.NULL).put("battery_present", JSONObject.NULL);
+        if (latest != null) return mergeLocation(latest.mergeReport(report, System.currentTimeMillis(), 60000));
+        return mergeLocation(new JSONObject(report.toString()).put("gps", JSONObject.NULL).put("location_reason", reason)
+                .put("battery", JSONObject.NULL).put("charging", JSONObject.NULL).put("battery_present", JSONObject.NULL));
     }
 
     @Override public void close() {
+        if (location != null) location.close();
         if (pending != null) pending.cancel(true);
         worker.shutdownNow();
     }

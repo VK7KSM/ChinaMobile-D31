@@ -112,7 +112,7 @@ $result=[ordered]@{
     installedApkHashMatched=$true;installedVersionMatched=$true
     sameBoot=$sameBoot;sameCorePid=$sameCorePid;coreHealthFresh=$true;sameAppPid=$sameAppPid;sameInstalledPath=$sameInstalled
     servicesEmpty=($services -match '\(nothing\)')
-    mediaThreadsPresent=($appThreads -match '(?m)^d31-(audio-occup|app-media|local-audio)')
+    mediaThreadsPresent=($appThreads -match '(?m)^d31-(audio-|app-media|local-audio|rtc-|video-|visual-|on-demand-|alarm-)')
     matchedFaults=[regex]::Matches($log,'FATAL EXCEPTION|ANR in (?:net\.elfradio\.d31bootstrap|com\.[^\s]*nexui)','IgnoreCase').Count
     logScope='LAST_1200_ENTRIES_NOT_FULL_HISTORY'
     scope='SEQUENTIAL_RUNTIME_OBSERVATIONS_NOT_ATOMIC_OR_LONG_TERM'

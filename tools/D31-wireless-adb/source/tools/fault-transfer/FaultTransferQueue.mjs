@@ -63,24 +63,36 @@ function checkState(state, target) {
     requireThat(HEX.test(event.eventId) && !ids.has(event.eventId) && PHASES.includes(event.phase) && event.tasks, 'STATE_EVENT_INVALID');
     ids.add(event.eventId);
     if (event.receipt) checkReceipt(event.receipt, event.eventId);
+    if (event.delivery) {
+      const d = event.delivery, request = event.tasks.getFile?.request;
+      requireThat(['PENDING', 'DELIVERED'].includes(d.state) && d.deviceId === state.deviceId
+        && request?.device_id === state.deviceId && d.taskId === request.id && request.type === 'get_file'
+        && /^d31-fault-[a-f0-9-]{36}$/.test(d.taskId) && d.size === event.receipt?.bytes && d.sha256 === event.receipt?.sha256
+        && Number.isSafeInteger(d.attempts) && d.attempts >= 0 && Number.isSafeInteger(d.nextAt) && d.nextAt >= 0,
+      'STATE_DELIVERY_INVALID');
+    }
   }
 }
 
 // 一轮有界执行。transport必须遵守signal；不在模块导入时读取会话或启动任何任务。
 export async function runRound({store, transport, verifier, target, limits: inputLimits = {}, discoveryOnly = false, resumeSession = false,
-  clock = systemClock, checkpoint = () => {}}) {
+  archive = false, receiptsOnly = false, clock = systemClock, checkpoint = () => {}}) {
   target = validateTarget(target);
   requireThat(typeof discoveryOnly === 'boolean', 'DISCOVERY_ONLY_INVALID');
   requireThat(typeof resumeSession === 'boolean', 'RESUME_SESSION_INVALID');
+  requireThat(typeof archive === 'boolean', 'ARCHIVE_OPTION_INVALID');
+  requireThat(typeof receiptsOnly === 'boolean' && !(receiptsOnly && (archive || discoveryOnly)), 'RECEIPTS_ONLY_INVALID');
   const limits = limitsFor(inputLimits);
   return store.withLock(async () => {
     let state = store.load();
     if (state) checkState(state, target);
+    requireThat(!receiptsOnly || (state && state.initializing !== true), 'PRESERVED_STATE_REQUIRED');
     requireThat(!discoveryOnly || !state || state.discovery === 'pending16', 'DISCOVERY_ONLY_REQUIRES_PENDING_STATE');
     const started = clock.monotonic();
     const count = {events: 0, requests: 0, indexPages: 0, retries: 0, reservedDownloadBytes: 0, receivedDownloadBytes: 0,
       indexGaps: 0, nonTerminalSkipped: 0, alreadyArchivedSkipped: 0, candidatesChecked: 0, candidatesDeferred: 0};
     let active = null, stop = 'ROUND_COMPLETE';
+    const deliveryAttempted = new Set();
     const remaining = () => limits.maxMs - (clock.monotonic() - started);
     const save = label => { store.save(state); checkpoint(label, structuredClone(state)); };
     const retryAt = error => Math.max(clock.now() + Math.min(limits.maxBackoffMs, limits.pollMs * 2 ** state.failures),
@@ -159,6 +171,49 @@ export async function runRound({store, transport, verifier, target, limits: inpu
         && JSON.stringify(proof.archiveArgs) === JSON.stringify(['archive', event.eventId, r.sha256, String(r.bytes), r.manifestSha256]), 'HOST_PROOF_MISMATCH');
       return proof;
     };
+    const deliverReceipt = async event => {
+      if (!['ARCHIVE', 'CONFIRM', 'DONE'].includes(event.phase) || event.delivery?.state === 'DELIVERED'
+        || deliveryAttempted.has(event.eventId)) return;
+      if (event.delivery?.nextAt > clock.now()) return;
+      budget();
+      if (count.requests >= limits.maxRequests) return;
+      // 先从磁盘重读原件和验包记录；POST永远不能先于本机恢复状态持久化。
+      verifyLocal(event);
+      const request = event.tasks.getFile?.request;
+      requireThat(request?.device_id === state.deviceId && request.type === 'get_file'
+        && /^d31-fault-[a-f0-9-]{36}$/.test(request.id)
+        && request.params?.path === event.receipt.path, 'DELIVERY_TASK_BINDING_MISMATCH');
+      const binding = {deviceId: state.deviceId, taskId: request.id, size: event.receipt.bytes, sha256: event.receipt.sha256};
+      if (!event.delivery) event.delivery = {...binding, state: 'PENDING', attempts: 0, nextAt: 0};
+      const delivery = event.delivery;
+      requireThat(Object.entries(binding).every(([key, value]) => delivery[key] === value), 'DELIVERY_TASK_BINDING_MISMATCH');
+      delivery.attempts++;
+      delivery.nextAt = clock.now() + limits.pollMs;
+      save('delivery-intent');
+      deliveryAttempted.add(event.eventId);
+      verifyLocal(event);
+      let response;
+      try {
+        response = await call(options => transport.received(binding.deviceId, binding.taskId,
+          {size: binding.size, sha256: binding.sha256}, options));
+        requireThat(response?.ok === true && ((response.purged === true && response.cleanup_pending !== true)
+          || (response.cleanup_pending === true && response.purged !== true)), 'RETURN_RECEIPT_RESPONSE_INVALID');
+      } catch (error) {
+        // 会话、网络和服务端回执问题属于清理通知，不改本机保全状态、不触发归档。
+        if (!(error instanceof QueueError)) throw error;
+        delivery.lastError = {code: error.code, at: clock.now()};
+        delivery.nextAt = Math.max(clock.now() + Math.min(limits.maxBackoffMs, limits.pollMs * 2 ** Math.min(16, delivery.attempts)),
+          Number.isSafeInteger(error.retryAt) ? error.retryAt : 0);
+        save('delivery-retry-pending');
+        return;
+      }
+      checkpoint('after-delivery-send', structuredClone(state));
+      delivery.state = 'DELIVERED'; delivery.nextAt = 0; delete delivery.lastError;
+      delivery.purged = response.purged === true;
+      delivery.cleanupPending = response.cleanup_pending === true;
+      delivery.acceptedAt = clock.now();
+      save('delivery-accepted');
+    };
     const processEvent = async event => {
       const id = event.eventId;
       while (event.phase !== 'DONE') {
@@ -217,8 +272,16 @@ export async function runRound({store, transport, verifier, target, limits: inpu
           await verifier.verify({bundle: store.file(event.bundle), receiptFile: store.file(event.receiptFile), eventId: id,
             output: store.file(event.verified), timeoutMs: Math.max(1, Math.min(20000, remaining()))});
           store.syncDirectory(); checkpoint('after-verify', structuredClone(state));
-          verifyLocal(event); event.phase = 'ARCHIVE'; save('host-verified');
+          const proof = verifyLocal(event);
+          event.summary = {hostPackageVerified: true, archived: false, originalsDeleted: false,
+            sourceLogComplete: proof.sourceLogComplete, gapCount: proof.gapCount,
+            fullIncidentWindow: false, rootCauseEstablished: false};
+          event.phase = 'ARCHIVE'; save('host-verified');
+          await deliverReceipt(event);
+          if (!archive) return true;
         } else if (event.phase === 'ARCHIVE') {
+          await deliverReceipt(event);
+          if (!archive) return true;
           // 每轮恢复后重新读取本机原件，绝不只相信上轮的布尔“已验证”。
           const proof = verifyLocal(event);
           const ack = await command(event.tasks, 'archive', proof.archiveArgs, () => verifyLocal(event));
@@ -251,6 +314,7 @@ export async function runRound({store, transport, verifier, target, limits: inpu
       }
       if (state.blocked && !(resumeSession && state.blocked.code === 'SESSION_REJECTED')) { stop = state.blocked.code; }
       else {
+        if (!receiptsOnly) {
         if (state?.nextAt) await waitUntil(state.nextAt);
         const device = await call(options => transport.resolveTarget(target, options));
         if (state.initializing !== true) requireThat(device.id === state.deviceId, 'TARGET_DEVICE_CHANGED');
@@ -260,12 +324,15 @@ export async function runRound({store, transport, verifier, target, limits: inpu
           save('initialized');
         }
         if (state.blocked?.code === 'SESSION_REJECTED') { delete state.blocked; save('session-revalidated'); }
-        while (count.events < limits.maxEvents) {
+        }
+        if (!discoveryOnly) for (const event of state.events) await deliverReceipt(event);
+        while (!receiptsOnly && count.events < limits.maxEvents) {
           budget();
           try {
             if (discoveryOnly && state.events.some(e => !['CHECK', 'EXPORT', 'DONE'].includes(e.phase)
                 || (e.phase === 'EXPORT' && e.tasks.export))) { stop = 'DISCOVERY_TRANSFER_PENDING'; break; }
-            active = state.events.find(e => discoveryOnly ? e.phase === 'CHECK' : e.phase !== 'DONE') || null;
+            active = state.events.find(e => discoveryOnly ? e.phase === 'CHECK'
+              : e.phase !== 'DONE' && (archive || e.phase !== 'ARCHIVE')) || null;
             if (active) {
               if (await processEvent(active)) count.events++;
               active = null;
@@ -354,11 +421,16 @@ export async function runRound({store, transport, verifier, target, limits: inpu
       }
     }
     const summary = {schemaVersion: 1, stop, ...count,
-      discovery: state?.discovery || 'index1', discoveryOnly,
+      discovery: state?.discovery || 'index1', discoveryOnly, receiptsOnly,
       bufferedEntries: state?.page ? state.page.entries.length - state.page.offset : 0,
-      pending: state ? state.events.filter(e => e.phase !== 'DONE').length : 0,
+      pending: state ? state.events.filter(e => !['ARCHIVE', 'DONE'].includes(e.phase)).length : 0,
+      preserved: state ? state.events.filter(e => ['ARCHIVE', 'CONFIRM', 'DONE'].includes(e.phase)).length : 0,
+      awaitingArchive: state ? state.events.filter(e => e.phase === 'ARCHIVE').length : 0,
+      deliveryPending: state ? state.events.filter(e => ['ARCHIVE', 'CONFIRM', 'DONE'].includes(e.phase) && e.delivery?.state !== 'DELIVERED').length : 0,
+      delivered: state ? state.events.filter(e => e.delivery?.state === 'DELIVERED').length : 0,
       archived: state ? state.events.filter(e => e.phase === 'DONE').length : 0,
-      preservedWithGaps: state ? state.events.filter(e => e.phase === 'DONE' && (e.summary.gapCount > 0 || !e.summary.sourceLogComplete)).length : 0,
+      preservedWithGaps: state ? state.events.filter(e => ['ARCHIVE', 'CONFIRM', 'DONE'].includes(e.phase)
+        && e.summary && (e.summary.gapCount > 0 || !e.summary.sourceLogComplete)).length : 0,
       blocked: !!state?.blocked, fullIncidentWindow: false, rootCauseEstablished: false, originalsDeleted: false};
     if (state) store.artifact('round', summary);
     return summary;

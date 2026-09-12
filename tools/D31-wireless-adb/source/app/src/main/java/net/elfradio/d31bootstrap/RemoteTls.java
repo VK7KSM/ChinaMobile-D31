@@ -9,9 +9,9 @@ import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import javax.net.ssl.*;
 
-final class RemoteTls {
+public final class RemoteTls {
     private static SSLSocketFactory cached;
-    static synchronized SSLSocketFactory factory() throws Exception {
+    public static synchronized SSLSocketFactory factory() throws Exception {
         if (cached != null) return cached;
         X509Certificate root;
         try (InputStream in = RemoteTls.class.getResourceAsStream("/isrgrootx1.pem")) {

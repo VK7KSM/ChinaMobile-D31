@@ -20,11 +20,16 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class AndroidTelemetryAccess implements TelemetryCollector.Access {
     private final Context context;
     private final LocationManager manager;
-    private boolean cleanupFailed;
+    private static volatile boolean cleanupFailed;
+    private final boolean radio;
     public AndroidTelemetryAccess(Context context) {
+        this(context, false);
+    }
+    public AndroidTelemetryAccess(Context context, boolean radio) {
         if (context == null) throw new IllegalArgumentException("MISSING_CONTEXT");
         Context application = context.getApplicationContext();
         this.context = application == null ? context : application;
+        this.radio = radio;
         manager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
     }
     public static TelemetryCollector.Clock clock() {
@@ -35,8 +40,8 @@ public final class AndroidTelemetryAccess implements TelemetryCollector.Access {
     }
     @Override public synchronized TelemetryCollector.LocationReading location(final TelemetryCollector.Limits limits,
             final TelemetryCollector.Clock clock) throws Exception {
-        if (android.os.Build.VERSION.SDK_INT == 23 && android.os.Process.myUid() == 0 && limits.locationWindowMs == 0)
-            return AppLocationCache.read(context, limits, clock);
+        if (android.os.Build.VERSION.SDK_INT == 23 && android.os.Process.myUid() == 0)
+            return AppLocationCache.read(context, limits, clock, radio);
         if (cleanupFailed) return new TelemetryCollector.LocationReading(null, "cleanup_failed", false);
         if (manager == null) return new TelemetryCollector.LocationReading(null, "provider_unavailable", true);
         final List<String> enabled = new ArrayList<String>(2);
@@ -59,7 +64,9 @@ public final class AndroidTelemetryAccess implements TelemetryCollector.Access {
                 denied = true; AppLocationCache.recordFailure(provider + "." + stage, failure);
             } catch (IllegalArgumentException unavailable) { AppLocationCache.recordFailure(provider + "." + stage, unavailable); }
         }
-        if (cached != null) return new TelemetryCollector.LocationReading(cached, "recent_cache", true);
+        if (cached != null && (limits.locationWindowMs == 0 || ("gps".equals(cached.provider)
+                && clock.elapsedRealtimeNanos() - cached.elapsedNanos <= 30000000000L)))
+            return new TelemetryCollector.LocationReading(cached, "recent_cache", true);
         if (enabled.isEmpty()) return new TelemetryCollector.LocationReading(null, denied ? "permission_denied" : "location_disabled", true);
         if (limits.locationWindowMs == 0 && rejectedCache != null)
             return new TelemetryCollector.LocationReading(rejectedCache, TelemetryCollector.invalidFix(rejectedCache, limits, clock), true);
@@ -73,7 +80,7 @@ public final class AndroidTelemetryAccess implements TelemetryCollector.Access {
                 TelemetryCollector.Fix candidate = fix(location);
                 if (candidate.elapsedNanos < since || TelemetryCollector.invalidFix(candidate, limits, clock) != null) return;
                 observed.set(better(observed.get(), candidate));
-                ready.countDown();
+                if ("gps".equals(candidate.provider) || !enabled.contains(LocationManager.GPS_PROVIDER)) ready.countDown();
             }
             public void onProviderDisabled(String provider) { }
             public void onProviderEnabled(String provider) { }
@@ -98,7 +105,10 @@ public final class AndroidTelemetryAccess implements TelemetryCollector.Access {
             catch (Exception failure) { cleanupFailed = true; }
             callbacks.quitSafely();
         }
-        return new TelemetryCollector.LocationReading(observed.get(), cleanupFailed ? "cleanup_failed" : reason, !cleanupFailed);
+        TelemetryCollector.Fix result = observed.get();
+        if (result == null && TelemetryCollector.invalidFix(cached, limits, clock) == null) result = cached;
+        return new TelemetryCollector.LocationReading(result,
+                cleanupFailed ? "cleanup_failed" : result == null ? reason : result == cached ? "recent_cache" : "sampled", !cleanupFailed);
     }
     private static TelemetryCollector.Fix better(TelemetryCollector.Fix old, TelemetryCollector.Fix next) {
         if (old == null) return next;

@@ -127,6 +127,34 @@ public class AppLocationCacheContractTest {
         rejected(new JSONObject(payload).put("reason", "sampled").toString(), clock);
     }
 
+    @Test public void activeWindowAcceptsNewFixButNotCacheDisguisedAsActiveOrLateReply() throws Exception {
+        Clock clock = new Clock(); clock.elapsed += 45000000000L; clock.wall += 45000;
+        TelemetryCollector.LocationReading active = new TelemetryCollector.LocationReading(
+                new TelemetryCollector.Fix(1, 2, 10f, "gps", clock.wall, clock.elapsed, false), "sampled", true);
+        String payload = AppLocationCacheContract.encode(ID, BOOT, APP_UID, START, active, clock);
+        TelemetryCollector.Limits limits = new TelemetryCollector.Limits(45000, 300000);
+        assertEquals("sampled", AppLocationCacheContract.decode(payload, ID, BOOT, APP_UID, APP_UID, START, limits, clock).reason);
+        JSONObject stale = new JSONObject(payload); stale.getJSONObject("fix").put("elapsed_nanos", START - 1);
+        try { AppLocationCacheContract.decode(stale.toString(), ID, BOOT, APP_UID, APP_UID, START, limits, clock); fail(); }
+        catch (IllegalArgumentException expected) { }
+        clock.elapsed = START + 49000000001L;
+        try { AppLocationCacheContract.decode(payload, ID, BOOT, APP_UID, APP_UID, START, limits, clock); fail(); }
+        catch (IllegalArgumentException expected) { }
+    }
+
+    @Test public void radioReplyKeepsAppIdentityAndOriginalSamplingTimeWhileStaleRadioDoesNotEraseGps() throws Exception {
+        Clock clock = new Clock();
+        JSONObject body = new JSONObject(response(clock));
+        body.put("radio", new JSONObject().put("sampled_at_ms", WALL - 1000).put("wifiAccessPoints", new org.json.JSONArray())
+                .put("cellTowers", new org.json.JSONArray().put(RemoteLocationRadio.tower("lte", 123, 10, 505, 2, -70)))
+                .put("radioType", "lte"));
+        TelemetryCollector.LocationReading result = decode(body.toString(), clock);
+        assertEquals(WALL - 1000, new JSONObject(result.radio).getLong("sampled_at_ms"));
+        body.getJSONObject("radio").put("sampled_at_ms", WALL - 120001);
+        result = decode(body.toString(), clock);
+        assertNull(result.radio); assertNotNull(result.fix);
+    }
+
     @Test public void oversizedReplyAndCoercedIdentityTypesAreRejected() throws Exception {
         Clock clock = new Clock();
         rejected(new JSONObject(response(clock)).put("app_uid", String.valueOf(APP_UID)).toString(), clock);

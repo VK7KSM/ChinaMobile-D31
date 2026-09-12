@@ -20,6 +20,9 @@ public final class MicrophoneSession implements AutoCloseable {
         JSONObject publishOffer(Cancellation cancel) throws Exception;
         void answer(JSONObject description, Cancellation cancel) throws Exception;
         void close() throws Exception;
+        default boolean captureReady(){return true;}
+        default void requireHealthy()throws Exception{}
+        default JSONObject diagnostics()throws Exception{return new JSONObject();}
     }
     public interface Changed { void changed(JSONObject state); }
     private final File root;
@@ -39,7 +42,7 @@ public final class MicrophoneSession implements AutoCloseable {
     private int sequence;
     private long startedAt,endedAt,deadline;
     private long recordStartedAt,recordEndedAt;
-    private String state="idle",reason="";
+    private String state="idle",reason="",cleanupReason="";
 
     public MicrophoneSession(File privateMediaRoot, RtcOffer offer, Transport transport, Peer peer,
             AudioGuard guard, MediaCapture.Clock clock, Changed listener) throws Exception {
@@ -64,8 +67,12 @@ public final class MicrophoneSession implements AutoCloseable {
         changed();
     }
     private void checkOwner(){
-        try{guard.requireIdle();synchronized(this){if(stopping)return;if(clock.elapsed()>=deadline)throw new IOException();}}
-        catch(Exception failure){stop("MEDIA_TIMEOUT_OR_AUDIO_BUSY");}
+        try{synchronized(this){if(stopping)return;if(clock.elapsed()>=deadline)throw new IOException("MEDIA_SESSION_TIMEOUT");}
+            guard.requireIdle();peer.requireHealthy();synchronized(this){markReady();}}
+        catch(Exception failure){stop(failureCode(failure,"MEDIA_TIMEOUT_OR_AUDIO_BUSY"));}
+    }
+    private static String failureCode(Exception failure,String fallback){
+        String code=failure.getMessage();return code!=null&&code.matches("MEDIA_[A-Z0-9_]{1,80}")?code:fallback;
     }
     private void receive(String raw){
         try {
@@ -82,7 +89,7 @@ public final class MicrophoneSession implements AutoCloseable {
                 }
                 if("closed".equals(type)){stop("MEDIA_REMOTE_CLOSED");return;}
                 if("waiting".equals(type)||"pong".equals(type)||"ready".equals(type))return;
-                if(!"hello".equals(type)||hello||!"microphone".equals(message.optString("mode")))throw new IOException("MEDIA_MESSAGE_UNEXPECTED");
+                if(!"hello".equals(type)||hello||!offer.mode.equals(message.optString("mode")))throw new IOException("MEDIA_MESSAGE_UNEXPECTED");
                 hello=true;
             }
             worker.execute(new Runnable(){public void run(){publish();}});
@@ -99,7 +106,7 @@ public final class MicrophoneSession implements AutoCloseable {
             peer.answer(reply.getJSONObject("sessionDescription"),cancellation);
             rpc("published",new JSONObject());
             synchronized(this){if(stopping)return;published=true;markReady();}
-        }catch(Exception failure){stop("MEDIA_NEGOTIATION_FAILED");}catch(LinkageError failure){stop("MEDIA_JNI_FAILED");}
+        }catch(Exception failure){stop(failureCode(failure,"MEDIA_NEGOTIATION_FAILED"));}catch(LinkageError failure){stop("MEDIA_JNI_FAILED");}
     }
     private JSONObject rpc(String action,JSONObject body)throws Exception {
         final int id;final RtcAwait<JSONObject> result=new RtcAwait<JSONObject>();
@@ -112,19 +119,21 @@ public final class MicrophoneSession implements AutoCloseable {
     private synchronized void iceConnected(){if(stopping)return;connected=true;try{markReady();}catch(Exception failure){stop("MEDIA_READY_FAILED");}}
     private synchronized void recordingState(boolean active){
         if(active){if(stopping)return;if(recordStartedAt==0)recordStartedAt=clock.wall();}
-        else if(recordStartedAt>0&&recordEndedAt==0)recordEndedAt=clock.wall();
+        else if(recordStartedAt>0&&recordEndedAt==0){recordEndedAt=clock.wall();if(!stopping)stop("MEDIA_CAPTURE_STOPPED");}
         changed();
     }
     private void markReady()throws Exception {
-        if(ready||stopping||!connected||!published)return;
+        if(ready||stopping||!connected||!published||!peer.captureReady())return;
         guard.requireIdle();
         transport.send(new JSONObject().put("type","ready"));
         ready=true;startedAt=clock.wall();deadline=clock.elapsed()+1800000;state="streaming";changed();
     }
     public synchronized JSONObject snapshot()throws Exception {
-        return new JSONObject().put("schemaVersion",1).put("session_id",offer.id).put("mode","microphone")
-                .put("state",state).put("reason",reason).put("started_at_ms",startedAt).put("ended_at_ms",endedAt)
+        return new JSONObject().put("schemaVersion",1).put("session_id",offer.id).put("mode",offer.mode)
+                .put("state",state).put("reason",reason).put("cleanup_reason",cleanupReason).put("started_at_ms",startedAt).put("ended_at_ms",endedAt)
                 .put("published",published).put("ice_connected",connected).put("local_recording",false)
+                .put("capture_verified",peer.captureReady()).put("cleanup_complete","closed".equals(state))
+                .put("diagnostics",peer.diagnostics())
                 .put("audio_record_started_at_ms",recordStartedAt).put("audio_record_ended_at_ms",recordEndedAt)
                 .put("timing_scope","SESSION_AND_AUDIORECORD_CALLBACKS")
                 .put("remote_audio_content","NOT_VERIFIED");
@@ -139,13 +148,15 @@ public final class MicrophoneSession implements AutoCloseable {
         worker.execute(new Runnable(){public void run(){cleanup();}});changed();
     }
     private void cleanup(){
-        boolean clean=true;
-        try{transport.close();}catch(Exception failure){clean=false;}
-        try{peer.close();}catch(Exception failure){clean=false;}catch(LinkageError failure){clean=false;}
+        boolean clean=true;String cleanupError="";
+        try{transport.close();}catch(Exception failure){clean=false;cleanupError="MEDIA_TRANSPORT_RELEASE_UNCONFIRMED";}
+        try{peer.close();}catch(Exception failure){clean=false;cleanupError=failureCode(failure,"MEDIA_NATIVE_RELEASE_UNCONFIRMED");}
+        catch(LinkageError failure){clean=false;cleanupError="MEDIA_NATIVE_RELEASE_UNCONFIRMED";}
         synchronized(this){
             endedAt=clock.wall();
             // JNI释放不确定时保留跨进程媒体锁，禁止马上创建新会话抢占。
-            if(clean&&lease!=null)try{lease.close();lease=null;}catch(Exception failure){clean=false;}
+            if(clean&&lease!=null)try{lease.close();lease=null;}catch(Exception failure){clean=false;cleanupError="MEDIA_LEASE_RELEASE_UNCONFIRMED";}
+            cleanupReason=cleanupError;
             state=clean?"closed":"release_unconfirmed";changed();released.countDown();worker.shutdown();
         }
     }

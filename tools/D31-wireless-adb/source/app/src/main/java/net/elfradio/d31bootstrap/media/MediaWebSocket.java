@@ -21,7 +21,7 @@ public final class MediaWebSocket implements MicrophoneSession.Transport {
             synchronized(this){if(closed)throw new IOException();opening=plain;}
             int port=offer.uri.getPort()<0?443:offer.uri.getPort();
             plain.connect(new InetSocketAddress(offer.uri.getHost(),port),10000);
-            tls=(SSLSocket)((SSLSocketFactory)SSLSocketFactory.getDefault()).createSocket(plain,offer.uri.getHost(),port,true);
+            tls=(SSLSocket)net.elfradio.d31bootstrap.RemoteTls.factory().createSocket(plain,offer.uri.getHost(),port,true);
             synchronized(this){if(closed)throw new IOException();opening=tls;}
             tls.setSoTimeout(10000);tls.startHandshake();
             verifyPeer(offer.uri.getHost(),tls.getSession(),HttpsURLConnection.getDefaultHostnameVerifier());

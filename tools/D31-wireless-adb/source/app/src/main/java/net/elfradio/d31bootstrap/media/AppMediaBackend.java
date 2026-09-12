@@ -136,11 +136,15 @@ final class AppMediaBackend implements AppMediaController.Backend,AutoCloseable 
             throw new IOException("MEDIA_LOCAL_AUDIO_CALL_STATE_CHANGED");
     }
     public AppMediaController.Session create(String hash,RtcOffer offer,Cancellation cancel)throws Exception {
-        cancel.check();File apk=verifiedApk(hash);final AudioGuard current=guard();current.requireIdle();cancel.check();
+        cancel.check();File apk=verifiedApk(hash);final AudioGuard current=guard();
+        if(current instanceof AndroidAudioOccupancy)((AndroidAudioOccupancy)current).awaitFirstSample(1500);
+        current.requireIdle();cancel.check();
         File files=appDirectory(app.getFilesDir()),codeCache=appDirectory(app.getCodeCacheDir());
+        final AppMediaRtcGuard rtcGuard=new AppMediaRtcGuard(app,current,new File(files,"media/rtc-diagnostics"),offer.id,hash);
+        final AndroidRtcMicrophone peer=new AndroidRtcMicrophone(app,apk,hash,new File(codeCache,"media-native"),AndroidMediaDevice.CLOCK,offer);
+        peer.inputGuard(rtcGuard);
         final MicrophoneSession session=new MicrophoneSession(new File(files,"media"),offer,new MediaWebSocket(),
-                new AndroidRtcMicrophone(app,apk,hash,new File(codeCache,"media-native"),AndroidMediaDevice.CLOCK),
-                current,AndroidMediaDevice.CLOCK,null);
+                peer,rtcGuard,AndroidMediaDevice.CLOCK,null);
         return new AppMediaController.Session(){public void start()throws Exception{session.start();}
             public void stop(){session.close();}public JSONObject snapshot()throws Exception{return session.snapshot();}};
     }

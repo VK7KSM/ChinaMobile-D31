@@ -10,6 +10,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.*;
 
 public class RemoteTelemetryTest {
+    @Test public void uninitializedLocationSnapshotIsStableDetachedAndDoesNotStartCollector() throws Exception {
+        try (RemoteTelemetry telemetry = new RemoteTelemetry()) {
+            JSONObject snapshot = telemetry.locationSnapshot();
+            String original = snapshot.toString();
+            assertFalse(snapshot.getBoolean("gpsPresent"));
+            assertEquals("not_sampled", snapshot.getString("location_reason"));
+            snapshot.getJSONObject("radio").put("wifi_count", 99);
+            assertEquals(original, telemetry.locationSnapshot().toString());
+        }
+    }
     private JSONObject report() throws Exception {
         return new JSONObject().put("report_id", "test-report").put("reported_at", "2026-09-11T00:00:00Z");
     }

@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import {execFile} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {QueueError} from './QueueStore.mjs';
@@ -9,7 +10,10 @@ export class PackageVerifier {
   async verify({bundle, receiptFile, eventId, output, timeoutMs}) {
     const script = fileURLToPath(new URL('../faults/Verify-FaultExport.py', import.meta.url));
     await new Promise((resolve, reject) => {
-      execFile(this.python, [script, '--zip', bundle, '--receipt', receiptFile, '--event-id', eventId, '--output', output],
+      // Windows的Python需要扩展长度路径，否则真实落盘文件可能被误判为不存在。
+      const localPath = value => process.platform === 'win32' ? path.toNamespacedPath(value) : value;
+      execFile(this.python, [localPath(script), '--zip', localPath(bundle), '--receipt', localPath(receiptFile),
+        '--event-id', eventId, '--output', localPath(output)],
         {timeout: timeoutMs, maxBuffer: 65536, windowsHide: true}, error => {
           if (!error) resolve();
           else reject(new QueueError(error.killed ? 'VERIFY_TIMEOUT' : 'PACKAGE_VERIFY_FAILED', !!error.killed));

@@ -9,10 +9,12 @@ export async function main(argv) {
   const args = {};
   const allowed = ['state-dir', 'session', 'device-name', 'expected-version', 'active-apk', 'python',
     'max-events', 'max-bytes', 'max-ms', 'max-requests', 'max-index-pages', 'max-candidates', 'max-retries'];
-  let discoveryOnly = false, resumeSession = false;
+  let discoveryOnly = false, resumeSession = false, archive = false, receiptsOnly = false;
   for (let i = 0; i < argv.length;) {
     if (argv[i] === '--discovery-only') { requireThat(!discoveryOnly, 'CLI_ARGUMENT_INVALID'); discoveryOnly = true; i++; continue; }
     if (argv[i] === '--resume-session') { requireThat(!resumeSession, 'CLI_ARGUMENT_INVALID'); resumeSession = true; i++; continue; }
+    if (argv[i] === '--archive') { requireThat(!archive, 'CLI_ARGUMENT_INVALID'); archive = true; i++; continue; }
+    if (argv[i] === '--receipts-only') { requireThat(!receiptsOnly, 'CLI_ARGUMENT_INVALID'); receiptsOnly = true; i++; continue; }
     const key = argv[i].replace(/^--/, '');
     requireThat(argv[i].startsWith('--') && allowed.includes(key) && !(key in args) && argv[i + 1] && !argv[i + 1].startsWith('--'), 'CLI_ARGUMENT_INVALID');
     args[key] = argv[i + 1];
@@ -27,7 +29,7 @@ export async function main(argv) {
     if (args[key] !== undefined) limits[key.replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = Number(args[key]);
   const python = args.python || 'python';
   const result = await runRound({store: new QueueStore(args['state-dir'], {python}), transport: new WebTransport({session}),
-    verifier: new PackageVerifier({python}), target, limits, discoveryOnly, resumeSession});
+    verifier: new PackageVerifier({python}), target, limits, discoveryOnly, resumeSession, archive, receiptsOnly});
   console.log(JSON.stringify(result));
   return result.blocked ? 1 : result.stop === 'ROUND_COMPLETE' || result.stop === 'ROUND_EVENT_BUDGET' ? 0 : 2;
 }

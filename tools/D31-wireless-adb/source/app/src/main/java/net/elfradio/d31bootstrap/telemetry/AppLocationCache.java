@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.json.JSONObject;
 
-/** root只负责真实AMS启动及核验回包；定位只在实际应用UID内读取缓存。 */
+/** root只负责真实AMS启动及核验回包；缓存、主动定位和无线观测均在实际应用UID内执行。 */
 public final class AppLocationCache {
     public static final String PACKAGE = "net.elfradio.d31bootstrap";
     public static final String SERVICE = PACKAGE + ".telemetry.LocationCacheService";
@@ -47,12 +47,22 @@ public final class AppLocationCache {
 
     static TelemetryCollector.LocationReading read(Context context, final TelemetryCollector.Limits limits,
                                                    final TelemetryCollector.Clock clock) throws Exception {
+        return read(context, limits, clock, false);
+    }
+
+    static TelemetryCollector.LocationReading read(Context context, final TelemetryCollector.Limits limits,
+                                                   final TelemetryCollector.Clock clock, boolean radio) throws Exception {
+        return read(context, limits, clock, radio, true);
+    }
+
+    static TelemetryCollector.LocationReading read(Context context, final TelemetryCollector.Limits limits,
+                                                   final TelemetryCollector.Clock clock, boolean radio, boolean radioScan) throws Exception {
         if (!IN_FLIGHT.compareAndSet(false, true)) return AppLocationCacheContract.missing("app_cache_busy");
         final AtomicBoolean closed = new AtomicBoolean();
         String stage = "validate_root";
         DIAGNOSTIC.set(null);
         try {
-            if (Process.myUid() != 0 || android.os.Build.VERSION.SDK_INT != 23 || limits.locationWindowMs != 0)
+            if (Process.myUid() != 0 || android.os.Build.VERSION.SDK_INT != 23)
                 return AppLocationCacheContract.missing("app_cache_unavailable");
             final ComponentName target = new ComponentName(PACKAGE, SERVICE);
             stage = "resolve_service";
@@ -89,6 +99,8 @@ public final class AppLocationCache {
             };
             Intent intent = new Intent(ACTION).setComponent(target).putExtra("request_id", id).putExtra("boot_id", boot)
                     .putExtra("started_elapsed_nanos", started).putExtra("max_location_age_ms", limits.maxLocationAgeMs)
+                    .putExtra("location_window_ms", limits.locationWindowMs).putExtra("radio", radio)
+                    .putExtra("radio_scan", radioScan)
                     .putExtra("reply", receiver);
             Object manager = Class.forName("android.app.ActivityManagerNative").getMethod("getDefault").invoke(null);
             stage = "start_service";
@@ -99,7 +111,8 @@ public final class AppLocationCache {
                 return AppLocationCacheContract.missing("app_cache_unavailable");
             }
             stage = "await_reply";
-            long remaining = AppLocationCacheContract.WAIT_MS - Math.max(0, (clock.elapsedRealtimeNanos() - started) / 1000000);
+            long remaining = AppLocationCacheContract.WAIT_MS + limits.locationWindowMs
+                    - Math.max(0, (clock.elapsedRealtimeNanos() - started) / 1000000);
             if (remaining > 0) ready.await(remaining, TimeUnit.MILLISECONDS);
             if (result.get() == null) {
                 recordFailure(stage, new java.util.concurrent.TimeoutException("CACHE_REPLY_DEADLINE"));
@@ -134,14 +147,20 @@ public final class AppLocationCache {
             if (!bootId().equals(boot) || Process.myUid() <= 0 || !PACKAGE.equals(context.getPackageName())
                     || context.getPackageManager().getApplicationInfo(PACKAGE, 0).uid != Process.myUid())
                 throw new SecurityException("CACHE_APP_IDENTITY_MISMATCH");
-            TelemetryCollector.Limits limits = new TelemetryCollector.Limits(0, intent.getLongExtra("max_location_age_ms", -1));
+            TelemetryCollector.Limits limits = new TelemetryCollector.Limits(intent.getLongExtra("location_window_ms", 0),
+                    intent.getLongExtra("max_location_age_ms", -1));
             TelemetryCollector.LocationReading reading;
             if (forcedReason != null) reading = AppLocationCacheContract.missing(forcedReason);
             else {
-                stage = "app_read_cache";
+                stage = "app_location";
                 try { reading = new AndroidTelemetryAccess(context).location(limits, clock); }
                 catch (SecurityException denied) { recordFailure(stage, denied); reading = AppLocationCacheContract.missing("permission_denied"); }
                 catch (Exception unavailable) { recordFailure(stage, unavailable); reading = AppLocationCacheContract.missing("provider_unavailable"); }
+            }
+            if (forcedReason == null && intent.getBooleanExtra("radio", false)) {
+                JSONObject observation = RemoteLocationRadio.capture(context, intent.getBooleanExtra("radio_scan", true));
+                reading = new TelemetryCollector.LocationReading(reading.fix, reading.reason, reading.listenerReleased,
+                        observation.toString());
             }
             Bundle data = new Bundle();
             if (DIAGNOSTIC.get() != null) data.putString("diagnostic", DIAGNOSTIC.get());

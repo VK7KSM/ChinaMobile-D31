@@ -30,11 +30,20 @@ final class RemoteWorkLoop {
     void request(Stage stage) { slots.get(stage).requested = true; }
 
     void tick() {
+        // MQTT触发的同步先取得短期媒体邀请，不能排在完整报告或维护任务后。
+        boolean prioritySync = slots.get(Stage.SYNC).requested;
+        if (prioritySync && !actions.stopping()) run(Stage.SYNC);
         for (Stage stage : Stage.values()) {
             if (actions.stopping()) return;
+            if (prioritySync && stage == Stage.SYNC) continue;
+            run(stage);
+        }
+    }
+
+    private void run(Stage stage) {
             Slot slot = slots.get(stage);
             long now = clock.now();
-            if (now < slot.retry || (!slot.requested && now < slot.next)) continue;
+            if (now < slot.retry || (!slot.requested && now < slot.next)) return;
             slot.requested = false;
             try {
                 long delay = actions.run(stage);
@@ -54,7 +63,6 @@ final class RemoteWorkLoop {
             }
             try { actions.changed(); }
             catch (Exception unavailable) { System.err.println("远程分项状态暂时不可写"); }
-        }
     }
 
     JSONObject snapshot() throws Exception {

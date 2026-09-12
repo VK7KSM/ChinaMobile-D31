@@ -171,7 +171,7 @@ public class TelemetryCollectorTest {
         assertTrue(sample.mergeReport(report(), time.wall, 1000).isNull("battery"));
     }
     @Test public void budgetsAndMergeRequirementsAreEnforced() throws Exception {
-        for (long[] values : new long[][]{{-1, 1}, {10001, 1}, {0, 0}, {0, 900001}}) {
+        for (long[] values : new long[][]{{-1, 1}, {45001, 1}, {0, 0}, {0, 900001}}) {
             try { new TelemetryCollector.Limits(values[0], values[1]); fail("应拒绝预算"); }
             catch (IllegalArgumentException expected) { }
         }

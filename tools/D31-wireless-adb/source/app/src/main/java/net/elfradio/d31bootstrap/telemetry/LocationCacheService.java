@@ -7,7 +7,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** 不导出的按需缓存Service；无开机入口、无定位监听，超时终止Service生命周期。 */
+/** 不导出的按需定位Service；主动窗口结束或取消后释放定位监听，不常驻。 */
 public final class LocationCacheService extends Service {
     private static final AtomicBoolean ACTIVE = new AtomicBoolean();
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -32,7 +32,8 @@ public final class LocationCacheService extends Service {
             }
         }, "d31-app-location-cache");
         worker.setDaemon(true);
-        handler.postDelayed(timeout, AppLocationCacheContract.WAIT_MS + 1000);
+        long window = Math.max(0, Math.min(45000, intent.getLongExtra("location_window_ms", 0)));
+        handler.postDelayed(timeout, window + AppLocationCacheContract.WAIT_MS + 1000);
         worker.start();
         return START_NOT_STICKY;
     }

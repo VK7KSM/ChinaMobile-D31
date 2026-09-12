@@ -74,6 +74,11 @@ class FakeTransport {
     this.downloads++;
     fs.writeFileSync(options.filename, this.fixture.bytes, {flag: 'wx'}); options.onBytes(this.fixture.bytes.length);
   }
+  async received(device, task, proof) {
+    this.deliveries ??= [];
+    this.deliveries.push({device, task, ...proof});
+    return {ok: true, purged: true};
+  }
   stageSends(stage) { return this.sends.filter(r => stage === 'get_file' ? r.type === stage : r.params.command?.includes(`FaultCommand ${stage} `)); }
 }
 
@@ -84,7 +89,8 @@ function pendingPage(events, hasMore) {
 
 function context(name, transport = new FakeTransport(), pending = false) {
   const directory = path.join(RUN, name);
-  const options = {store: new QueueStore(directory), transport, verifier: new PackageVerifier(), target: TARGET, clock: CLOCK()};
+  // 旧归档测试显式选择原行为；新增默认测试验证保全和回执不自动归档。
+  const options = {store: new QueueStore(directory), transport, verifier: new PackageVerifier(), target: TARGET, clock: CLOCK(), archive: true};
   let initialized = false;
   return {directory, options, transport, run: async extras => {
     // 原40项使用纯合成第六批状态，继续验证旧目录合同，不读取生产110证据。
@@ -645,6 +651,145 @@ test('pending原正文超过8000字节即使只有额外空白也拒绝', async 
   };
   assert.equal((await c.run({discoveryOnly: true})).stop, 'PENDING_INVALID');
   assert.equal(c.transport.stageSends('query').length, 0);
+});
+
+test('默认真实下载验包及状态持久后才发送回执，绝不自动归档', async () => {
+  const c = context('delivered-default'); delete c.options.archive;
+  const original = c.transport.received.bind(c.transport);
+  c.transport.received = async (...args) => {
+    const s = c.options.store.load(), event = s.events[0];
+    assert.equal(event.phase, 'ARCHIVE'); assert.equal(event.summary.hostPackageVerified, true);
+    assert.equal(event.delivery.state, 'PENDING'); assert.equal(event.delivery.attempts, 1);
+    assert.ok(c.options.store.bundleMatches(event.bundle, event.receipt));
+    assert.equal(c.options.store.readJson(event.verified).state, 'HOST_PACKAGE_VERIFIED');
+    return original(...args);
+  };
+  const result = await c.run({limits: {maxEvents: 1}});
+  assert.equal(result.preserved, 1); assert.equal(result.delivered, 1); assert.equal(result.deliveryPending, 0);
+  assert.equal(result.awaitingArchive, 1); assert.equal(result.archived, 0); assert.equal(result.blocked, false);
+  assert.equal(c.transport.stageSends('archive').length, 0);
+  assert.equal(c.transport.downloads, 1);
+  assert.equal((await c.state()).events[0].delivery.state, 'DELIVERED');
+  await c.run({archive: true});
+  assert.equal(c.transport.stageSends('archive').length, 1); assert.equal(c.transport.deliveries.length, 1);
+});
+
+for (const code of ['NETWORK_UNAVAILABLE', 'SESSION_REJECTED', 'HTTP_409', 'HTTP_503', 'RETURN_RECEIPT_RESPONSE_INVALID']) {
+  test(`回执失败${code}只记待重试，本机仍已保全且不归档`, async () => {
+    const c = context('delivery-failure-' + code); delete c.options.archive;
+    let attempts = 0;
+    c.transport.received = async () => { attempts++; throw new QueueError(code, true); };
+    const first = await c.run({limits: {maxEvents: 1}});
+    assert.equal(first.blocked, false); assert.equal(first.preserved, 1); assert.equal(first.deliveryPending, 1);
+    const before = (await c.state()).events[0];
+    assert.equal(before.summary.hostPackageVerified, true); assert.equal(before.delivery.lastError.code, code);
+    c.options.clock.advance(20000);
+    c.options.store = new QueueStore(c.directory);
+    c.transport.received = async (device, task, data) => {
+      attempts++; assert.equal(task, before.tasks.getFile.request.id);
+      assert.deepEqual(data, {size: before.receipt.bytes, sha256: before.receipt.sha256});
+      return {ok: true, cleanup_pending: true};
+    };
+    c.transport.metadata = async () => { throw Error('重试不得依赖已删的云副本'); };
+    const second = await c.run();
+    assert.equal(second.delivered, 1); assert.equal(second.archived, 0); assert.equal(second.blocked, false);
+    const event = (await c.state()).events[0];
+    assert.equal(event.delivery.cleanupPending, true); assert.equal(event.delivery.purged, false);
+    assert.equal(attempts, 2); assert.equal(c.transport.downloads, 1); assert.equal(c.transport.stageSends('archive').length, 0);
+  });
+}
+
+for (const point of ['host-verified', 'delivery-intent', 'after-delivery-send', 'delivery-accepted']) {
+  test(`回执崩溃窗口${point}从本机恢复且只重用原回执`, async () => {
+    const c = context('delivery-crash-' + point); delete c.options.archive;
+    await assert.rejects(c.run({checkpoint: label => { if (label === point) throw CRASH; }}), error => error === CRASH);
+    const before = (await c.state()).events[0];
+    c.options.clock.advance(20000); c.options.store = new QueueStore(c.directory);
+    c.transport.metadata = async () => { throw Error('云副本可能已删'); };
+    const result = await c.run();
+    assert.equal(result.delivered, 1); assert.equal(result.archived, 0); assert.equal(c.transport.downloads, 1);
+    for (const delivery of c.transport.deliveries) assert.equal(delivery.task, before.tasks.getFile.request.id);
+    assert.equal(c.transport.deliveries.length, point === 'after-delivery-send' ? 2 : 1);
+    assert.equal(c.transport.stageSends('archive').length, 0);
+  });
+}
+
+test('验包失败、持久化失败或回执重试前原件损坏均不得发送回执', async () => {
+  const bad = context('delivery-bad-package', new FakeTransport(BAD_FIXTURE)); delete bad.options.archive;
+  assert.equal((await bad.run()).blocked, true); assert.equal(bad.transport.deliveries?.length || 0, 0);
+  const failedSave = context('delivery-failed-state-save'); delete failedSave.options.archive;
+  const save = failedSave.options.store.save.bind(failedSave.options.store);
+  failedSave.options.store.save = s => { if (s.events[0]?.phase === 'ARCHIVE') throw CRASH; return save(s); };
+  await assert.rejects(failedSave.run(), error => error === CRASH);
+  assert.equal(failedSave.transport.deliveries?.length || 0, 0);
+  const tampered = context('delivery-tampered-retry'); delete tampered.options.archive;
+  tampered.transport.received = async () => { throw new QueueError('NETWORK_UNAVAILABLE', true); };
+  await tampered.run({limits: {maxEvents: 1}});
+  const event = (await tampered.state()).events[0];
+  fs.writeFileSync(path.join(tampered.directory, event.bundle), 'synthetic corruption');
+  tampered.options.clock.advance(20000);
+  let posts = 0; tampered.transport.received = async () => { posts++; return {ok: true, purged: true}; };
+  assert.equal((await tampered.run()).stop, 'LOCAL_PACKAGE_MISMATCH'); assert.equal(posts, 0);
+});
+
+test('回执遵守服务端退避，重新运行不紧密重试', async () => {
+  const c = context('delivery-backoff'); delete c.options.archive;
+  const until = c.options.clock.now() + 60000; let attempts = 0;
+  c.transport.received = async () => { attempts++; const error = new QueueError('HTTP_429', true); error.retryAt = until; throw error; };
+  await c.run({limits: {maxEvents: 1}});
+  assert.equal((await c.state()).events[0].delivery.nextAt, until);
+  await c.run(); assert.equal(attempts, 1);
+  c.options.clock.advance(60000); await c.run(); assert.equal(attempts, 2);
+});
+
+test('回执Web适配器使用管理员会话、原任务、固定端点与严格成功合同', async () => {
+  let response = {ok: true, purged: true}, request;
+  const web = new WebTransport({session: SESSION, fetchImpl: async (url, options) => {
+    request = {url, options}; return Response.json(response);
+  }});
+  const proof = {size: 123, sha256: 'a'.repeat(64)}, options = {signal: new AbortController().signal};
+  await web.received('device', 'task', proof, options);
+  assert.equal(request.url, 'https://v.elfradio.net/api/elfremote/file-return/received?device_id=device&task_id=task');
+  assert.equal(request.options.method, 'POST'); assert.equal(request.options.redirect, 'error');
+  assert.ok(request.options.headers.Cookie); assert.equal(request.options.headers.Authorization, undefined);
+  assert.deepEqual(JSON.parse(request.options.body), proof);
+  for (response of [{ok: true}, {ok: false, purged: true}, {ok: true, purged: true, cleanup_pending: true}])
+    await assert.rejects(web.received('device', 'task', proof, options));
+  response = {ok: true, cleanup_pending: true}; assert.equal((await web.received('device', 'task', proof, options)).ok, true);
+});
+
+test('只重试回执不依赖设备在线、客户端版本或云端下载副本', async () => {
+  const c = context('receipt-only'); delete c.options.archive;
+  c.transport.received = async () => { throw new QueueError('HTTP_503', true); };
+  await c.run({limits: {maxEvents: 1}}); c.options.clock.advance(20000);
+  c.transport.resolveTarget = c.transport.queryTask = c.transport.enqueue = c.transport.metadata = c.transport.download = async () => {
+    throw Error('只重试回执不得读取设备或重新派发任务');
+  };
+  let calls = 0; c.transport.received = async () => { calls++; return {ok: true, purged: true}; };
+  const result = await c.run({receiptsOnly: true});
+  assert.equal(result.delivered, 1); assert.equal(result.requests, 1); assert.equal(result.blocked, false);
+  assert.equal(result.archived, 0); assert.equal(calls, 1);
+});
+
+test('真实流式下载适配器与逐项验包器完成持久保全后才调用Web回执', async () => {
+  const c = context('receipt-real-stream'); delete c.options.archive;
+  const observed = [];
+  const web = new WebTransport({session: SESSION, fetchImpl: async (url, options) => {
+    if (url.includes('/file-return/received?')) {
+      const event = c.options.store.load().events[0];
+      assert.equal(event.phase, 'ARCHIVE'); assert.equal(event.delivery.state, 'PENDING');
+      assert.equal(c.options.store.readJson(event.verified).state, 'HOST_PACKAGE_VERIFIED');
+      assert.equal(hash(fs.readFileSync(c.options.store.file(event.bundle))), FIXTURE.receipt.sha256);
+      assert.deepEqual(JSON.parse(options.body), {size: FIXTURE.receipt.bytes, sha256: FIXTURE.receipt.sha256});
+      observed.push('received'); return Response.json({ok: true, purged: true});
+    }
+    assert.ok(url.endsWith('&download=1')); observed.push('download');
+    return new Response(FIXTURE.bytes, {headers: {'content-length': String(FIXTURE.bytes.length)}});
+  }});
+  c.transport.download = web.download.bind(web); c.transport.received = web.received.bind(web);
+  const result = await c.run({limits: {maxEvents: 1}});
+  assert.deepEqual(observed, ['download', 'received']); assert.equal(result.delivered, 1);
+  assert.equal(result.preserved, 1); assert.equal(result.archived, 0);
 });
 
 console.log('离线合成证据目录：' + RUN);

@@ -15,7 +15,7 @@ public final class TelemetryCollector {
     public static final class Limits {
         public final long locationWindowMs, maxLocationAgeMs;
         public Limits(long locationWindowMs, long maxLocationAgeMs) {
-            if (locationWindowMs < 0 || locationWindowMs > 10000 || maxLocationAgeMs < 1 || maxLocationAgeMs > 900000)
+            if (locationWindowMs < 0 || locationWindowMs > 45000 || maxLocationAgeMs < 1 || maxLocationAgeMs > 900000)
                 throw new IllegalArgumentException("INVALID_TELEMETRY_LIMITS");
             this.locationWindowMs = locationWindowMs; this.maxLocationAgeMs = maxLocationAgeMs;
         }
@@ -36,8 +36,13 @@ public final class TelemetryCollector {
         public final Fix fix;
         public final String reason;
         public final boolean listenerReleased;
+        public final String radio;
         public LocationReading(Fix fix, String reason, boolean listenerReleased) {
+            this(fix, reason, listenerReleased, null);
+        }
+        public LocationReading(Fix fix, String reason, boolean listenerReleased, String radio) {
             this.fix = fix; this.reason = reason; this.listenerReleased = listenerReleased;
+            this.radio = radio;
         }
     }
     public static final class BatteryReading {

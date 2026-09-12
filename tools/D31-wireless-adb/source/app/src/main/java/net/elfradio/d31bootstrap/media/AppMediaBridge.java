@@ -69,7 +69,8 @@ public final class AppMediaBridge implements AutoCloseable {
         private final CountDownLatch hello=new CountDownLatch(1),completed=new CountDownLatch(1);
         private final AtomicReference<JSONObject> result=new AtomicReference<JSONObject>();
         private final long executionWindow;
-        Call(String command,Callback callback,BeforeExecute before)throws Exception{this.command=command;this.callback=callback;this.before=before;executionWindow=AppMediaContract.executionWindow(new JSONObject(command));}
+        private final boolean stopCommand;
+        Call(String command,Callback callback,BeforeExecute before)throws Exception{this.command=command;this.callback=callback;this.before=before;executionWindow=AppMediaContract.executionWindow(new JSONObject(command));stopCommand="stop".equals(new JSONObject(command).optString("operation"));}
         public void run(){
             try{
                 if(cancelled.get())throw new IOException("MEDIA_BRIDGE_CANCELLED");
@@ -107,7 +108,7 @@ public final class AppMediaBridge implements AutoCloseable {
                 if(!target.equals(actual))throw new IOException("MEDIA_BRIDGE_SERVICE_START_FAILED");
                 await(hello,started,AppMediaContract.WAIT_MS);if(endpoint==null||cancelled.get())throw new IOException("MEDIA_BRIDGE_HANDSHAKE_FAILED");
                 if(before!=null)before.verified(id,appPid,appUid);
-                if(cancelled.get()||closed)throw new IOException("MEDIA_BRIDGE_CANCELLED");
+                if(cancelled.get()||(closed&&!stopCommand))throw new IOException("MEDIA_BRIDGE_CANCELLED");
                 Parcel data=Parcel.obtain();try{
                     data.writeInterfaceToken(AppMediaContract.DESCRIPTOR);data.writeString(command);data.writeStrongBinder(owner);
                     if(!endpoint.transact(AppMediaContract.EXECUTE,data,null,IBinder.FLAG_ONEWAY))throw new IOException("MEDIA_BRIDGE_TRANSACT_FAILED");
@@ -117,7 +118,7 @@ public final class AppMediaBridge implements AutoCloseable {
                 if(body.has("error")){fail(callback,body.optString("error","MEDIA_BRIDGE_FAILED"));return;}
                 JSONObject request=new JSONObject(command);
                 synchronized(AppMediaBridge.this){
-                    if(closed||cancelled.get())throw new IOException("MEDIA_BRIDGE_CANCELLED");
+                    if((closed&&!stopCommand)||cancelled.get())throw new IOException("MEDIA_BRIDGE_CANCELLED");
                     if("start".equals(request.getString("operation")))ownedSession=request.getJSONObject("offer").getString("session_id");
                     if("stop".equals(request.getString("operation"))&&ownedSession.equals(request.optString("session_id")))ownedSession="";
                     done.set(true);

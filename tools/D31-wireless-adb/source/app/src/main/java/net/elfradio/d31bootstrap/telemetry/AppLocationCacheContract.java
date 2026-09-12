@@ -9,8 +9,11 @@ final class AppLocationCacheContract {
     static final long WAIT_MS = 4000;
 
     static void request(String id, String boot, long started, long now) {
+        request(id, boot, started, now, 0);
+    }
+    private static void request(String id, String boot, long started, long now, long window) {
         if (id == null || !id.matches("[a-f0-9-]{36}") || boot == null || !boot.matches("[a-f0-9-]{36}")
-                || started <= 0 || now < started || now - started > WAIT_MS * 1000000)
+                || started <= 0 || now < started || now - started > (WAIT_MS + window) * 1000000)
             throw new IllegalArgumentException("INVALID_OR_EXPIRED_CACHE_REQUEST");
     }
 
@@ -40,12 +43,13 @@ final class AppLocationCacheContract {
                 .put("accuracy", fix.accuracyMetres == null ? JSONObject.NULL : fix.accuracyMetres)
                 .put("provider", fix.provider).put("sampled_at_ms", fix.sampledAtMs)
                 .put("elapsed_nanos", fix.elapsedNanos).put("mock", fix.mock));
+        if (reading.radio != null) body.put("radio", new JSONObject(reading.radio));
         return body.toString();
     }
 
     static TelemetryCollector.LocationReading decode(String value, String id, String boot, int expectedUid,
             int senderUid, long started, TelemetryCollector.Limits limits, TelemetryCollector.Clock clock) throws Exception {
-        request(id, boot, started, clock.elapsedRealtimeNanos());
+        request(id, boot, started, clock.elapsedRealtimeNanos(), limits.locationWindowMs);
         if (expectedUid <= 0 || senderUid != expectedUid || value == null || value.length() > MAX_REPLY_BYTES
                 || value.getBytes("UTF-8").length > MAX_REPLY_BYTES) throw new SecurityException("CACHE_REPLY_IDENTITY_OR_SIZE");
         JSONObject body = new JSONObject(value);
@@ -57,7 +61,15 @@ final class AppLocationCacheContract {
                 || !(body.get("listener_released") instanceof Boolean) || !body.getBoolean("listener_released"))
             throw new SecurityException("CACHE_REPLY_MISMATCH");
         String reason = body.getString("reason");
-        if (body.isNull("fix")) return missing(reason);
+        String radio = null;
+        if (body.has("radio")) {
+            try { radio = RemoteLocationRadio.validated(body.getJSONObject("radio"), clock.wallTimeMillis()).toString(); }
+            catch (IllegalArgumentException stale) { /* 无线数据失效不应抹掉独立验证通过的GPS结果。 */ }
+        }
+        if (body.isNull("fix")) {
+            TelemetryCollector.LocationReading absent = missing(reason);
+            return new TelemetryCollector.LocationReading(null, absent.reason, true, radio);
+        }
         JSONObject item = body.getJSONObject("fix");
         if (!(item.get("mock") instanceof Boolean) || !(item.get("provider") instanceof String))
             throw new IllegalArgumentException("CACHE_FIX_TYPE");
@@ -65,13 +77,14 @@ final class AppLocationCacheContract {
                 item.isNull("accuracy") ? null : number(item, "accuracy").floatValue(), item.getString("provider"),
                 number(item, "sampled_at_ms").longValue(), number(item, "elapsed_nanos").longValue(), item.getBoolean("mock"));
         String invalid = TelemetryCollector.invalidFix(fix, limits, clock);
-        if (invalid != null) return new TelemetryCollector.LocationReading(fix, invalid, true);
-        if (!"recent_cache".equals(reason)) throw new IllegalArgumentException("CACHE_REPLY_NOT_CACHED");
-        return new TelemetryCollector.LocationReading(fix, "recent_cache", true);
+        if (invalid != null) return new TelemetryCollector.LocationReading(fix, invalid, true, radio);
+        if (!"recent_cache".equals(reason) && !(limits.locationWindowMs > 0 && "sampled".equals(reason)
+                && fix.elapsedNanos >= started)) throw new IllegalArgumentException("CACHE_REPLY_NOT_CACHED");
+        return new TelemetryCollector.LocationReading(fix, reason, true, radio);
     }
 
     static TelemetryCollector.LocationReading missing(String reason) {
-        for (String allowed : new String[]{"permission_denied", "location_disabled", "provider_unavailable", "no_cached_location",
+        for (String allowed : new String[]{"permission_denied", "location_disabled", "provider_unavailable", "no_cached_location", "timeout",
                 "app_cache_timeout", "app_cache_unavailable", "app_cache_identity_mismatch", "app_cache_invalid_reply", "app_cache_busy"})
             if (allowed.equals(reason)) return new TelemetryCollector.LocationReading(null, reason, true);
         return new TelemetryCollector.LocationReading(null, "app_cache_unavailable", true);

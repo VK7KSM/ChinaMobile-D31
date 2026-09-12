@@ -11,11 +11,17 @@ public class RemoteWorkLoopTest {
         boolean stopped, stopAfterReport, requestDuringReport, failJournal;
         int reportHttp, taskFailures, journals;
         long reportDuration, retryAfter;
+        long syncAt = -1;
+        int syncHttp;
         final EnumMap<RemoteWorkLoop.Stage, Integer> calls = new EnumMap<>(RemoteWorkLoop.Stage.class);
         final RemoteWorkLoop loop = new RemoteWorkLoop(() -> now, this);
         int count(RemoteWorkLoop.Stage stage) { return calls.containsKey(stage) ? calls.get(stage) : 0; }
         public long run(RemoteWorkLoop.Stage stage) throws Exception {
             calls.put(stage, count(stage) + 1);
+            if (stage == RemoteWorkLoop.Stage.SYNC) {
+                syncAt = now;
+                if (syncHttp != 0) throw new RemoteHttp.Rejected(syncHttp, "sync unavailable", 0);
+            }
             if (stage == RemoteWorkLoop.Stage.TASKS && taskFailures-- > 0) throw new IOException("receipt offline");
             if (stage == RemoteWorkLoop.Stage.REPORT) {
                 now += reportDuration;
@@ -30,6 +36,24 @@ public class RemoteWorkLoopTest {
             journals++;
             if (failJournal) throw new IOException("state storage unavailable");
         }
+    }
+
+    @Test public void pushedMediaSyncRunsBeforeSlowReportWithoutDuplicateRequest() {
+        Fixture f = new Fixture(); f.reportDuration = 81000;
+        f.loop.request(RemoteWorkLoop.Stage.SYNC);
+        f.loop.tick();
+        assertEquals(0, f.syncAt);
+        assertEquals(1, f.count(RemoteWorkLoop.Stage.SYNC));
+        assertEquals(1, f.count(RemoteWorkLoop.Stage.REPORT));
+    }
+
+    @Test public void pushedSyncStillHonorsFailureBackoff() {
+        Fixture f = new Fixture(); f.syncHttp = 503;
+        f.loop.request(RemoteWorkLoop.Stage.SYNC); f.loop.tick();
+        f.now = 1000;
+        f.loop.request(RemoteWorkLoop.Stage.SYNC); f.loop.tick();
+        assertEquals(1, f.count(RemoteWorkLoop.Stage.SYNC));
+        assertEquals(1, f.count(RemoteWorkLoop.Stage.REPORT));
     }
 
     @Test public void repeatedReportFailureDoesNotStarveOtherWork() throws Exception {

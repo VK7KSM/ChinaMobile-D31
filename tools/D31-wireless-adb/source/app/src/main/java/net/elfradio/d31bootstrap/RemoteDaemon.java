@@ -15,6 +15,7 @@ public final class RemoteDaemon {
     private final String instance;
     private final RemoteState state;
     private final AtomicBoolean wake = new AtomicBoolean(true);
+    private final AtomicBoolean syncWake = new AtomicBoolean();
     private final RemotePush push;
     private RemoteTasks tasks;
     private RemoteFileTransfers incoming;
@@ -31,6 +32,10 @@ public final class RemoteDaemon {
     private java.util.concurrent.Future<JSONObject> sipReading;
     private final RemoteSipFollowup sipFollowup=new RemoteSipFollowup();
     private final RemoteTelemetry telemetry = new RemoteTelemetry();
+    private volatile RemoteMediaSessions media;
+    private volatile RemoteVisualMedia visual;
+    private String mediaStatus = "";
+    private String locationStatus = "";
     private RemoteFaultRuntime faults;
     private volatile boolean managementReady;
     private final java.util.concurrent.ExecutorService managementReader = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
@@ -42,7 +47,7 @@ public final class RemoteDaemon {
 
     private RemoteDaemon(File root, String instance) throws Exception {
         this.root = root; this.instance = instance;
-        state = new RemoteState(root); push = new RemotePush(state, () -> wake.set(true));
+        state = new RemoteState(root); push = new RemotePush(state, () -> { syncWake.set(true); wake.set(true); });
         adb = new AdbSessions(root);
     }
 
@@ -65,6 +70,10 @@ public final class RemoteDaemon {
             String apkHash = RescueFiles.sha256(new File(System.getenv("CLASSPATH")));
             java.util.concurrent.ScheduledExecutorService health = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
             health.scheduleWithFixedDelay(() -> daemon.health(instance, apkHash), 0, 5, java.util.concurrent.TimeUnit.SECONDS);
+            java.util.concurrent.ScheduledExecutorService business = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread thread = new Thread(r, "d31-business-tick"); thread.setDaemon(true); return thread;
+            });
+            business.scheduleWithFixedDelay(daemon::tickBusiness, 0, 1, java.util.concurrent.TimeUnit.SECONDS);
             try {
                 daemon.faults = new RemoteFaultRuntime(RemoteDaemon::bootComplete);
                 boolean cloudStopped = false;
@@ -84,8 +93,11 @@ public final class RemoteDaemon {
                     Thread.sleep(1000);
                 } while (!new File(root, "stop").exists());
             } finally {
+                business.shutdownNow();
                 if (daemon.faults != null) daemon.faults.close();
                 daemon.telemetry.close();
+                if (daemon.media != null) daemon.media.close();
+                if (daemon.visual != null) daemon.visual.close();
                 daemon.sipReader.shutdownNow();
                 daemon.managementReader.shutdownNow();
                 if(daemon.incoming!=null)daemon.incoming.close();
@@ -142,7 +154,13 @@ public final class RemoteDaemon {
                 status(summary.getString("phase"), summary.getInt("http_status"), summary.getString("detail"));
             }
         });
+        if (bootComplete()) {
+            telemetry.enableLocation(context(), () -> wake.set(true));
+            if (media == null) media = new RemoteMediaSessions(context(), root, System.getenv("CLASSPATH"), () -> wake.set(true));
+            if (visual == null) visual = new RemoteVisualMedia(context(), root, System.getenv("CLASSPATH"), () -> wake.set(true));
+        }
         boolean signalled = wake.getAndSet(false);
+        if (syncWake.getAndSet(false)) work.request(RemoteWorkLoop.Stage.SYNC);
         if(sipFollowup.due(SystemClock.elapsedRealtime()))work.request(RemoteWorkLoop.Stage.REPORT);
         if (stopping()) return;
         boolean bootComplete = bootReportAcknowledged || bootComplete();
@@ -151,6 +169,29 @@ public final class RemoteDaemon {
             work.request(RemoteWorkLoop.Stage.REPORT);
         }
         work.tick();
+    }
+
+    /** 会话续租不等待HTTP报告、文件传输或其它管理任务。 */
+    private void tickBusiness() {
+        try {
+            if (stopping()) return;
+            telemetry.tickLocation();
+            String location = telemetry.locationSnapshot().toString();
+            if (!location.equals(locationStatus)) {
+                RescueFiles.write(new File(root, "location-status.json"), location);
+                locationStatus = location;
+            }
+            RemoteMediaSessions microphone = media;
+            RemoteVisualMedia pictures = visual;
+            if (microphone != null) microphone.tick();
+            if (pictures != null) pictures.tick();
+            if (microphone == null || pictures == null) return;
+            String latest = new JSONObject().put("microphone", microphone.snapshot()).put("visual", pictures.snapshot()).toString();
+            if (!latest.equals(mediaStatus)) {
+                RescueFiles.write(new File(root, "media-status.json"), latest);
+                mediaStatus = latest;
+            }
+        } catch (Exception unavailable) { System.err.println("业务状态读取暂时失败"); }
     }
 
     private long runWork(RemoteWorkLoop.Stage stage) throws Exception {
@@ -186,6 +227,7 @@ public final class RemoteDaemon {
             if (notice != null) body.put("received_request_id", notice.getString("request_id"))
                     .put("received_version", notice.getLong("version"));
             JSONObject reply = RemoteHttp.cloud("/api/devices/push-sync", body);
+            consumeMedia(reply.optJSONObject("media_session"));
             state.notice(reply.optJSONObject("status_request"), System.currentTimeMillis());
             if (state.snapshot().has("notice")) wake.set(true);
             return push.connected() ? 900000 : 60000;
@@ -210,8 +252,6 @@ public final class RemoteDaemon {
                     .put("managed_file_delete",ready)
                     .put("managed_adb_session",true)
                     .put("managed_adbd_tasks",ready)
-                    .put("managed_media", false)
-                    .put("managed_media_modes", new org.json.JSONArray())
                     .put("managed_system_settings", false)
                     .put("managed_contacts_page_v1", false)
                     .put("managed_network_confirmation_v1", ready)
@@ -219,6 +259,7 @@ public final class RemoteDaemon {
                     .put("maintenance", new JSONObject().put("ready", ready)
                             .put("state", ready ? "ready" : "unavailable"))
                     .put("hardware_identity", state.snapshot().getJSONObject("hardware_identity"));
+            RemoteMediaReport.merge(body, media == null ? null : media.snapshot(), visual == null ? null : visual.snapshot());
             if (RemoteUpdates.ready()) body.put("managed_update", true).put("managed_update_v2", true);
             if(bootComplete()){
                 if (managementReading != null && managementReading.isDone()) {
@@ -287,10 +328,21 @@ public final class RemoteDaemon {
         }
         JSONObject update = reply.optJSONObject("managed_update");
         if (update != null) RemoteUpdates.enqueue(update);
+        consumeMedia(reply.optJSONObject("media_session"));
         JSONObject session = reply.optJSONObject("adb_session");
         if(session!=null) {
             try { adb.open(session); }
             catch(Exception rejected) { status("adb_session_rejected",0,rejected.getClass().getSimpleName()); }
+        }
+    }
+
+    private void consumeMedia(JSONObject mediaOffer) throws Exception {
+        if (mediaOffer != null && media != null && visual != null) {
+            // 两种APP服务共享一个设备会话；迟到的异类offer不能抢占正在使用的资源。
+            String mode = mediaOffer.optString("mode");
+            if (("microphone".equals(mode)||"video".equals(mode)) && !visual.active()) media.accept(mediaOffer);
+            else if (("photo".equals(mode) || "alarm".equals(mode)) && !media.active())
+                visual.accept(mediaOffer, credentials());
         }
     }
 

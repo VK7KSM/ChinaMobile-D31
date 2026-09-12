@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -32,6 +34,10 @@
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <service
             android:name=".media.AppMediaService"
+            android:exported="false" />
+        <service
+            android:name=".media.PhotoAlarmService"
+            android:process=":visual"
             android:exported="false" />
         <service
             android:name=".telemetry.LocationCacheService"

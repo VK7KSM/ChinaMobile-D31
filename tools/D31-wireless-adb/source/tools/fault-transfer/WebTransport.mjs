@@ -87,6 +87,15 @@ export class WebTransport {
   async metadata(deviceId, taskId, options) {
     return this.json(this.fileRoute(deviceId, taskId), null, options);
   }
+  async received(deviceId, taskId, {size, sha256}, options) {
+    requireThat(/^[A-Za-z0-9_-]{1,96}$/.test(deviceId) && /^[A-Za-z0-9_-]{1,96}$/.test(taskId)
+      && Number.isSafeInteger(size) && size > 0 && size <= 8388608 && /^[a-f0-9]{64}$/.test(sha256), 'RETURN_RECEIPT_INVALID');
+    const route = `/api/elfremote/file-return/received?device_id=${encodeURIComponent(deviceId)}&task_id=${encodeURIComponent(taskId)}`;
+    const value = await this.json(route, {size, sha256}, options);
+    requireThat(value.ok === true && ((value.purged === true && value.cleanup_pending !== true)
+      || (value.cleanup_pending === true && value.purged !== true)), 'RETURN_RECEIPT_RESPONSE_INVALID');
+    return value;
+  }
   async download(deviceId, taskId, {filename, bytes, signal, onBytes}) {
     const response = await this.response(this.fileRoute(deviceId, taskId) + '&download=1', null, {signal});
     if (response.status === 429 || response.status >= 500) throw await this.retryError(response, 'DOWNLOAD_UNAVAILABLE');

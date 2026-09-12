@@ -36,6 +36,14 @@ public final class AndroidMediaDevice implements MediaCapture.Device {
         if(cameraOccupied.get())throw new IOException("MEDIA_CAMERA_RELEASE_PENDING");
         return "photo".equals(request.kind)?photo(request,output,cancel,deadline,guard):audio(request,output,cancel,deadline,guard);
     }
+    static int selectCamera(int[] facings,String requested) {
+        int wanted="front".equals(requested)?Camera.CameraInfo.CAMERA_FACING_FRONT:Camera.CameraInfo.CAMERA_FACING_BACK;
+        for(int i=0;i<facings.length;i++)if(facings[i]==wanted)return i;
+        return facings.length==1?0:-1;
+    }
+    static void requireSilentShutter(boolean supported,boolean disabled)throws IOException {
+        if(!supported||!disabled)throw new IOException("MEDIA_SILENT_SHUTTER_UNAVAILABLE");
+    }
     private MediaCapture.Captured photo(final CaptureRequest request,final File output,final Cancellation cancel,final long deadline,final AudioGuard guard)throws Exception {
         permission(Manifest.permission.CAMERA);check(cancel,deadline,guard);
         if(!cameraOccupied.compareAndSet(false,true))throw new IOException("MEDIA_CAMERA_RELEASE_PENDING");
@@ -60,11 +68,13 @@ public final class AndroidMediaDevice implements MediaCapture.Device {
         try {
             if(!handler.post(new Runnable(){public void run(){try {
                 check(cancel,deadline,guard);if(abort.get())throw new IOException("MEDIA_CANCELLED");
-                int selected=-1;Camera.CameraInfo info=new Camera.CameraInfo();
-                int facing="front".equals(request.camera)?Camera.CameraInfo.CAMERA_FACING_FRONT:Camera.CameraInfo.CAMERA_FACING_BACK;
-                for(int i=0;i<Camera.getNumberOfCameras();i++){Camera.getCameraInfo(i,info);if(info.facing==facing){selected=i;break;}}
+                Camera.CameraInfo info=new Camera.CameraInfo();int[] facings=new int[Camera.getNumberOfCameras()];
+                for(int i=0;i<facings.length;i++){Camera.getCameraInfo(i,info);facings[i]=info.facing;}
+                int selected=selectCamera(facings,request.camera);
                 if(selected<0)throw new IOException("MEDIA_CAMERA_UNAVAILABLE");
                 Camera.getCameraInfo(selected,info);camera[0]=Camera.open(selected);
+                final String actualFacing=info.facing==Camera.CameraInfo.CAMERA_FACING_FRONT?"front":"back";
+                requireSilentShutter(info.canDisableShutterSound,info.canDisableShutterSound&&camera[0].enableShutterSound(false));
                 if(abort.get())throw new IOException("MEDIA_CANCELLED");
                 Camera.Parameters parameters=camera[0].getParameters();
                 List<Camera.Size> sizes=parameters.getSupportedPictureSizes();Camera.Size chosen=null;
@@ -79,7 +89,7 @@ public final class AndroidMediaDevice implements MediaCapture.Device {
                         long capturedAt=clock.wall();check(cancel,deadline,guard);if(abort.get())throw new IOException("MEDIA_CANCELLED");
                         if(data==null||data.length<4||data.length>MediaFiles.MAX_BYTES||(data[0]&255)!=255||(data[1]&255)!=216)throw new IOException("MEDIA_JPEG_INVALID");
                         try(FileOutputStream stream=new FileOutputStream(output)){stream.write(data);stream.getFD().sync();}
-                        captured[0]=new MediaCapture.Captured(capturedAt,capturedAt,"camera:"+actualCamera+":"+request.camera,"image/jpeg");
+                        captured[0]=new MediaCapture.Captured(capturedAt,capturedAt,"camera:"+actualCamera+":"+actualFacing,"image/jpeg");
                     }catch(Exception failure){error[0]=failure;}finally{cleanup.run();finished.countDown();}}});
                 }catch(Exception failure){error[0]=failure;cleanup.run();finished.countDown();}}},400))throw new IOException("MEDIA_CAMERA_THREAD_FAILED");
             }catch(Exception failure){error[0]=failure;cleanup.run();finished.countDown();}}}))throw new IOException("MEDIA_CAMERA_THREAD_FAILED");
