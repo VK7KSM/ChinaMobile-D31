@@ -21,6 +21,7 @@ public final class NetworkAndroidPlatform implements NetworkChangeTransaction.Pl
     private final Maintenance maintenance;
     private final NetworkChangeTransaction engine;
     private final NetworkChangeTransaction.Store store;
+    private final NetworkChangeTransaction.Clock clock;
     private String task;
     private boolean recovering;
 
@@ -34,17 +35,58 @@ public final class NetworkAndroidPlatform implements NetworkChangeTransaction.Pl
         NetworkAndroidFiles files = new NetworkAndroidFiles();
         files.beforeOpen(new File(NetworkAndroidFiles.ROOT, "wifi-enabled.journal"));
         store = new NetworkChangeTransactionJournal(NetworkAndroidFiles.ROOT, files);
-        engine = new NetworkChangeTransaction(store, this,
-                new NetworkChangeTransaction.Clock() {
+        clock = new NetworkChangeTransaction.Clock() {
                     public String bootId() throws Exception { return NetworkAndroidFiles.boot(); }
                     public long elapsedMillis() { return SystemClock.elapsedRealtime(); }
-                });
+                };
+        engine = new NetworkChangeTransaction(store, this, clock);
     }
     public JSONObject begin(String taskId, boolean target, long windowMs) throws Exception {
         if (windowMs < 10000 || windowMs > 120000) throw new IOException("NETWORK_PRODUCTION_WINDOW_10000_120000");
         return complete(taskId, engine.begin(taskId, target, windowMs));
     }
     public JSONObject query(String taskId) throws Exception { return engine.query(taskId); }
+    public JSONObject resumeRecovery(String taskId) throws Exception {
+        return dispatcher().resume(taskId, original -> NetworkRecoveryGuard.ensure(this, original));
+    }
+    boolean recoveryServicesReady(String taskId, long remainingMs) throws Exception {
+        requireNotInterrupted();
+        if (remainingMs <= 0) return false;
+        long began = SystemClock.elapsedRealtime();
+        try {
+            Object boot = Class.forName("android.os.SystemProperties").getMethod("get", String.class)
+                    .invoke(null, "sys.boot_completed");
+            if (!"1".equals(boot)) return false;
+            long budget = remainingMs - (SystemClock.elapsedRealtime() - began);
+            if (budget <= 0) return false;
+            String state = invokeBounded(Math.min(4000, budget), "get", taskId, hash);
+            return "ENABLED".equals(state) || "DISABLED".equals(state);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt(); throw interrupted;
+        } catch (Exception unavailable) { return false; }
+    }
+    private NetworkRecoveryDispatch dispatcher() { return new NetworkRecoveryDispatch(store, maintenance, hash); }
+    public JSONObject pollConfirmation(String taskId, NetworkConfirmationDispatch.Source source) throws Exception {
+        return new NetworkConfirmationDispatch(dispatcher(), clock, (binding, proof) -> {
+            if (!hash.equals(binding.apkSha256)) throw new IOException("NETWORK_APK_HASH_MISMATCH");
+            recovering = true;
+            try { return complete(taskId, engine.confirmBound(taskId, binding, proof)); }
+            finally { recovering = false; }
+        }).poll(taskId, source);
+    }
+    JSONObject guardQuery(String taskId, String armedBoot, long deadline) throws Exception {
+        try (NetworkChangeTransaction.Store.Session session = store.lock()) {
+            JSONObject records = NetworkChangeTransaction.records(session);
+            if (!records.has(taskId)) throw new IOException("NETWORK_GUARD_TRANSACTION_MISSING");
+            JSONObject job = records.getJSONObject(taskId);
+            NetworkRecoveryGuard.requireOriginal(job, taskId, armedBoot, deadline);
+            return NetworkChangeTransaction.report(job);
+        } catch (NetworkChangeTransaction.Busy busy) {
+            return new JSONObject().put("state", "UNKNOWN").put("reason", "STORE_BUSY");
+        } catch (Exception unavailable) {
+            return new JSONObject().put("state", "UNKNOWN").put("reason", "STORE_OR_BINDING_UNAVAILABLE");
+        }
+    }
     public JSONObject confirm(String taskId, NetworkChangeTransaction.Confirmation confirmation) throws Exception {
         return complete(taskId, engine.confirm(taskId, confirmation));
     }
@@ -187,11 +229,14 @@ public final class NetworkAndroidPlatform implements NetworkChangeTransaction.Pl
             throw new IOException("NETWORK_SET_TARGET_UNCONFIRMED");
     }
     String invoke(String... args) throws Exception {
+        return invokeBounded(4000, args);
+    }
+    private String invokeBounded(long budgetMs, String... args) throws Exception {
         ArrayList<String> command = new ArrayList<>(Arrays.asList("/system/bin/app_process", "/system/bin",
                 "--nice-name=d31-network-call", NetworkWifiCommand.class.getName()));
         command.addAll(Arrays.asList(args));
         ProcessBuilder builder = new ProcessBuilder(command).redirectErrorStream(true);
         builder.environment().put("CLASSPATH", apk.getPath());
-        return NetworkProcess.collect(builder.start(), 4000);
+        return NetworkProcess.collect(builder.start(), budgetMs);
     }
 }

@@ -59,6 +59,9 @@ final class FaultPending {
         catch (Exception missing) { scan = new JSONObject(); }
         JSONObject capacity = new JSONObject().put("scope", "LAST_SCAN_NOT_LIVE")
                 .put("state", token(scan.optString("state"), "CAPACITY_LIMIT|PARTIAL|FINISHED"));
+        // 仅透传采集端真实布尔值；旧记录或坏类型仍未知，不从容量/完成状态推断。
+        Object mayExpire = scan.opt("uncollectedSourcesMayExpire");
+        capacity.put("uncollectedSourcesMayExpire", mayExpire instanceof Boolean ? mayExpire : JSONObject.NULL);
         for (String key : new String[]{"capturedAtMs", "activeEvents", "archivedEvents", "retainedEvents", "retainedBytes",
                 "maxActiveEvents", "maxRetainedEvents", "maxArchiveBytes", "eventIndexErrors", "exportHeadroomBytes",
                 "collectingEvents", "awaitingArchiveEvents", "maxCollectingEvents"})

@@ -5,6 +5,11 @@ import org.json.JSONObject;
 
 /** 显式LOCAL读取闭环；只返回冻结收集器的元数据，原厂记录在结束时丢弃。 */
 final class ContactsLocalRead {
+    static final class Capture implements AutoCloseable {
+        ContactsNexui.Snapshot snapshot;
+        ContactsNexui.Snapshot take() { ContactsNexui.Snapshot value = snapshot; snapshot = null; return value; }
+        public void close() { if (snapshot != null) snapshot.close(); snapshot = null; }
+    }
     interface Platform extends ContactsBindingProbe.Platform {
         boolean startVendor() throws Exception;
         void requestLocal(ContactsNexui.Receiver receiver) throws Exception;
@@ -35,6 +40,10 @@ final class ContactsLocalRead {
 
     static JSONObject run(Platform platform, final ContactsBindingProbe.Control cancel,
             final ContactsBindingProbe.Clock clock, final long deadline) throws Exception {
+        return run(platform, cancel, clock, deadline, null);
+    }
+    static JSONObject run(Platform platform, final ContactsBindingProbe.Control cancel,
+            final ContactsBindingProbe.Clock clock, final long deadline, Capture capture) throws Exception {
         final long began = clock.now();
         ContactsBindingProbe.Control guard = new ContactsBindingProbe.Control() {
             public void check() throws Exception { cancel.check(); if (clock.now() >= deadline) throw new IOException("CONTACTS_TIMEOUT"); }
@@ -79,6 +88,10 @@ final class ContactsLocalRead {
             synchronized (accumulator) {
                 try (ContactsNexui.Snapshot snapshot = accumulator.snapshot(clock.now() - readBegan)) {
                     local = snapshot.metadata().put("effective_wait_budget_ms", waitMs);
+                    if (capture != null && local.getBoolean("list_complete")) {
+                        capture.snapshot = accumulator.snapshot(clock.now() - readBegan);
+                        local = capture.snapshot.metadata().put("effective_wait_budget_ms", waitMs);
+                    }
                 }
             }
             state = local.getBoolean("list_complete") ? "LOCAL_METADATA_VERIFIED" : "CONTACTS_LOCAL_" + local.getString("status");

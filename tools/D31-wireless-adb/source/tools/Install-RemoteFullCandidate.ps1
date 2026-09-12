@@ -30,7 +30,8 @@ if((Read-Device 'getprop ro.product.device') -ne 'hct6735_66_m0' -or
 $active=(Save-Device 'active-before-private.json' 'cat /data/local/d31-remote/runtime/active.json') | ConvertFrom-Json
 if($active.sha256 -cne $PriorSha256){throw '活动原像与预登记不符'}
 $installed=(Read-Device 'pm path net.elfradio.d31bootstrap') -replace '^package:',''
-if($installed -notmatch '^/data/app/net\.elfradio\.d31bootstrap-[0-9]+/base\.apk$'){throw '原安装路径未经确认'}
+if($installed -notmatch '^/data/app/net\.elfradio\.d31bootstrap-[0-9]+/base\.apk$' -and
+   $installed -cne '/system/priv-app/D31ElfRemote/D31ElfRemote.apk'){throw '原安装路径未经确认'}
 & $adb -P 5042 -s $Serial pull $installed "$capture/installed-before.apk" *> "$capture/pull-installed.log"
 if($LASTEXITCODE -ne 0 -or (Get-FileHash "$capture/installed-before.apk").Hash -ine $PriorSha256){throw '原APK备份失败'}
 & $adb -P 5042 -s $Serial pull /system/priv-app/D31ElfRemote/D31ElfRemote.apk "$capture/system-before.apk" *> "$capture/pull-system.log"

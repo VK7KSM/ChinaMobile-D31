@@ -35,15 +35,32 @@ public final class ContactsAppBridge implements AutoCloseable {
         return execute(hash,control,true,before,requestId);
     }
     public static boolean cleanupConfirmed(JSONObject result){return ContactsAppWatchdog.cleanupConfirmed(result);}
+    public JSONObject openLocalPages(String hash, SystemManagement.Control control, BeforeExecute before) throws Exception {
+        if (before == null) throw new IOException("CONTACTS_RESERVATION_REQUIRED");
+        return execute(hash, control, true, before, null, ContactsAppContract.OPEN_PAGES, null, 0, 1);
+    }
+    public JSONObject readLocalPage(String hash, String snapshot, int offset, int limit, SystemManagement.Control control) throws Exception {
+        ContactsPageCommand.pageArguments(snapshot, offset, limit);
+        return execute(hash, control, false, null, null, ContactsAppContract.READ_PAGE, snapshot, offset, limit);
+    }
+    public JSONObject closeLocalPages(String hash, String snapshot, SystemManagement.Control control) throws Exception {
+        ContactsPageCommand.pageArguments(snapshot, 0, 1);
+        return execute(hash, control, false, null, null, ContactsAppContract.CLOSE_PAGES, snapshot, 0, 1);
+    }
 
     private JSONObject execute(String verifiedApkSha256, SystemManagement.Control control, boolean localRead) throws Exception {
         return execute(verifiedApkSha256,control,localRead,null,null);
     }
     private JSONObject execute(String verifiedApkSha256, SystemManagement.Control control, boolean localRead,BeforeExecute before,String inspectRequest) throws Exception {
+        return execute(verifiedApkSha256, control, localRead, before, inspectRequest, 0, null, 0, 1);
+    }
+    private JSONObject execute(String verifiedApkSha256, SystemManagement.Control control, boolean localRead, BeforeExecute before,
+            String inspectRequest, int pageAction, String snapshot, int offset, int limit) throws Exception {
         ContactsAppContract.digest(verifiedApkSha256);
         if (control == null) throw new IOException("CONTACTS_CONTROL_REQUIRED");
         if (!active.compareAndSet(false, true)) throw new IOException("CONTACTS_BRIDGE_BUSY");
         Call call = new Call(localRead,before,inspectRequest); current = call;
+        call.pageAction = pageAction; call.snapshotId = snapshot; call.pageOffset = offset; call.pageLimit = limit;
         try {
             if (closed) throw new IOException("CONTACTS_BRIDGE_CLOSED");
             return call.run(verifiedApkSha256, control);
@@ -55,6 +72,8 @@ public final class ContactsAppBridge implements AutoCloseable {
         final boolean localRead;
         final BeforeExecute before;
         final String inspectRequest;
+        int pageAction, pageOffset, pageLimit;
+        String snapshotId;
         int appPid=-1;
         Call(boolean localRead,BeforeExecute before,String inspectRequest) { this.localRead = localRead; this.before=before; this.inspectRequest=inspectRequest; }
         String boot;
@@ -87,13 +106,16 @@ public final class ContactsAppBridge implements AutoCloseable {
                             try {
                                 if (data == null || !boot.equals(ContactsAppContract.bootId())) throw new IOException("CONTACTS_REPLY_MISMATCH");
                                 JSONObject envelope = ContactsAppContract.reply(sender, expectedUid, id, boot, started,
-                                        SystemClock.elapsedRealtime(), data.getString("envelope"));
+                                        SystemClock.elapsedRealtime(), data.getString("envelope"),
+                                        pageAction == ContactsAppContract.READ_PAGE && code == ContactsAppContract.PAGE_RESULT
+                                                ? ContactsAppContract.PAGE_BYTES : ContactsAppContract.MAX_BYTES);
                                 if (code == ContactsAppContract.HELLO && endpoint == null && result == null) {
                                     endpoint = data.getBinder("control");
                                     if (endpoint == null) throw new IOException("CONTACTS_CONTROL_MISSING");
                                     endpoint.linkToDeath(death, 0); linked = true; handshake = true;
                                     appPid=data.getInt("app_pid",-1);
-                                } else if (code == ContactsAppContract.RESULT && result == null) {
+                                } else if ((code == ContactsAppContract.RESULT ||
+                                        (pageAction == ContactsAppContract.READ_PAGE && code == ContactsAppContract.PAGE_RESULT)) && result == null) {
                                     result = envelope.getJSONObject("result");
                                 }
                             } catch (Exception invalid) { failure = "CONTACTS_REPLY_INVALID"; }
@@ -119,8 +141,11 @@ public final class ContactsAppBridge implements AutoCloseable {
                         parcel.writeInterfaceToken(ContactsAppContract.DESCRIPTOR); parcel.writeString(digest);
                         if(inspectRequest==null)parcel.writeStrongBinder(owner);
                         else {parcel.writeString(inspectRequest);parcel.writeInt(1);}
+                        if (pageAction == ContactsAppContract.READ_PAGE || pageAction == ContactsAppContract.CLOSE_PAGES) {
+                            parcel.writeString(snapshotId); parcel.writeInt(pageOffset); parcel.writeInt(pageLimit);
+                        }
                         executed = true;
-                        if (!endpoint.transact(inspectRequest!=null ? ContactsAppContract.INSPECT_LOCAL : localRead ? ContactsAppContract.EXECUTE_LOCAL : ContactsAppContract.EXECUTE, parcel, null, IBinder.FLAG_ONEWAY))
+                        if (!endpoint.transact(inspectRequest!=null ? ContactsAppContract.INSPECT_LOCAL : pageAction != 0 ? pageAction : localRead ? ContactsAppContract.EXECUTE_LOCAL : ContactsAppContract.EXECUTE, parcel, null, IBinder.FLAG_ONEWAY))
                             throw new IOException("CONTACTS_EXECUTE_FAILED");
                     } finally { parcel.recycle(); }
                 }
@@ -139,6 +164,7 @@ public final class ContactsAppBridge implements AutoCloseable {
                     if (interrupted || failed instanceof InterruptedException) Thread.currentThread().interrupt();
                     if (result != null) {
                         JSONObject known = decorate(result, digest);
+                        known.remove("page"); known.remove("page_snapshot");
                         return known.put("ok", false).put("listComplete", false).put("bridgeFailure", reason);
                     }
                     JSONObject unknown = localRead ? ContactsLocalRead.unknown(reason, executed)
@@ -153,6 +179,11 @@ public final class ContactsAppBridge implements AutoCloseable {
             if (value == null) throw new IOException("CONTACTS_REPLY_MISSING");
             if (localRead && !"NEXUI_APP_LOCAL_METADATA".equals(value.optString("kind")))
                 value = ContactsLocalRead.unknown(value.optString("state", "CONTACTS_REPLY_INVALID"), executed);
+            if (pageAction == ContactsAppContract.READ_PAGE || pageAction == ContactsAppContract.CLOSE_PAGES) {
+                if (!value.optBoolean("ok")) value = ContactsPageCommand.receipt(value.optString("state", "CONTACTS_PAGE_FAILED"));
+                if (!"NEXUI_APP_LOCAL_PAGE".equals(value.optString("kind"))) throw new IOException("CONTACTS_REPLY_MISMATCH");
+                if (value.optBoolean("ok") && !snapshotId.equals(value.optString("snapshot_id"))) throw new IOException("CONTACTS_REPLY_MISMATCH");
+            }
             return value.put("appServiceStartRequested", appStarted).put("bridgeHandshake", handshake)
                     .put("expectedApkSha256", digest);
         }

@@ -22,7 +22,7 @@ public final class RemoteNetworkAccess implements NetworkAndroidPlatform.Mainten
         if (args.length == 2 && "prepare".equals(args[0])) { hash(args[1]); return; }
         if (args.length < 3 || !args[1].matches("[A-Za-z0-9-]{1,64}")) throw new IOException("NETWORK_ARGUMENTS_INVALID");
         hash(args[2]);
-        if (args.length == 3 && ("query".equals(args[0]) || "cancel".equals(args[0]))) return;
+        if (args.length == 3 && ("query".equals(args[0]) || "cancel".equals(args[0]) || "resume".equals(args[0]))) return;
         if (args.length == 5 && "begin".equals(args[0])
                 && ("true".equals(args[3]) || "false".equals(args[3]))
                 && args[4].matches("[1-9][0-9]{4,5}")
@@ -121,7 +121,15 @@ public final class RemoteNetworkAccess implements NetworkAndroidPlatform.Mainten
                 access.requireReady(args[1]); result = NetworkRecoveryGuard.run(args, access);
             } else {
                 NetworkAndroidPlatform platform = new NetworkAndroidPlatform(digest, access);
-                if ("query".equals(args[0])) result = platform.query(args[1]);
+                if ("resume".equals(args[0])) {
+                    try { result = platform.resumeRecovery(args[1]); }
+                    catch (IOException attention) {
+                        if (!"NETWORK_RECOVERY_ATTENTION_REQUIRED".equals(attention.getMessage())) throw attention;
+                        result = new JSONObject().put("state", "NEEDS_ATTENTION")
+                                .put("recovery_dispatch", "NEEDS_ATTENTION").put("restored", false);
+                    }
+                }
+                else if ("query".equals(args[0])) result = platform.query(args[1]);
                 else if ("cancel".equals(args[0])) {
                     if ("ABSENT".equals(platform.query(args[1]).optString("state"))) {
                         platform.releaseUnstarted(args[1]);

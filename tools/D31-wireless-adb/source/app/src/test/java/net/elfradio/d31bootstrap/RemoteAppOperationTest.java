@@ -57,7 +57,7 @@ public class RemoteAppOperationTest {
         }
     }
     private RemoteAppOperation begin(Disk d,String kind,String id)throws Exception{
-        return RemoteAppOperation.open(d,kind,id,HASH,RemoteAppOperation.CONTACTS.equals(kind)?new JSONObject():new JSONObject().put("duration_ms",2500),true);
+        return RemoteAppOperation.open(d,kind,id,HASH,RemoteAppOperation.isContacts(kind)?new JSONObject():new JSONObject().put("duration_ms",2500),true);
     }
     private RemoteAppOperation reopen(Disk d,String id)throws Exception{return RemoteAppOperation.open(d,null,id,HASH,null,false);}
     private RemoteAppOperation armed(Disk d,String kind)throws Exception{
@@ -85,6 +85,23 @@ public class RemoteAppOperationTest {
         try(RemoteAppOperation op=begin(d,RemoteAppOperation.AUDIO,"task")){assertFalse(op.shouldExecute());assertFalse(op.recoverDeath());}
         refused(()->{try(RemoteAppOperation ignored=begin(d,RemoteAppOperation.CONTACTS,"other")) {}});
         assertNotNull(d.reservation());
+    }
+    @Test public void pageCaptureCannotReuseMetadataReceiptOrReexecuteSameId()throws Exception{
+        Disk d=new Disk();
+        try(RemoteAppOperation op=armed(d,RemoteAppOperation.CONTACT_PAGES)){
+            assertFalse(op.finish(contacts()).getBoolean("reservation_released"));
+            assertTrue(op.finish(contacts().put("operation","read_local_pages")).getBoolean("reservation_released"));
+        }
+        try(RemoteAppOperation op=begin(d,RemoteAppOperation.CONTACT_PAGES,"task")){
+            assertFalse(op.shouldExecute());assertTrue(op.status().getBoolean("reservation_released"));
+        }
+        refused(()->{try(RemoteAppOperation ignored=begin(d,RemoteAppOperation.CONTACTS,"task")) {}});
+    }
+    @Test public void metadataCaptureCannotReleaseUsingPageReceipt()throws Exception{
+        Disk d=new Disk();try(RemoteAppOperation op=armed(d,RemoteAppOperation.CONTACTS)){
+            assertFalse(op.finish(contacts().put("operation","read_local_pages")).getBoolean("reservation_released"));
+            assertTrue(op.finish(contacts()).getBoolean("reservation_released"));
+        }
     }
     @Test public void fullRequestAndBootAreBoundAcrossReopen()throws Exception{
         Disk d=new Disk();try(RemoteAppOperation ignored=begin(d,RemoteAppOperation.AUDIO,"task")){}

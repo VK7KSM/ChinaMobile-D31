@@ -13,6 +13,8 @@ import org.json.JSONObject;
 /** 两种实际APP资源操作的持久预留；全程复用RemoteMaintenance，不创建第二把锁。 */
 public final class RemoteAppOperation implements AutoCloseable {
     public static final String AUDIO="local_audio_capture", CONTACTS="read-local-metadata";
+    public static final String CONTACT_PAGES="read-local-pages";
+    static boolean isContacts(String kind) { return CONTACTS.equals(kind) || CONTACT_PAGES.equals(kind); }
     enum Presence { ALIVE, DEAD, UNKNOWN }
     interface Access {
         AutoCloseable acquire() throws Exception;
@@ -40,7 +42,7 @@ public final class RemoteAppOperation implements AutoCloseable {
     }
     static RemoteAppOperation open(Access access,String kind,String id,String hash,JSONObject params,boolean start)throws Exception{
         validate(id,hash);
-        if(start&&(!AUDIO.equals(kind)&&!CONTACTS.equals(kind)))throw new IOException("APP_OPERATION_KIND_INVALID");
+        if(start&&(!AUDIO.equals(kind)&&!isContacts(kind)))throw new IOException("APP_OPERATION_KIND_INVALID");
         AutoCloseable lease=access.acquire();if(lease==null)throw new IOException("APP_OPERATION_MAINTENANCE_BUSY");
         try{
             JSONObject old=access.read(id);
@@ -68,12 +70,12 @@ public final class RemoteAppOperation implements AutoCloseable {
         if(!Integer.valueOf(1).equals(record.opt("schema_version"))||!id.equals(record.getString("operation_id"))
                 ||!hash.equals(record.getString("apk_sha256"))
                 ||!record.getString("boot_id").matches("[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}")
-                ||!(AUDIO.equals(record.getString("operation"))||CONTACTS.equals(record.getString("operation")))
+                ||!(AUDIO.equals(record.getString("operation"))||isContacts(record.getString("operation")))
                 ||!java.util.Arrays.asList("PREPARED","ARMED","RELEASED").contains(record.getString("state")))
             throw new IOException("APP_OPERATION_RECORD_MISMATCH");
         JSONObject params=record.getJSONObject("params"),owner=record.getJSONObject("owner");
         if(RemoteAppOperationFiles.compareProcess(owner,owner)!=Presence.ALIVE
-                ||(CONTACTS.equals(record.getString("operation"))?params.length()!=0
+                ||(isContacts(record.getString("operation"))?params.length()!=0
                 :params.length()!=1||!(params.opt("duration_ms") instanceof Integer)
                     ||params.getInt("duration_ms")<1||params.getInt("duration_ms")>5000))
             throw new IOException("APP_OPERATION_RECORD_MISMATCH");
@@ -114,8 +116,11 @@ public final class RemoteAppOperation implements AutoCloseable {
         if(!record.getString("request_id").equals(result.optString("operation_request_id"))
                 ||!Integer.valueOf(app.getInt("pid")).equals(result.opt("app_pid"))
                 ||!Integer.valueOf(app.getInt("uid")).equals(result.opt("app_uid")))return false;
-        if(CONTACTS.equals(record.getString("operation")))return
+        if(isContacts(record.getString("operation")))return
                 record.getString("apk_sha256").equals(result.optString("operation_apk_sha256"))
+                &&(CONTACT_PAGES.equals(record.getString("operation"))
+                    ? "read_local_pages".equals(result.optString("operation"))
+                    : !"read_local_pages".equals(result.optString("operation")))
                 &&"NEXUI_APP_LOCAL_METADATA".equals(result.optString("kind"))&&ContactsAppBridge.cleanupConfirmed(result);
         if(!AUDIO.equals(result.optString("operation"))||!record.getString("operation_id").equals(result.optString("diagnostic_id"))
                 ||!Integer.valueOf(record.getJSONObject("params").getInt("duration_ms")).equals(result.opt("duration_ms"))
@@ -193,7 +198,7 @@ public final class RemoteAppOperation implements AutoCloseable {
         if(operation.recoverDeath())return operation.status();
         if(!"ARMED".equals(operation.record.getString("state")))return operation.status();
         JSONObject result;
-        if(CONTACTS.equals(operation.record.getString("operation"))){
+        if(isContacts(operation.record.getString("operation"))){
             try(ContactsAppBridge bridge=new ContactsAppBridge(context)){
                 result=bridge.recoverLocalMetadata(operation.record.getString("apk_sha256"),operation.record.getString("request_id"),control(),operation::verifyRecoveryPeer);
             }

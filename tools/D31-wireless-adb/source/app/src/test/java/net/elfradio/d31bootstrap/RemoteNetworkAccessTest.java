@@ -10,6 +10,7 @@ public final class RemoteNetworkAccessTest {
     @Test public void validatesOnlyExplicitLocalOperations() throws Exception {
         RemoteNetworkAccess.validate(new String[]{"prepare", HASH});
         RemoteNetworkAccess.validate(new String[]{"query", "case-1", HASH});
+        RemoteNetworkAccess.validate(new String[]{"resume", "case-1", HASH});
         RemoteNetworkAccess.validate(new String[]{"cancel", "case-1", HASH});
         RemoteNetworkAccess.validate(new String[]{"begin", "case-1", HASH, "false", "10000"});
         RemoteNetworkAccess.validate(new String[]{"begin", "case-1", HASH, "true", "120000"});

@@ -103,6 +103,31 @@ public class RemoteSupervisorTest {
         assertEquals(0, cycle.errors);
     }
 
+    @Test public void networkRecoveryRunsWithoutMaintenanceAndFailureDoesNotBlockCore() throws Exception {
+        Fixture cycle = new Fixture(temporary.newFolder());
+        cycle.failure = "network";
+        RemoteSupervisor.runCycle(cycle);
+        assertEquals(1, cycle.recoveries);
+        assertEquals(1, cycle.errors);
+        assertEquals(1, cycle.coreChecks);
+        assertEquals(1, cycle.pauses);
+    }
+    @Test public void diagnosticWriteFailureCannotStopNetworkOrNormalRecoveryLoops() throws Exception {
+        for (String failure : new String[]{"network", "update"}) {
+            Fixture cycle = new Fixture(temporary.newFolder()) {
+                @Override public void failed(Exception error) throws Exception {
+                    super.failed(error); throw new IOException("fixture-disk-full");
+                }
+            };
+            cycle.failure = failure;
+            RemoteSupervisor.runCycle(cycle);
+            assertFalse(cycle.held);
+            assertEquals(1, cycle.coreChecks);
+            assertEquals(1, cycle.pauses);
+            assertEquals(1, cycle.errors);
+        }
+    }
+
     private static void runReservationWriter(File root, String operation, File log) throws Exception {
         String executable = new File(new File(System.getProperty("java.home"), "bin"),
                 File.separatorChar == '\\' ? "java.exe" : "java").getPath();
@@ -139,9 +164,17 @@ public class RemoteSupervisorTest {
         boolean held, busy, reservation, manual, releaseReservationDuringPause, interruptWork, interruptPause;
         boolean packages = true;
         String failure = "";
-        int attempts, pauses, errors, updates, coreChecks, manualChecks, otherWriters;
+        int attempts, pauses, errors, updates, coreChecks, manualChecks, otherWriters, recoveries;
         long delay, totalDelay;
         Fixture(File root) { this.root = root; }
+        public void recoverNetwork() throws Exception {
+            assertFalse(held);
+            try (RemoteMaintenance.Lease lease = RemoteMaintenance.acquire(root)) {
+                assertNotNull(lease);
+            }
+            recoveries++;
+            if (failure.equals("network")) throw new IOException("fixture-network");
+        }
         public AutoCloseable acquire() throws Exception {
             assertFalse(held);
             attempts++;
@@ -167,7 +200,7 @@ public class RemoteSupervisorTest {
             assertTrue(held); updates++;
             if (failure.equals("update")) throw new IOException("fixture-update");
         }
-        public void failed(Exception error) { assertFalse(held); errors++; }
+        public void failed(Exception error) throws Exception { assertFalse(held); errors++; }
         public void pause(long millis) throws InterruptedException {
             assertFalse("不能持维护锁等待", held);
             pauses++; delay = millis; totalDelay += millis;

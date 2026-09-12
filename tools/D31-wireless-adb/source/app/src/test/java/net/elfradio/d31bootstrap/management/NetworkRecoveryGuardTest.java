@@ -38,20 +38,71 @@ public class NetworkRecoveryGuardTest {
         } finally { if (child != null) child.destroy(); }
     }
     static final class Host implements NetworkRecoveryLoop.Host {
-        long now; String boot = "a"; int hearts, queries, recovered, releases;
+        long now, readyAt, readCost; String boot = "a"; int hearts, queries, recovered, releases, readinessChecks;
+        boolean heartbeatFailsDuringRead;
         JSONObject state = new JSONObject(); String result = "ROLLED_BACK";
         public long elapsed() { return now; }
         public String boot() { return boot; }
-        public void heartbeat() { hearts++; }
+        public void heartbeat() throws Exception { hearts++; if(heartbeatFailsDuringRead && readinessChecks>0)throw new IOException("fixture-heartbeat-lost"); }
         public JSONObject query() { assertTrue(hearts > queries++); return state; }
+        public boolean recoveryReady(long remainingMs) { readinessChecks++; now+=Math.min(readCost,remainingMs); return now >= readyAt; }
         public JSONObject recover() throws Exception { recovered++; return new JSONObject().put("state",result).put("restored",result.equals("ROLLED_BACK")); }
         public void settled(JSONObject s) { releases++; }
         public void pause() { now += 1000; }
+        public void pause(long maximumMs) { now += Math.min(1000,maximumMs); }
     }
     @Test public void waitingUsesFixedDeadlineAndReleasesOnlySettledState() throws Exception {
         Host h = new Host(); h.state.put("state","AWAITING_CONFIRM");
         assertEquals("ROLLED_BACK",NetworkRecoveryLoop.run(h,"a",2000).getString("state"));
         assertEquals(3,h.hearts); assertEquals(1,h.recovered); assertEquals(1,h.releases);
+    }
+    @Test public void newBootWaitsForServicesBeforeAnyRecoveryAttempt() throws Exception {
+        Host h=new Host();h.boot="new";h.readyAt=4000;h.state.put("state","AWAITING_CONFIRM");
+        assertEquals("ROLLED_BACK",NetworkRecoveryLoop.run(h,"a",2000).getString("state"));
+        assertEquals(4000,h.now);assertTrue(h.hearts>=5);assertEquals(5,h.readinessChecks);assertEquals(1,h.recovered);
+    }
+    @Test public void missingBootServicesCannotExtendGuardBudgetOrWriteUnknownRollback() throws Exception {
+        Host h=new Host();h.boot="new";h.readyAt=Long.MAX_VALUE;h.state.put("state","AWAITING_CONFIRM");
+        JSONObject result=NetworkRecoveryLoop.run(h,"a",2000);
+        assertEquals("GUARD_BUDGET_EXHAUSTED",result.getString("reason"));
+        assertEquals(150000,h.now);assertEquals(0,h.recovered);assertEquals(0,h.releases);
+    }
+    @Test public void sameBootDeadlineRecoveryDoesNotWaitForBootProperty() throws Exception {
+        Host h=new Host();h.readyAt=Long.MAX_VALUE;h.state.put("state","AWAITING_CONFIRM");
+        assertEquals("ROLLED_BACK",NetworkRecoveryLoop.run(h,"a",2000).getString("state"));
+        assertEquals(0,h.readinessChecks);assertEquals(1,h.recovered);
+    }
+    @Test public void heartbeatContinuesWhileRecoveryCallerWaits() throws Exception {
+        java.util.concurrent.CountDownLatch beats = new java.util.concurrent.CountDownLatch(3);
+        try(NetworkRecoveryGuard.Heartbeat heartbeat = new NetworkRecoveryGuard.Heartbeat(beats::countDown)) {
+            assertTrue(beats.await(2,java.util.concurrent.TimeUnit.SECONDS));
+            heartbeat.check();
+        }
+    }
+    @Test public void failedHeartbeatAfterReadinessCannotStartRecovery() throws Exception {
+        Host h=new Host();h.boot="new";h.heartbeatFailsDuringRead=true;h.state.put("state","AWAITING_CONFIRM");
+        try{NetworkRecoveryLoop.run(h,"a",2000);fail();}catch(IOException expected){}
+        assertEquals(0,h.recovered);assertEquals(0,h.releases);
+    }
+    @Test public void readinessConsumesRemainingBudgetBeforePauseOrRecovery() throws Exception {
+        for(long ready:new long[]{Long.MAX_VALUE,150000}){
+            Host h=new Host();h.boot="new";h.readyAt=ready;h.readCost=4000;h.state.put("state","AWAITING_CONFIRM");
+            assertEquals("GUARD_BUDGET_EXHAUSTED",NetworkRecoveryLoop.run(h,"a",2000).getString("reason"));
+            assertEquals(150000,h.now);assertEquals(0,h.recovered);assertEquals(0,h.releases);
+        }
+    }
+    @Test public void heartbeatFailureIsNotHiddenByScheduler() throws Exception {
+        java.util.concurrent.atomic.AtomicInteger beats = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.CountDownLatch failed = new java.util.concurrent.CountDownLatch(1);
+        try(NetworkRecoveryGuard.Heartbeat heartbeat = new NetworkRecoveryGuard.Heartbeat(() -> {
+            if(beats.incrementAndGet()>1){failed.countDown();throw new IOException("fixture-heartbeat");}
+        })) {
+            assertTrue(failed.await(2,java.util.concurrent.TimeUnit.SECONDS));
+            long until=System.nanoTime()+1000000000L;
+            boolean detected=false;
+            while(System.nanoTime()<until){try{heartbeat.check();}catch(IOException expected){detected=true;break;}Thread.yield();}
+            assertTrue(detected);
+        }
     }
     @Test public void corruptJournalStopsWithoutSetterOrRelease() throws Exception {
         Host h = new Host(); h.state.put("state","UNKNOWN").put("reason","STORE_UNAVAILABLE");

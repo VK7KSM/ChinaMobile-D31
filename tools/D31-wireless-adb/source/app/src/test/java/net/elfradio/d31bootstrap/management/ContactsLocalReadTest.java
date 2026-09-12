@@ -203,4 +203,47 @@ public class ContactsLocalReadTest {
         try { ContactsAppCommand.validate(new String[]{"metadata", hash, "local-operation-1"}); fail(); } catch (IOException expected) { }
         try { ContactsAppCommand.validate(new String[]{"read-local-metadata", hash, "../other"}); fail(); } catch (IOException expected) { }
     }
+    @Test public void capturedContentUsesOneOriginalRequestAndOnlyPublishesAfterCleanup() throws Exception {
+        Platform p = new Platform(); Clock clock = new Clock();
+        try (ContactsLocalRead.Capture capture = new ContactsLocalRead.Capture(); ContactsPageStore store = new ContactsPageStore(() -> clock.now)) {
+            JSONObject receipt = ContactsLocalRead.run(p, () -> {}, clock, 10000, capture);
+            privateSafe(receipt);
+            String hash = new String(new char[64]).replace('\0', 'a'), boot = "00000000-0000-0000-0000-000000000002";
+            String id = store.publish(capture.snapshot, hash, boot, receipt).getString("snapshot_id"); capture.take();
+            SystemManagement.Control control = new SystemManagement.Control() {
+                public void check() { }
+                public void before(JSONObject value) throws Exception { throw new IOException(); }
+            };
+            assertEquals(1, store.page(hash, boot, id, 0, 1, control).getInt("next_offset"));
+            assertEquals(2, store.page(hash, boot, id, 1, 1, control).getInt("next_offset"));
+            assertEquals(1, java.util.Collections.frequency(p.calls, "request"));
+            assertEquals(1, java.util.Collections.frequency(p.calls, "unbind"));
+        }
+    }
+    @Test public void capturedContentIsDiscardedWhenCleanupFailsOrCancellationArrives() throws Exception {
+        for (String failure : new String[]{"closeReplies", "unbind", "cancel"}) {
+            Platform p = new Platform(); Clock clock = new Clock(); final boolean[] cancel = {false};
+            if (failure.equals("cancel")) p.cleanup = () -> cancel[0] = true; else p.failAt = failure;
+            ContactsNexui.Snapshot retained;
+            try (ContactsLocalRead.Capture capture = new ContactsLocalRead.Capture(); ContactsPageStore store = new ContactsPageStore(() -> clock.now)) {
+                JSONObject receipt = ContactsLocalRead.run(p, () -> { if (cancel[0]) throw new InterruptedException(); }, clock, 10000, capture);
+                assertFalse(receipt.getBoolean("ok")); retained = capture.snapshot; assertNotNull(retained);
+                try { store.publish(retained, new String(new char[64]).replace('\0', 'a'), "00000000-0000-0000-0000-000000000002", receipt); fail(); }
+                catch (IOException expected) { assertEquals("CONTACTS_SNAPSHOT_NOT_RELEASED", expected.getMessage()); }
+                store.requireEmpty();
+            }
+            try { retained.metadata(); fail(); } catch (IOException expected) { }
+        }
+    }
+    @Test public void truncatedOrMalformedReplyNeverCreatesPublishableContent() throws Exception {
+        for (String mode : new String[]{"partial", "malformed", "wrong-source"}) {
+            Platform p = new Platform(); p.end = false;
+            p.afterSend = () -> p.receiver.frame(mode.equals("wrong-source") ? "BLUETOOTH" : "LOCAL", "all_contacts",
+                    mode.equals("partial") ? 0 : 2, mode.equals("malformed") ? "[broken" : "[" + ITEM + "]");
+            try (ContactsLocalRead.Capture capture = new ContactsLocalRead.Capture()) {
+                JSONObject receipt = ContactsLocalRead.run(p, () -> {}, new Clock(), 10000, capture);
+                assertFalse(receipt.getBoolean("ok")); assertNull(capture.snapshot); privateSafe(receipt);
+            }
+        }
+    }
 }

@@ -13,6 +13,7 @@ import org.json.JSONObject;
 public final class ContactsAppService extends Service {
     private static final ContactsAppContract.Requests REQUESTS = new ContactsAppContract.Requests();
     private static volatile JSONObject lastLocalResult;
+    private static final ContactsPageStore pages = new ContactsPageStore(SystemClock::elapsedRealtime);
     private final Handler main = new Handler(Looper.getMainLooper());
     private static final ContactsAppWatchdog.Lifecycle<Endpoint> current = new ContactsAppWatchdog.Lifecycle<Endpoint>();
     private final ThreadPoolExecutor worker = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS,
@@ -25,6 +26,7 @@ public final class ContactsAppService extends Service {
     private final Runnable tick = new Runnable() {
         public void run() {
             if (destroyed) return;
+            pages.expire();
             Endpoint endpoint = current.get();
             if (endpoint == null) { stopSelf(lastStart); return; }
             long age = SystemClock.elapsedRealtime() - endpoint.started;
@@ -35,6 +37,7 @@ public final class ContactsAppService extends Service {
 
     public void onCreate() {
         super.onCreate();
+        pages.expire();
         Thread watchdog = new Thread(new Runnable() {
             public void run() {
                 while (!destroyed || current.get() != null) {
@@ -102,6 +105,10 @@ public final class ContactsAppService extends Service {
         final String id, boot; final long started; final ResultReceiver receiver;
         final AtomicBoolean used = new AtomicBoolean(), finished = new AtomicBoolean(), cancelled = new AtomicBoolean();
         volatile boolean localRead;
+        volatile int pageAction;
+        String snapshotId;
+        int pageOffset, pageLimit;
+        boolean snapshotPublished, localStarted;
         volatile boolean workStarted;
         boolean inspection;
         volatile String executionHash;
@@ -112,7 +119,8 @@ public final class ContactsAppService extends Service {
         }
         Bundle envelope(JSONObject result) throws Exception {
             Bundle data = new Bundle();
-            data.putString("envelope", ContactsAppContract.envelope(id, boot, started, result).toString()); return data;
+            data.putString("envelope", ContactsAppContract.envelope(id, boot, started, result,
+                    pageAction == ContactsAppContract.READ_PAGE ? ContactsAppContract.PAGE_BYTES : ContactsAppContract.MAX_BYTES).toString()); return data;
         }
         void hello() throws Exception { Bundle data = envelope(null); data.putBinder("control", this); data.putInt("app_pid",android.os.Process.myPid()); receiver.send(ContactsAppContract.HELLO, data); }
 
@@ -136,13 +144,20 @@ public final class ContactsAppService extends Service {
                     }
                     finish(ContactsAppContract.localReceipt(found,wanted,digest)); return true;
                 }
-                if (code != ContactsAppContract.EXECUTE && code != ContactsAppContract.EXECUTE_LOCAL) return false;
+                if (code != ContactsAppContract.EXECUTE && code != ContactsAppContract.EXECUTE_LOCAL
+                        && code != ContactsAppContract.OPEN_PAGES && code != ContactsAppContract.READ_PAGE
+                        && code != ContactsAppContract.CLOSE_PAGES) return false;
                 if (finished.get() || !used.compareAndSet(false, true)) return true;
-                localRead = code == ContactsAppContract.EXECUTE_LOCAL;
+                pageAction = code >= ContactsAppContract.OPEN_PAGES ? code : 0;
+                localRead = code == ContactsAppContract.EXECUTE_LOCAL || code == ContactsAppContract.OPEN_PAGES;
                 ContactsAppContract.request(id, boot, started, SystemClock.elapsedRealtime(), ContactsAppContract.WORK_MS);
                 final String digest = ContactsAppContract.digest(data.readString());
                 executionHash = digest;
                 owner = data.readStrongBinder();
+                if (code == ContactsAppContract.READ_PAGE || code == ContactsAppContract.CLOSE_PAGES) {
+                    snapshotId = data.readString(); pageOffset = data.readInt(); pageLimit = data.readInt();
+                    ContactsPageCommand.pageArguments(snapshotId, pageOffset, pageLimit);
+                }
                 if (data.dataAvail() != 0 || owner == null || !boot.equals(ContactsAppContract.bootId()))
                     throw new IOException("CONTACTS_OWNER_INVALID");
                 owner.linkToDeath(ownerDeath, 0);
@@ -155,7 +170,7 @@ public final class ContactsAppService extends Service {
 
         void execute(String digest) {
             workStarted = true;
-            JSONObject result;
+            JSONObject result = null;
             try {
                 ContactsBindingProbe.Control control = new ContactsBindingProbe.Control() { public void check() throws Exception {
                             if (cancelled.get() || Thread.currentThread().isInterrupted()) throw new IOException("CONTACTS_CANCELLED");
@@ -164,11 +179,43 @@ public final class ContactsAppService extends Service {
                             public long now() { return SystemClock.elapsedRealtime(); }
                             public void pause() throws Exception { Thread.sleep(25); }
                         };
-                result = localRead ? ContactsLocalRead.run(new ContactsLocalReadAndroid(getApplicationContext(), digest), control, clock, started + ContactsAppContract.WORK_MS)
+                if (pageAction == ContactsAppContract.OPEN_PAGES) {
+                    pages.requireEmpty();
+                    try (ContactsLocalRead.Capture capture = new ContactsLocalRead.Capture()) {
+                        localStarted = true;
+                        result = ContactsLocalRead.run(new ContactsLocalReadAndroid(getApplicationContext(), digest), control, clock,
+                                started + ContactsAppContract.WORK_MS, capture);
+                        if (result.optBoolean("ok")) {
+                            JSONObject descriptor = pages.publish(capture.snapshot, digest, boot, result);
+                            capture.take();
+                            snapshotPublished = true;
+                            result.put("page_snapshot", descriptor);
+                            // 即使没有后续请求，也在到期时清除内存中的个人记录。
+                            main.postDelayed(pages::expire, ContactsPageStore.TTL_MS);
+                        }
+                    }
+                } else if (pageAction == ContactsAppContract.READ_PAGE || pageAction == ContactsAppContract.CLOSE_PAGES) {
+                    SystemManagement.Control pageControl = new SystemManagement.Control() {
+                        public void check() throws Exception { control.check(); if (clock.now() >= started + ContactsAppContract.WORK_MS) throw new IOException("CONTACTS_TIMEOUT"); }
+                        public void before(JSONObject value) throws Exception { throw new IOException("CONTACTS_WRITES_FORBIDDEN"); }
+                    };
+                    pageControl.check();
+                    JSONObject page = pageAction == ContactsAppContract.READ_PAGE
+                            ? pages.page(digest, boot, snapshotId, pageOffset, pageLimit, pageControl) : null;
+                    if (pageAction == ContactsAppContract.CLOSE_PAGES) pages.release(digest, boot, snapshotId);
+                    result = ContactsPageCommand.receipt("CONTACTS_PAGE_VERIFIED").put("ok", true)
+                            .put("snapshot_id", snapshotId).put("snapshot_closed", pageAction == ContactsAppContract.CLOSE_PAGES);
+                    if (page != null) result.put("page", page);
+                } else result = localRead ? ContactsLocalRead.run(new ContactsLocalReadAndroid(getApplicationContext(), digest), control, clock, started + ContactsAppContract.WORK_MS)
                         : ContactsBindingProbe.run(new ContactsBindingAndroid(getApplicationContext(), digest), control, clock, started + ContactsAppContract.WORK_MS);
             } catch (Exception failed) {
-                try { result = localRead ? ContactsLocalRead.unknown(ContactsAppContract.code(failed), true) : failure(ContactsAppContract.code(failed), true); }
+                try { result = localRead && result != null ? result.put("ok", false).put("listComplete", false).put("state", ContactsAppContract.code(failed))
+                        : localRead ? ContactsLocalRead.unknown(ContactsAppContract.code(failed), true) : failure(ContactsAppContract.code(failed), true); }
                 catch (Exception invalid) { result = failure("CONTACTS_LOCAL_READ_FAILED", true); }
+                if (pageAction == ContactsAppContract.OPEN_PAGES && !localStarted) try {
+                    result = ContactsLocalRead.unknown(ContactsAppContract.code(failed), false)
+                            .put("bindingRequested", false).put("replyChannelClosed", true);
+                } catch (Exception ignored) { }
             }
             finish(result);
         }
@@ -181,15 +228,24 @@ public final class ContactsAppService extends Service {
                     result = ContactsLocalRead.unknown(result.optString("state", "CONTACTS_LOCAL_READ_FAILED"), !result.optBoolean("remoteOutcomeKnown", false));
                 if (result.optBoolean("ok") && (cancelled.get() || SystemClock.elapsedRealtime() - started >= ContactsAppContract.WORK_MS))
                     result.put("ok", false).put("listComplete", false).put("state", cancelled.get() ? "CONTACTS_CANCELLED" : "CONTACTS_TIMEOUT");
+                if (!result.optBoolean("ok") && pageAction != 0) {
+                    result.remove("page"); result.remove("page_snapshot");
+                    if (snapshotPublished) pages.close();
+                    if (pageAction == ContactsAppContract.READ_PAGE && (cancelled.get()
+                            || SystemClock.elapsedRealtime() - started >= ContactsAppContract.WORK_MS))
+                        try { pages.release(executionHash, boot, snapshotId); } catch (Exception ignored) { }
+                }
                 result.put("app_pid", android.os.Process.myPid()).put("app_uid", android.os.Process.myUid());
                 if (localRead && workStarted) {
+                    if (pageAction == ContactsAppContract.OPEN_PAGES) result.put("operation", "read_local_pages");
                     result.put("operation_request_id",id).put("operation_apk_sha256",executionHash);
                     lastLocalResult = new JSONObject(result.toString());
                 }
-                receiver.send(ContactsAppContract.RESULT, envelope(result));
+                receiver.send(pageAction == ContactsAppContract.READ_PAGE ? ContactsAppContract.PAGE_RESULT : ContactsAppContract.RESULT, envelope(result));
             } catch (Exception ignored) { }
             // 清理未知保留当前占位，既有专用进程watchdog继续追踪至硬截止。
-            finally { current.complete(this, !workStarted || ContactsAppWatchdog.cleanupConfirmed(result)); }
+            finally { current.complete(this, !workStarted || pageAction == ContactsAppContract.READ_PAGE
+                    || pageAction == ContactsAppContract.CLOSE_PAGES || ContactsAppWatchdog.cleanupConfirmed(result)); }
         }
 
         synchronized void cancel() {

@@ -6,8 +6,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** API23有界子进程收集；退出未知仍报错，不能据destroy推断Binder服务撤销请求。 */
-final class NetworkProcess {
-    static String collect(Process process, long timeoutMs) throws Exception {
+public final class NetworkProcess {
+    /** 调用方须合并stderr；最多2048字节，非零退出、超时、中断或输出不完整均抛异常。 */
+    public static String collect(Process process, long timeoutMs) throws Exception {
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         final AtomicReference<Exception> failure = new AtomicReference<>();
         Thread reader = new Thread(() -> {

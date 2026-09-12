@@ -71,10 +71,19 @@ $health=(Read-Device 'cat /data/local/d31-remote/runtime/state/health.json') | C
 if($health.apk_sha256 -cne $ExpectedSha256 -or $health.version_code -ne $ExpectedVersion -or -not $health.local_ready){throw '核心健康不符'}
 $corePid=Read-Device 'cat /data/local/d31-remote/runtime/state/remote.pid'
 if($corePid -notmatch '^[1-9][0-9]*$'){throw '核心PID不符'}
+$deviceNow=[long](Read-Device 'date +%s')*1000
+$healthAge=$deviceNow-[long]$health.time_ms
+if([long]$health.pid -ne [long]$corePid -or $healthAge -lt -1000 -or $healthAge -ge 20000){throw '当前核心PID或健康新鲜度不符'}
 $coreMaps=Read-Device "cat /proc/$corePid/maps"
-$coreMapped=$coreMaps.Contains('/data/dalvik-cache/arm64/data@local@d31-remote@releases@'+$ExpectedSha256+'@remote.apk@classes.dex')
+$coreMapped=$false
+$expectedArt='/data/dalvik-cache/arm64/data@local@d31-remote@releases@'+$ExpectedSha256+'@remote.apk@classes.dex'
+foreach($line in $coreMaps -split "`n"){
+    $columns=$line.Trim() -split '\s+',6
+    if($columns.Count -eq 6 -and $columns[5] -ceq $expectedArt){$coreMapped=$true}
+}
 $installed=(Read-Device 'pm path net.elfradio.d31bootstrap') -creplace '^package:',''
-if($installed -cnotmatch '^/data/app/net\.elfradio\.d31bootstrap-[0-9]+/base\.apk$'){throw '实际APP安装路径不符'}
+if($installed -cnotmatch '^/data/app/net\.elfradio\.d31bootstrap-[0-9]+/base\.apk$' -and
+   $installed -cne '/system/priv-app/D31ElfRemote/D31ElfRemote.apk'){throw '实际APP安装路径不符'}
 $hash=Read-Device "busybox sha256sum '$installed'"
 if($hash -cnotmatch ('^'+$ExpectedSha256+'\s+'+[regex]::Escape($installed)+'$')){throw '实际APP安装摘要不符'}
 $package=Read-Device 'dumpsys package net.elfradio.d31bootstrap'
@@ -82,20 +91,26 @@ $package=Read-Device 'dumpsys package net.elfradio.d31bootstrap'
 $currentPackage=($package -split '(?m)^\s*Hidden system packages:',2)[0]
 $versions=[regex]::Matches($currentPackage,'(?m)^\s*versionCode=([0-9]+)(?:\s|$)')
 if($versions.Count -ne 1 -or [int]$versions[0].Groups[1].Value -ne $ExpectedVersion){throw '实际APP安装版本不符'}
-$appPid=Read-Device 'busybox pidof net.elfradio.d31bootstrap'
-if($appPid -notmatch '^[1-9][0-9]*$'){throw 'APP进程不是唯一实例'}
-$appMaps=Read-Device "cat /proc/$appPid/maps"
-$appThreads=Read-Device ('for f in /proc/'+$appPid+'/task/*/comm; do cat "$f" || exit 1; done')
+$appPidCommand='busybox pidof net.elfradio.d31bootstrap; code=$?; test "$code" -eq 0 -o "$code" -eq 1'
+$appPid=Read-Device $appPidCommand
+if($appPid -and $appPid -notmatch '^[1-9][0-9]*$'){throw 'APP进程不是唯一实例'}
+$appMaps='';$appThreads='';$appMapped=$null
+if($appPid){
+    $appMaps=Read-Device "cat /proc/$appPid/maps"
+    $appThreads=Read-Device ('for f in /proc/'+$appPid+'/task/*/comm; do cat "$f" || exit 1; done')
+    $appMapped=($appMaps -cmatch ('(?m)\s'+[regex]::Escape($installed)+'\s*$'))
+}
 $services=Read-Device 'dumpsys activity services net.elfradio.d31bootstrap'
 $log=Read-Device 'logcat -d -t 1200'
 $sameBoot=(Read-Device 'cat /proc/sys/kernel/random/boot_id') -ceq $boot
-$sameAppPid=(Read-Device 'busybox pidof net.elfradio.d31bootstrap') -ceq $appPid
+$sameCorePid=(Read-Device 'cat /data/local/d31-remote/runtime/state/remote.pid') -ceq $corePid
+$sameAppPid=(Read-Device $appPidCommand) -ceq $appPid
 $sameInstalled=(Read-Device 'pm path net.elfradio.d31bootstrap') -ceq ('package:'+$installed)
 $result=[ordered]@{
     version=$ExpectedVersion;coreActiveArtMapped=$coreMapped
-    appApkMapped=($appMaps -cmatch ('(?m)\s'+[regex]::Escape($installed)+'\s*$'))
+    appProcessPresent=[bool]$appPid;appApkMapped=$appMapped
     installedApkHashMatched=$true;installedVersionMatched=$true
-    sameBoot=$sameBoot;sameAppPid=$sameAppPid;sameInstalledPath=$sameInstalled
+    sameBoot=$sameBoot;sameCorePid=$sameCorePid;coreHealthFresh=$true;sameAppPid=$sameAppPid;sameInstalledPath=$sameInstalled
     servicesEmpty=($services -match '\(nothing\)')
     mediaThreadsPresent=($appThreads -match '(?m)^d31-(audio-occup|app-media|local-audio)')
     matchedFaults=[regex]::Matches($log,'FATAL EXCEPTION|ANR in (?:net\.elfradio\.d31bootstrap|com\.[^\s]*nexui)','IgnoreCase').Count
@@ -103,8 +118,8 @@ $result=[ordered]@{
     scope='SEQUENTIAL_RUNTIME_OBSERVATIONS_NOT_ATOMIC_OR_LONG_TERM'
 }
 $result | ConvertTo-Json | Out-File "$capture/result.json" -NoClobber
-if(-not $result.coreActiveArtMapped -or -not $result.appApkMapped -or -not $result.servicesEmpty -or
-   $result.mediaThreadsPresent -or -not $sameBoot -or -not $sameAppPid -or -not $sameInstalled){
+if(-not $result.coreActiveArtMapped -or ($result.appProcessPresent -and -not $result.appApkMapped) -or -not $result.servicesEmpty -or
+   $result.mediaThreadsPresent -or -not $sameBoot -or -not $sameCorePid -or -not $sameAppPid -or -not $sameInstalled){
     throw '实际映射或按需线程退出未通过，保留现场'
 }
 $result | ConvertTo-Json

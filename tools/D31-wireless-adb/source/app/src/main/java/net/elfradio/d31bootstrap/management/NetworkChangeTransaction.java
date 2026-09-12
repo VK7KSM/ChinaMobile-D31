@@ -99,9 +99,14 @@ public final class NetworkChangeTransaction {
     }
 
     public JSONObject confirm(String taskId, Confirmation confirmation) throws Exception {
+        return confirmBound(taskId, null, confirmation);
+    }
+
+    JSONObject confirmBound(String taskId, NetworkRecoveryDispatch.Binding expected, Confirmation confirmation) throws Exception {
         token(taskId);
         try (Store.Session s = store.lock()) {
             JSONObject all = records(s), job = existing(all, taskId);
+            if (expected != null) expected.requireMatch(job);
             if (settled(job.getString("state"))) return report(job);
             try (AutoCloseable owner = owner(taskId)) {
                 if (!validTime(job)) return rollback(s, all, job, "CONFIRM_DEADLINE_EXPIRED");
@@ -110,7 +115,8 @@ public final class NetworkChangeTransaction {
                 try {
                     accepted = confirmation != null && confirmation.verify(taskId, job.getBoolean("target"),
                             job.getLong("started_elapsed"), now());
-                } catch (Exception ignored) { /* 确认来源失败不转成功，也不延长期限。 */ }
+                } catch (InterruptedException cancelled) { Thread.currentThread().interrupt(); throw cancelled; }
+                catch (Exception ignored) { /* 确认来源失败不转成功，也不延长期限。 */ }
                 if (!validTime(job)) return rollback(s, all, job, "CONFIRM_DEADLINE_EXPIRED");
                 if (!accepted) return report(job);
                 if (!Boolean.valueOf(job.getBoolean("target")).equals(read()))

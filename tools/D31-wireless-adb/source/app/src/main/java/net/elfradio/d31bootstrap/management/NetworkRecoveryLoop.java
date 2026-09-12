@@ -9,9 +9,11 @@ public final class NetworkRecoveryLoop {
         String boot() throws Exception;
         void heartbeat() throws Exception;
         JSONObject query() throws Exception;
+        default boolean recoveryReady(long remainingMs) throws Exception { return true; }
         JSONObject recover() throws Exception;
         void settled(JSONObject result) throws Exception;
         void pause() throws Exception;
+        default void pause(long maximumMs) throws Exception { pause(); }
     }
     public static JSONObject run(Host host, String armedBoot, long deadline) throws Exception {
         long began = host.elapsed(), last = began;
@@ -26,10 +28,21 @@ public final class NetworkRecoveryLoop {
                 try { host.settled(state); return state; }
                 catch (NetworkChangeTransaction.Busy busy) { host.pause(); continue; }
             }
-            boolean due = now < last || !armedBoot.equals(host.boot()) || now >= deadline;
+            boolean newBoot = !armedBoot.equals(host.boot());
+            boolean due = now < last || newBoot || now >= deadline;
             last = now;
             if (!"UNKNOWN".equals(phase) && !"ABSENT".equals(phase)
                     && (due || !"AWAITING_CONFIRM".equals(phase))) {
+                // 新启动的Android网络服务尚不可读时，仅等待，不把暂时未知写成永久失败。
+                if (newBoot) {
+                    boolean ready = host.recoveryReady(150000 - (now - began));
+                    host.heartbeat();
+                    if (Thread.currentThread().isInterrupted()) throw new InterruptedException("NETWORK_RECOVERY_CANCELLED");
+                    long after = host.elapsed();
+                    if (after < began || after - began >= 150000) continue;
+                    if (!ready) { host.pause(150000 - (after - began)); continue; }
+                }
+                if (host.elapsed() < began || host.elapsed() - began >= 150000) continue;
                 state = host.recover();
                 if (NetworkChangeTransaction.settled(state.optString("state"))) {
                     try { host.settled(state); return state; }

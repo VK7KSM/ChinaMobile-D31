@@ -44,7 +44,8 @@ $active=(Save-Device 'active-before-private.json' 'cat /data/local/d31-remote/ru
 if($active.versionCode -ne $ExpectedVersion -or $active.sha256 -cne $ExpectedSha256){throw '目标完整候选尚未接替，不升级监督'}
 $apk="/data/local/d31-remote/releases/$ExpectedSha256/remote.apk"
 if($active.path -cne $apk){throw '活动原件路径不符'}
-[void](Save-Device 'supervisor-before-private.json' 'cat /data/local/d31-remote/runtime/updates/supervisor.json')
+$initialSupervisor=(Save-Device 'supervisor-before-private.json' 'cat /data/local/d31-remote/runtime/updates/supervisor.json') | ConvertFrom-Json
+$boot=Save-Device 'boot-before-private.txt' 'cat /proc/sys/kernel/random/boot_id'
 [void](Save-Device 'before-private.txt' 'date; getprop ro.build.fingerprint; ps; mount; ls -lZ /system/priv-app/D31ElfRemote/D31ElfRemote.apk')
 $beforeMode=Get-SystemMountMode (Save-Device 'mount-before-private.txt' 'cat /proc/mounts')
 & $adb -P 5042 -s $Serial pull /system/priv-app/D31ElfRemote/D31ElfRemote.apk "$capture/system-before.apk" *> "$capture/pull-before.txt"
@@ -55,10 +56,18 @@ if(!$VerifyOnly -and $beforeHash -ceq $ExpectedSha256){throw '系统基线已是
 if($VerifyOnly -and $beforeHash -cne $ExpectedSha256){throw '仅核验模式的系统基线不是指定候选'}
 $command="CLASSPATH='$apk' /system/bin/app_process /system/bin net.elfradio.d31bootstrap.RemoteManualBootstrap maintenance"
 [ordered]@{目标='已验证D31开发板';设备序列号=$Serial;模式=$(if($VerifyOnly){'只读核验'}else{'显式监督升级'});命令=$(if($VerifyOnly){'仅回读已有接替结果、心跳、进程映射和系统属性'}else{$command});系统原像摘要=$beforeHash;目标摘要=$ExpectedSha256;时间=[DateTimeOffset]::Now.ToString('o');回退='机内保留原件和结果；失败先回读，原件恢复后重启独立监督；不写boot/recovery'} | ConvertTo-Json | Out-File "$capture/preregister-private.json" -Encoding utf8 -NoClobber
-if(!$VerifyOnly){[void](Save-Device 'upgrade-output.txt' $command)}
-$upgrade=(Save-Device 'upgrade-result-private.json' 'cat /data/local/d31-remote/runtime/updates/manual-bootstrap/result.json') | ConvertFrom-Json
-if($upgrade.state -ne 'supervisor_updated' -or $upgrade.version_code -ne $ExpectedVersion -or $upgrade.startup.state -ne 'supervisor_confirmed'){throw '尚未取得此次真实监督启动握手'}
-$startedAt=[long]$upgrade.startup.started_at_ms
+if(!$VerifyOnly){
+ [void](Save-Device 'upgrade-output.txt' $command)
+ $upgrade=(Save-Device 'upgrade-result-private.json' 'cat /data/local/d31-remote/runtime/updates/manual-bootstrap/result.json') | ConvertFrom-Json
+ if($upgrade.state -ne 'supervisor_updated' -or $upgrade.version_code -ne $ExpectedVersion -or $upgrade.startup.state -ne 'supervisor_confirmed'){throw '尚未取得此次真实监督启动握手'}
+ $startedAt=[long]$upgrade.startup.started_at_ms
+ $expectedSupervisorPid=[int]$upgrade.startup.pid
+}else{
+ # 重启会产生新的启动记录；只读核验依据当前心跳和实际映射，不要求旧升级回执仍存在。
+ $startedAt=0L
+ $expectedSupervisorPid=[int]$initialSupervisor.pid
+}
+if($expectedSupervisorPid -lt 1){throw '监督进程号无效'}
 $until=[DateTime]::UtcNow.AddSeconds(120);$n=0;$ok=$false
 while([DateTime]::UtcNow -lt $until){
  $n++
@@ -67,7 +76,7 @@ while([DateTime]::UtcNow -lt $until){
  $now=[long](Read-Device 'date +%s')*1000
  $supervisorAge=$now-[long]$supervisor.time_ms
  $coreAge=$now-[long]$health.time_ms
- if($supervisor.version_code -eq $ExpectedVersion -and $supervisor.pid -eq $upgrade.startup.pid -and $supervisor.maintenance_protocol -eq 1 -and $health.version_code -eq $ExpectedVersion -and $health.apk_sha256 -ceq $ExpectedSha256 -and $health.maintenance_protocol -eq 1 -and $health.local_ready -and [long]$health.time_ms -ge $startedAt -and $supervisorAge -ge -1000 -and $supervisorAge -lt 20000 -and $coreAge -ge -1000 -and $coreAge -lt 20000){$ok=$true;break}
+ if($supervisor.version_code -eq $ExpectedVersion -and $supervisor.pid -eq $expectedSupervisorPid -and $supervisor.maintenance_protocol -eq 1 -and $health.version_code -eq $ExpectedVersion -and $health.apk_sha256 -ceq $ExpectedSha256 -and $health.maintenance_protocol -eq 1 -and $health.local_ready -and [long]$health.time_ms -ge $startedAt -and $supervisorAge -ge -1000 -and $supervisorAge -lt 20000 -and $coreAge -ge -1000 -and $coreAge -lt 20000){$ok=$true;break}
  Start-Sleep -Seconds 2
 }
 [void](Save-Device 'after-private.txt' 'ps; mount; ls -lZ /system/priv-app/D31ElfRemote/D31ElfRemote.apk; logcat -d -t 300')
@@ -84,5 +93,6 @@ if(!(Test-ArchiveMapping $supervisorMaps '/system/priv-app/D31ElfRemote/D31ElfRe
 [void](Read-Device 'test ! -e /data/local/d31-remote/runtime/updates/stop-supervisor')
 $afterMode=Get-SystemMountMode (Save-Device 'mount-after-private.txt' 'cat /proc/mounts')
 if($afterMode -cne $beforeMode){throw '系统挂载模式与本次操作前不符'}
+if((Read-Device 'cat /proc/sys/kernel/random/boot_id') -cne $boot){throw '核验期间启动标识变化'}
 [ordered]@{通过=$true;仅只读核验=[bool]$VerifyOnly;监督版本=$ExpectedVersion;核心版本=$ExpectedVersion;系统原像摘要=$beforeHash;候选摘要=$actual;原挂载模式=$beforeMode;当前挂载模式=$afterMode;重启整机=$false} | ConvertTo-Json | Out-File "$capture/result.json" -Encoding utf8 -NoClobber
 '固定监督及活动核心核验通过，系统挂载模式与本次操作前一致。'

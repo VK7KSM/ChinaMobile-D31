@@ -9,6 +9,7 @@ import org.json.JSONObject;
 /** 固定系统基线里的独立监督进程，不随应用覆盖安装退出。 */
 public final class RemoteSupervisor {
     interface Cycle {
+        void recoverNetwork() throws Exception;
         AutoCloseable acquire() throws Exception;
         boolean packagesReady() throws Exception;
         boolean reserved() throws Exception;
@@ -22,6 +23,14 @@ public final class RemoteSupervisor {
     /** 每轮仅尝试一次维护租约；所有分支统一在释放后让出维护窗口。 */
     static void runCycle(Cycle cycle) throws Exception {
         long delay = 2000;
+        try { cycle.recoverNetwork(); }
+        catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw interrupted;
+        } catch (Exception failure) {
+            // 恢复失败仍保留事务；不能因此阻止正常核心启动。
+            reportFailure(cycle, failure);
+        }
         try (AutoCloseable maintenance = cycle.acquire()) {
             if (maintenance != null && cycle.packagesReady()) {
                 if (cycle.reserved()) {
@@ -36,9 +45,18 @@ public final class RemoteSupervisor {
             throw interrupted;
         } catch (Exception failure) {
             delay = 7000;
-            cycle.failed(failure);
+            reportFailure(cycle, failure);
         }
         cycle.pause(delay);
+    }
+
+    private static void reportFailure(Cycle cycle, Exception failure) throws InterruptedException {
+        try { cycle.failed(failure); }
+        catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt(); throw interrupted;
+        } catch (Exception unavailable) {
+            System.err.println("监督错误记录不可写，保持核心维护循环");
+        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -58,6 +76,7 @@ public final class RemoteSupervisor {
             if (lock == null) return;
             RemoteUpdatePlatform platform = new RemoteUpdatePlatform();
             RemoteManualUpdate manual = platform.manualUpdater();
+            RemoteNetworkStartup network = RemoteNetworkStartup.android(platform);
             PublicKey key = RemoteUpdatePolicy.trustedKey();
             ScheduledExecutorService heartbeat = Executors.newSingleThreadScheduledExecutor();
             heartbeat.scheduleWithFixedDelay(() -> {
@@ -68,6 +87,7 @@ public final class RemoteSupervisor {
                 catch (Exception error) { System.err.println("监督心跳写入失败"); }
             }, 0, 5, TimeUnit.SECONDS);
             Cycle cycle = new Cycle() {
+                    public void recoverNetwork() throws Exception { network.tick(); }
                     public AutoCloseable acquire() throws Exception { return RemoteMaintenance.acquire(); }
                     public boolean packagesReady() { return platform.packagesReady(); }
                     public boolean reserved() throws Exception { return RemoteMaintenance.reserved(); }

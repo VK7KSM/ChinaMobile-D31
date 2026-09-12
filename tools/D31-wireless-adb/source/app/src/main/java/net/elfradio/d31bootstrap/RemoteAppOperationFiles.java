@@ -129,7 +129,7 @@ final class RemoteAppOperationFiles implements RemoteAppOperation.Access {
     public JSONObject owner()throws Exception{return process(android.os.Process.myPid());}
     public JSONObject application(String kind,String expected,int pid,int uid)throws Exception{
         ApplicationInfo app=context.getPackageManager().getApplicationInfo(PACKAGE,0);
-        String name=RemoteAppOperation.CONTACTS.equals(kind)?PACKAGE+":contacts":PACKAGE;
+        String name=RemoteAppOperation.isContacts(kind)?PACKAGE+":contacts":PACKAGE;
         JSONObject process=process(pid);
         if(uid<10000||uid>=20000||uid!=app.uid||uid!=process.getInt("uid")||!name.equals(process.getString("process_name"))
                 ||!expected.equals(hash)||!hash.equals(RescueFiles.sha256(new File(app.sourceDir)))

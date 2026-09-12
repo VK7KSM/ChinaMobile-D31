@@ -19,6 +19,7 @@ final class ContactsAppContract {
     static final String ACTION = PACKAGE + ".management.CONTACTS_BIND_CHECK";
     static final String DESCRIPTOR = PACKAGE + ".management.IContactsBindCheck";
     static final int EXECUTE = 1, CANCEL = 2, EXECUTE_LOCAL = 3, INSPECT_LOCAL = 4, HELLO = 1, RESULT = 2, MAX_BYTES = 8192;
+    static final int OPEN_PAGES = 5, READ_PAGE = 6, CLOSE_PAGES = 7, PAGE_RESULT = 3, PAGE_BYTES = 65536;
     static final long HANDSHAKE_MS = 3000, WORK_MS = 10000, REPLY_MS = 12000, BIND_MS = 5000;
 
     static void request(String id, String boot, long started, long now, long window) throws IOException {
@@ -33,16 +34,22 @@ final class ContactsAppContract {
     }
 
     static JSONObject envelope(String id, String boot, long started, JSONObject result) throws Exception {
+        return envelope(id, boot, started, result, MAX_BYTES);
+    }
+    static JSONObject envelope(String id, String boot, long started, JSONObject result, int budget) throws Exception {
         JSONObject value = new JSONObject().put("request_id", id).put("boot_id", boot).put("started_elapsed_ms", started);
         if (result != null) value.put("result", result);
-        if (value.toString().getBytes("UTF-8").length > MAX_BYTES) throw new IOException("CONTACTS_REPLY_LIMIT");
+        if (value.toString().getBytes("UTF-8").length > budget) throw new IOException("CONTACTS_REPLY_LIMIT");
         return value;
     }
 
     static JSONObject reply(int sender, int expected, String id, String boot, long started, long now, String encoded) throws Exception {
+        return reply(sender, expected, id, boot, started, now, encoded, MAX_BYTES);
+    }
+    static JSONObject reply(int sender, int expected, String id, String boot, long started, long now, String encoded, int budget) throws Exception {
         request(id, boot, started, now, REPLY_MS);
-        if (expected < 10000 || sender != expected || encoded == null || encoded.length() > MAX_BYTES
-                || encoded.getBytes("UTF-8").length > MAX_BYTES) throw new IOException("CONTACTS_REPLY_IDENTITY_OR_SIZE");
+        if (expected < 10000 || sender != expected || encoded == null || encoded.length() > budget
+                || encoded.getBytes("UTF-8").length > budget) throw new IOException("CONTACTS_REPLY_IDENTITY_OR_SIZE");
         JSONObject value = new JSONObject(encoded);
         if (!id.equals(value.getString("request_id")) || !boot.equals(value.getString("boot_id"))
                 || !(value.get("started_elapsed_ms") instanceof Number) || value.getLong("started_elapsed_ms") != started)
