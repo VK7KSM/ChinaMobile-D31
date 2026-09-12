@@ -7,7 +7,7 @@ import {execFileSync, spawn} from 'node:child_process';
 import {QueueStore, QueueError, hash} from './QueueStore.mjs';
 import {runRound, DEFAULT_LIMITS} from './FaultTransferQueue.mjs';
 import {PackageVerifier} from './PackageVerifier.mjs';
-import {WebTransport} from './WebTransport.mjs';
+import {WebTransport, retryDeadline} from './WebTransport.mjs';
 
 const ROOT = fileURLToPath(new URL('./', import.meta.url));
 const RUN = fs.mkdtempSync(path.join(ROOT, 'batch7-offline-test-' + new Date().toISOString().replace(/[:.]/g, '-') + '-'));
@@ -273,6 +273,68 @@ test('真实宿主进程被终止后系统锁自动释放', async () => {
 });
 
 const SESSION = {cookies: [{name: 'elf_admin', domain: 'v.elfradio.net', value: 'SYNTHETIC_ONLY'}]};
+test('服务器退避支持长秒数和HTTP日期，畸形值不当日期', () => {
+  const now = Date.UTC(2026, 8, 12);
+  assert.equal(retryDeadline('7200', now), now + 7200000);
+  assert.equal(retryDeadline(new Date(now + 3600000).toUTCString(), now), now + 3600000);
+  for (const value of [null, '', '-1', '0.5', 'bogus', new Date(now - 1000).toUTCString()])
+    assert.equal(retryDeadline(value, now), 0);
+  assert.equal(retryDeadline('999999999999999999999999', now), Number.MAX_SAFE_INTEGER);
+});
+test('任务和文件取回的限流期限透传且不创建下载半件', async () => {
+  const now = 1800000000000;
+  const web = new WebTransport({session: SESSION, now: () => now,
+    fetchImpl: async () => new Response('limited', {status: 429, headers: {'Retry-After': '3600'}})});
+  const options = {signal: new AbortController().signal};
+  await assert.rejects(web.queryTask('d', 't', options), e => e.retryable && e.retryAt === now + 3600000);
+  const filename = path.join(RUN, 'limited-not-created.zip');
+  await assert.rejects(web.download('d', 't', {...options, filename, bytes: 1, onBytes: () => {}}),
+    e => e.retryable && e.retryAt === now + 3600000);
+  assert.equal(fs.existsSync(filename), false);
+});
+test('长退避持久化后新宿主在期限前零请求，不被本地上限截短', async () => {
+  const c = context('server-backoff'); let calls = 0;
+  const until = c.options.clock.now() + 3600000;
+  c.transport.queryTask = async () => { calls++; const error = new QueueError('HTTP_429', true); error.retryAt = until; throw error; };
+  const first = await c.run();
+  assert.equal(first.stop, 'ROUND_TIME_BUDGET');
+  assert.equal((await c.state()).nextAt, until);
+  const priorCalls = calls;
+  const next = await runRound({...c.options, store: new QueueStore(c.directory)});
+  assert.equal(next.requests, 0); assert.equal(calls, priorCalls);
+  assert.equal((await c.state()).nextAt, until);
+});
+test('首次解析目标限流也落盘，重开宿主不再联网', async () => {
+  const c = context('initial-server-backoff', new FakeTransport(), true); let calls = 0;
+  const until = c.options.clock.now() + 3600000;
+  c.transport.resolveTarget = async () => { calls++; const error = new QueueError('HTTP_429', true); error.retryAt = until; throw error; };
+  await c.run();
+  assert.equal((await c.state()).initializing, true);
+  assert.equal((await c.state()).nextAt, until);
+  const result = await runRound({...c.options, store: new QueueStore(c.directory)});
+  assert.equal(result.requests, 0); assert.equal(calls, 1);
+});
+test('初始化状态的错误类型在联网前拒绝，不允许重新绑定设备', async () => {
+  for (const [i, bad] of [{initializing:'true'}, {initializing:1}, {initializing:true,deviceId:null,index:[]},
+    {initializing:true,deviceId:null,index:true}].entries()) {
+    const c = context('bad-initialization-'+i); let calls=0;
+    await c.options.store.withLock(async () => {c.options.store.load(); c.options.store.save({schemaVersion:1,target:TARGET,
+      deviceId:'SYNTHETIC_DEVICE',cursor:'',events:[],index:{},nextAt:0, ...bad});});
+    c.transport.resolveTarget=async()=>{calls++;return {id:'OTHER'};};
+    await assert.rejects(runRound(c.options), /STATE_INITIALIZATION_INVALID/);
+    assert.equal(calls,0);
+  }
+});
+test('显式新会话恢复仅解除会话拒绝，其他阻断不放行', async () => {
+  const c = context('session-recovery'); const resolve = c.transport.resolveTarget.bind(c.transport);
+  c.transport.resolveTarget = async () => { throw new QueueError('SESSION_REJECTED'); };
+  assert.equal((await c.run()).blocked, true);
+  c.transport.resolveTarget = resolve;
+  assert.equal((await c.run()).requests, 0);
+  assert.equal((await c.run({resumeSession:true})).archived, 1);
+  await c.options.store.withLock(async () => {const s=c.options.store.load();s.blocked={code:'TASK_IDENTITY_MISMATCH'};c.options.store.save(s);});
+  assert.equal((await c.run({resumeSession:true})).requests, 0);
+});
 test('真实Web适配器区分任务不存在、设备不存在、断网及同号冲突', async () => {
   let response;
   const web = new WebTransport({session: SESSION, fetchImpl: async () => response});

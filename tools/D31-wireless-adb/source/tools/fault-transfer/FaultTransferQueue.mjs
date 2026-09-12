@@ -40,8 +40,13 @@ function checkReceipt(receipt, eventId) {
 
 function checkState(state, target) {
   requireThat(state.schemaVersion === 1 && JSON.stringify(state.target) === JSON.stringify(target), 'STATE_TARGET_MISMATCH');
-  requireThat(typeof state.deviceId === 'string' && /^[A-Za-z0-9_-]{1,96}$/.test(state.deviceId), 'STATE_DEVICE_INVALID');
+  requireThat(state.initializing === undefined || typeof state.initializing === 'boolean', 'STATE_INITIALIZATION_INVALID');
+  if (state.initializing === true) requireThat(state.deviceId === null && state.cursor === '' && state.events?.length === 0
+    && state.index && typeof state.index === 'object' && !Array.isArray(state.index)
+    && Object.keys(state.index).length === 0 && !state.page && !state.endOfScan, 'STATE_INITIALIZATION_INVALID');
+  else requireThat(typeof state.deviceId === 'string' && /^[A-Za-z0-9_-]{1,96}$/.test(state.deviceId), 'STATE_DEVICE_INVALID');
   requireThat(state.cursor === '' || HEX.test(state.cursor), 'STATE_CURSOR_INVALID');
+  requireThat(state.nextAt === undefined || (Number.isSafeInteger(state.nextAt) && state.nextAt >= 0), 'STATE_BACKOFF_INVALID');
   requireThat(state.discovery === undefined || state.discovery === 'pending16', 'STATE_DISCOVERY_INVALID');
   if (state.page) {
     requireThat(state.discovery === 'pending16' && Array.isArray(state.page.entries) && state.page.entries.length <= 16
@@ -62,10 +67,11 @@ function checkState(state, target) {
 }
 
 // 一轮有界执行。transport必须遵守signal；不在模块导入时读取会话或启动任何任务。
-export async function runRound({store, transport, verifier, target, limits: inputLimits = {}, discoveryOnly = false,
+export async function runRound({store, transport, verifier, target, limits: inputLimits = {}, discoveryOnly = false, resumeSession = false,
   clock = systemClock, checkpoint = () => {}}) {
   target = validateTarget(target);
   requireThat(typeof discoveryOnly === 'boolean', 'DISCOVERY_ONLY_INVALID');
+  requireThat(typeof resumeSession === 'boolean', 'RESUME_SESSION_INVALID');
   const limits = limitsFor(inputLimits);
   return store.withLock(async () => {
     let state = store.load();
@@ -77,6 +83,8 @@ export async function runRound({store, transport, verifier, target, limits: inpu
     let active = null, stop = 'ROUND_COMPLETE';
     const remaining = () => limits.maxMs - (clock.monotonic() - started);
     const save = label => { store.save(state); checkpoint(label, structuredClone(state)); };
+    const retryAt = error => Math.max(clock.now() + Math.min(limits.maxBackoffMs, limits.pollMs * 2 ** state.failures),
+      Number.isSafeInteger(error.retryAt) && error.retryAt >= 0 ? error.retryAt : 0, state.nextAt || 0);
     const budget = () => {
       store.assertLocked();
       if (remaining() <= 0) throw new QueueError('ROUND_TIME_BUDGET', true);
@@ -236,16 +244,22 @@ export async function runRound({store, transport, verifier, target, limits: inpu
       return true;
     };
     try {
-      if (state?.blocked) { stop = state.blocked.code; }
+      if (!state) {
+        state = {schemaVersion: 1, target, deviceId: null, initializing: true, discovery: 'pending16',
+          cursor: '', events: [], index: {}, nextAt: 0, failures: 0};
+        save('target-resolution-intent');
+      }
+      if (state.blocked && !(resumeSession && state.blocked.code === 'SESSION_REJECTED')) { stop = state.blocked.code; }
       else {
         if (state?.nextAt) await waitUntil(state.nextAt);
         const device = await call(options => transport.resolveTarget(target, options));
-        if (state) requireThat(device.id === state.deviceId, 'TARGET_DEVICE_CHANGED');
+        if (state.initializing !== true) requireThat(device.id === state.deviceId, 'TARGET_DEVICE_CHANGED');
         else {
-          state = {schemaVersion: 1, target, deviceId: device.id, discovery: 'pending16',
-            cursor: '', events: [], index: {}, nextAt: 0, failures: 0};
+          requireThat(typeof device.id === 'string' && /^[A-Za-z0-9_-]{1,96}$/.test(device.id), 'STATE_DEVICE_INVALID');
+          state.deviceId = device.id; delete state.initializing;
           save('initialized');
         }
+        if (state.blocked?.code === 'SESSION_REJECTED') { delete state.blocked; save('session-revalidated'); }
         while (count.events < limits.maxEvents) {
           budget();
           try {
@@ -316,7 +330,7 @@ export async function runRound({store, transport, verifier, target, limits: inpu
             if (!(error instanceof QueueError)) throw error;
             if (!error.retryable || error.code.startsWith('ROUND_')) throw error;
             state.failures = Math.min(16, (state.failures || 0) + 1);
-            state.nextAt = clock.now() + Math.min(limits.maxBackoffMs, limits.pollMs * 2 ** state.failures);
+            state.nextAt = retryAt(error);
             state.lastError = {code: error.code, at: clock.now(), eventId: active?.eventId || null};
             save('retry-backoff'); count.retries++;
             if (count.retries >= limits.maxRetries) { stop = 'ROUND_RETRY_BUDGET'; break; }
@@ -334,7 +348,7 @@ export async function runRound({store, transport, verifier, target, limits: inpu
         save('blocked');
       } else if (state && !error.code.startsWith('ROUND_')) {
         state.failures = Math.min(16, (state.failures || 0) + 1);
-        state.nextAt = clock.now() + Math.min(limits.maxBackoffMs, limits.pollMs * 2 ** state.failures);
+        state.nextAt = retryAt(error);
         state.lastError = {code: error.code, at: clock.now(), eventId: active?.eventId || null};
         save('retry-backoff');
       }

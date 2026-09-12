@@ -2,10 +2,30 @@ import fs from 'node:fs';
 import {sessionCookie} from '../remote-tool-session.mjs';
 import {QueueError, requireThat} from './QueueStore.mjs';
 
+export function retryDeadline(value, now) {
+  if (typeof value !== 'string' || !value.trim()) return 0;
+  value = value.trim();
+  if (/^\d+$/.test(value)) {
+    const at = now + Number(value) * 1000;
+    return Number.isSafeInteger(at) ? at : Number.MAX_SAFE_INTEGER;
+  }
+  // 仅接受HTTP日期，避免把小数、负数等畸形秒数解析成日期。
+  if (!/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(value)) return 0;
+  const at = Date.parse(value);
+  return Number.isSafeInteger(at) && at > now ? at : 0;
+}
+
 export class WebTransport {
-  constructor({session, fetchImpl = globalThis.fetch}) {
+  constructor({session, fetchImpl = globalThis.fetch, now = Date.now}) {
     this.cookie = sessionCookie(session); this.fetch = fetchImpl;
+    this.now = now;
     this.base = 'https://v.elfradio.net';
+  }
+  async retryError(response, code) {
+    const error = new QueueError(code, true);
+    error.retryAt = retryDeadline(response.headers.get('retry-after'), this.now());
+    try { await response.body?.cancel(); } catch {}
+    return error;
   }
   async response(route, body, options) {
     try {
@@ -19,7 +39,7 @@ export class WebTransport {
   async json(route, body, options, missingTask = false) {
     const response = await this.response(route, body, options);
     if (response.status === 429 || response.status >= 500 || response.status === 409)
-      throw new QueueError(`HTTP_${response.status}`, true);
+      throw await this.retryError(response, `HTTP_${response.status}`);
     if (response.status === 401 || response.status === 403) throw new QueueError('SESSION_REJECTED');
     requireThat(response.ok || response.status === 400 || (missingTask && response.status === 404), `HTTP_${response.status}`);
     const chunks = []; let bytes = 0;
@@ -32,7 +52,7 @@ export class WebTransport {
     let value;
     try { value = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
     catch { throw new QueueError('WEB_JSON_INVALID'); }
-    if (response.status === 400 && value.reason === 'inflight') throw new QueueError('REMOTE_TASK_INFLIGHT', true);
+    if (response.status === 400 && value.reason === 'inflight') throw await this.retryError(response, 'REMOTE_TASK_INFLIGHT');
     if (response.status === 400 && value.reason === 'idempotency-conflict') throw new QueueError('REMOTE_IDEMPOTENCY_CONFLICT');
     requireThat(response.status !== 400, 'WEB_BAD_REQUEST');
     if (missingTask && response.status === 404) {
@@ -69,7 +89,7 @@ export class WebTransport {
   }
   async download(deviceId, taskId, {filename, bytes, signal, onBytes}) {
     const response = await this.response(this.fileRoute(deviceId, taskId) + '&download=1', null, {signal});
-    if (response.status === 429 || response.status >= 500) throw new QueueError('DOWNLOAD_UNAVAILABLE', true);
+    if (response.status === 429 || response.status >= 500) throw await this.retryError(response, 'DOWNLOAD_UNAVAILABLE');
     requireThat(response.ok && response.status === 200, 'DOWNLOAD_HTTP_INVALID');
     if (response.headers.has('content-length')) requireThat(Number(response.headers.get('content-length')) === bytes, 'DOWNLOAD_LENGTH_HEADER');
     const fd = fs.openSync(filename, 'wx', 0o600); let received = 0;

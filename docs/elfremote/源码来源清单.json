@@ -2744,6 +2744,20 @@
     "Git对象": "5bb9a5d388ec7b82be4fdc47226fc6744aad685b"
   },
   {
+    "来源": "research/d31_adb_bootstrap/tools/Verify-RemoteContactsPagesWeb.mjs",
+    "路径": "tools/D31-wireless-adb/source/tools/Verify-RemoteContactsPagesWeb.mjs",
+    "字节数": 19484,
+    "SHA256": "8D07A5C89E7ABFBFDE3BE0D1FA4C273BB0C4292009BB1C5AFEE9D6C43E0CFFBF",
+    "Git对象": "87db98c8643cdd123f4a94e1a154792e76576711"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/tools/Verify-RemoteContactsPagesWeb.test.mjs",
+    "路径": "tools/D31-wireless-adb/source/tools/Verify-RemoteContactsPagesWeb.test.mjs",
+    "字节数": 25704,
+    "SHA256": "CD63AEBE6C448A8428ECFE27FFC2C1486D812B1D390DD74B55E1760954453BF6",
+    "Git对象": "b114abdd8379a8a23278f922c21d14ab90ab0c21"
+  },
+  {
     "来源": "research/d31_adb_bootstrap/tools/Verify-RemoteContactsRead.mjs",
     "路径": "tools/D31-wireless-adb/source/tools/Verify-RemoteContactsRead.mjs",
     "字节数": 13656,
@@ -2949,23 +2963,23 @@
   {
     "来源": "research/d31_adb_bootstrap/tools/fault-transfer/FaultTransferCli.mjs",
     "路径": "tools/D31-wireless-adb/source/tools/fault-transfer/FaultTransferCli.mjs",
-    "字节数": 2579,
-    "SHA256": "3159F433A4C7DF66B6BEC6C481BDBA987A63FFE8CC0F5838B64528CF61C375E9",
-    "Git对象": "1d6d2d36d86180ee2088bbc04c86bb4231f58b6a"
+    "字节数": 2751,
+    "SHA256": "7E2B512994B59280B5DA85058B40C9832B70480BFA7473C8F6C79677E75EEFA5",
+    "Git对象": "e7aa482d7824924ca3b90ef036c2953f68a71416"
   },
   {
     "来源": "research/d31_adb_bootstrap/tools/fault-transfer/FaultTransferQueue.mjs",
     "路径": "tools/D31-wireless-adb/source/tools/fault-transfer/FaultTransferQueue.mjs",
-    "字节数": 23862,
-    "SHA256": "438E2B503A3B3306795528AAF5F6802C2B9BD92FAB999E3E5D9FB9D90BF4D089",
-    "Git对象": "55a6fbdf313f72237a35b44e8876b899336a7640"
+    "字节数": 25100,
+    "SHA256": "A6826E160128A575DDCDEE8E3C2809265E62BCC2231300E137B7AE0455AD7647",
+    "Git对象": "c59d26012c620db02c67235b02cef65b38aef40a"
   },
   {
     "来源": "research/d31_adb_bootstrap/tools/fault-transfer/FaultTransferQueue.test.mjs",
     "路径": "tools/D31-wireless-adb/source/tools/fault-transfer/FaultTransferQueue.test.mjs",
-    "字节数": 36668,
-    "SHA256": "74C3EAA45FA6B91FAEE83764DBBF7381DF44403A42316AA21C1B155D1992716E",
-    "Git对象": "114486d8f0f12fd9205984bdc21c69ba96e65570"
+    "字节数": 40660,
+    "SHA256": "8B5B12B517A68AC9DC77F8D8475B0C3C18CCA59D1778F85FA5000C779392E582",
+    "Git对象": "d30ff752041aa67f836c8548aa0e06824374e81e"
   },
   {
     "来源": "research/d31_adb_bootstrap/tools/fault-transfer/PackageVerifier.mjs",
@@ -2991,9 +3005,9 @@
   {
     "来源": "research/d31_adb_bootstrap/tools/fault-transfer/WebTransport.mjs",
     "路径": "tools/D31-wireless-adb/source/tools/fault-transfer/WebTransport.mjs",
-    "字节数": 4979,
-    "SHA256": "C7516FF82EB418746752A90723736DF30A705C5181BE9AA491CE8B66C69D9008",
-    "Git对象": "ab906d19161d031f038e5352c1a0e80654cd5972"
+    "字节数": 5850,
+    "SHA256": "99DF87FD534B214A2374A25D46D1D1DDA0430497ED51B71EBCFF4C69CF739EB5",
+    "Git对象": "afbdaedcd515d3542149c1610486190f8feda3d7"
   },
   {
     "来源": "research/d31_adb_bootstrap/tools/faults/FaultTestRunner.java",
@@ -3432,9 +3446,9 @@
   {
     "来源": "remote/docs/2026-09-10-D31专用elfRemote整合实施计划.md",
     "路径": "docs/elfremote/2026-09-10-D31专用elfRemote整合实施计划.md",
-    "字节数": 100704,
-    "SHA256": "41EDD5BE9FA70D0BE5CF9060A60B79F86CE17E33BE0064E6BD341454C7F70180",
-    "Git对象": "0155fa39f485182fdc52aa849527142b45eb4685"
+    "字节数": 102039,
+    "SHA256": "BB4A2C6B158E67FB156BB0DEBBD13E364CEAB0DC84C42A1A24CD5C4F60A97DD5",
+    "Git对象": "5994fbc1aca6719c8f899496a31189054771e018"
   },
   {
     "来源": "remote/docs/2026-09-11-D31双制品实现记录.md",
@@ -3827,5 +3841,26 @@
     "字节数": 3351,
     "SHA256": "34D06B3474AFEC6967464EF562CA9A9C863756EA3914ECC1ABF71CB8AD6D2D96",
     "Git对象": "a54195caf3253fbefdea867418eee86079d04be5"
+  },
+  {
+    "来源": "remote/docs/2026-09-12-D31第十一批开发与验收.md",
+    "路径": "docs/elfremote/2026-09-12-D31第十一批开发与验收.md",
+    "字节数": 9152,
+    "SHA256": "0EA1B2CF11DD478F4A89E0861F7E1ACE769FCE6068C5512BA87D656A844ED2FF",
+    "Git对象": "a804ef7d36b87b1f69ad608b0998725cf61200ec"
+  },
+  {
+    "来源": "remote/docs/2026-09-12-D31第十一批通讯录网页通道.md",
+    "路径": "docs/elfremote/2026-09-12-D31第十一批通讯录网页通道.md",
+    "字节数": 15986,
+    "SHA256": "EC944F97ACB8D1D7AEC45F93C0798D4C5B4CEDA8426C324E8DB72DC6CC3CD275",
+    "Git对象": "c2a633ac64175902bcac997e20cc320cee334bf8"
+  },
+  {
+    "来源": "remote/docs/2026-09-12-D31第十一批网络生产确认合同.md",
+    "路径": "docs/elfremote/2026-09-12-D31第十一批网络生产确认合同.md",
+    "字节数": 22125,
+    "SHA256": "68CF482166150D879A5351F9F296403589401939957B58A1D3FEB79F351D6F8A",
+    "Git对象": "e97ad724dd38b2004fd3349d0d6a9834093e3c65"
   }
 ]
