@@ -34,6 +34,35 @@ EXPECTED_APP_PAGE = [
 EXPECTED_PROJECT_CERTIFICATE = "9B31F89FA50B672ECFE02D73A534CC03F6CF893739AEC268F9FE0B71E72DA72E"
 
 
+def verify_manifest_files(manifest: dict, checked: dict, version: str = "1.4.3") -> None:
+    """将包内清单逐项绑定到已实算载荷，不能仅验证路径或接受空清单。"""
+    if not isinstance(manifest, dict) or manifest.get("版本") != version:
+        raise SystemExit("包内清单版本不匹配")
+    files = manifest.get("文件")
+    actual = {name: value for name, value in checked.items() if " -> " not in name}
+    if not isinstance(files, list) or len(files) != len(actual):
+        raise SystemExit("包内清单数量与实际载荷不符")
+    seen = set()
+    for item in files:
+        if not isinstance(item, dict):
+            raise SystemExit("包内清单条目格式无效")
+        name = item.get("path")
+        if not isinstance(name, str) or name not in actual or name in seen:
+            raise SystemExit("包内清单存在遗漏、重复或未登记路径")
+        seen.add(name)
+        verified = actual[name]
+        if (type(item.get("bytes")) is not int or item["bytes"] != verified["bytes"]
+                or not isinstance(item.get("sha256"), str)
+                or item["sha256"].upper() != verified["sha256"].upper()):
+            raise SystemExit("包内清单长度或摘要与实际载荷不符")
+        if name == "payload/system.img.gz":
+            system = checked["payload/system.img.gz -> system.img"]
+            if (type(item.get("uncompressed_bytes")) is not int or item["uncompressed_bytes"] != system["bytes"]
+                    or not isinstance(item.get("source_sha256"), str)
+                    or item["source_sha256"].upper() != system["sha256"].upper()):
+                raise SystemExit("包内清单系统原像与实际解压结果不符")
+
+
 def run_checked(command: list[str], description: str) -> str:
     process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
     output = (process.stdout + process.stderr).decode("utf-8", errors="replace")
@@ -50,7 +79,7 @@ def docker_desktop_path(path: Path) -> str:
     return "/mnt/host/" + drive + resolved.as_posix()[2:]
 
 
-def verify_app_page(raw: bytes) -> list[dict[str, str]]:
+def verify_app_page(raw: bytes, version: str = "1.4.3") -> list[dict[str, str]]:
     document = json.loads(raw.decode("utf-8"))
     tabs = document.get("tabs")
     if not isinstance(tabs, list) or len(tabs) < 2:
@@ -62,7 +91,9 @@ def verify_app_page(raw: bytes) -> list[dict[str, str]]:
     for item in items:
         app = item.get("info", {}).get("app", {})
         actual.append((app.get("name"), app.get("packageName")))
-    if actual != EXPECTED_APP_PAGE:
+    expected_page = [("elfRemote" if version == "1.4.4" and package == "net.elfradio.d31bootstrap" else label, package)
+                     for label, package in EXPECTED_APP_PAGE]
+    if actual != expected_page:
         raise SystemExit(f"config-tab应用页顺序或目标不匹配：{actual}")
     return [{"名称": name, "包名": package_name} for name, package_name in actual]
 
@@ -129,9 +160,9 @@ def sha256_stream(source) -> tuple[int, str]:
     return size, digest.hexdigest().upper()
 
 
-def expected_archive_hashes() -> dict[str, tuple[int, str]]:
+def expected_archive_hashes(sources=None) -> dict[str, tuple[int, str]]:
     result: dict[str, tuple[int, str]] = {}
-    for path, value in EXPECTED_SOURCES.items():
+    for path, value in (EXPECTED_SOURCES if sources is None else sources).items():
         size, digest = value
         if path.startswith("apks/"):
             result[f"payload/apps/{Path(path).name}"] = (size, digest)
@@ -139,7 +170,7 @@ def expected_archive_hashes() -> dict[str, tuple[int, str]]:
             result[f"payload/system-patches/{Path(path).name}"] = (size, digest)
         elif path.startswith("runtime/"):
             result[f"payload/runtime/{Path(path).name}"] = (size, digest)
-        elif path in ("partitions/boot.img", "partitions/logo.img"):
+        elif path in ("partitions/boot.img", "partitions/logo.img", "partitions/recovery.img"):
             result["payload/" + Path(path).name] = (size, digest)
     return result
 
@@ -223,6 +254,8 @@ def main() -> int:
     parser.add_argument("--config-template", type=Path, required=True)
     parser.add_argument("--aapt", type=Path, required=True)
     parser.add_argument("--apksigner", type=Path, required=True)
+    parser.add_argument("--sources", type=Path, default=Path(__file__).parent / "sources-v1.4.3.json")
+    parser.add_argument("--version", choices=("1.4.3", "1.4.4"), default="1.4.3")
     args = parser.parse_args()
 
     package = args.package.resolve()
@@ -236,7 +269,8 @@ def main() -> int:
             **verify_whole_file_signature(package, args.certificate, args.openssl, footer),
         },
     }
-    expected = expected_archive_hashes()
+    expected_sources = json.loads(args.sources.read_text(encoding="utf-8"))
+    expected = expected_archive_hashes(expected_sources)
     checked: dict[str, dict[str, object]] = {}
 
     with tempfile.TemporaryDirectory(prefix="d31-package-content-") as temporary:
@@ -299,9 +333,12 @@ def main() -> int:
             checked[name] = {"bytes": actual_size, "sha256": actual_hash, "status": "通过"}
 
         with archive.open("payload/system.img.gz", "r") as compressed:
+            compressed_size, compressed_hash = sha256_stream(compressed)
+        checked["payload/system.img.gz"] = {"bytes": compressed_size, "sha256": compressed_hash, "status": "通过"}
+        with archive.open("payload/system.img.gz", "r") as compressed:
             with gzip.GzipFile(fileobj=compressed, mode="rb") as system_image:
                 system_size, system_hash = sha256_stream(system_image)
-        expected_system_size, expected_system_hash = EXPECTED_SOURCES["partitions/system.img"]
+        expected_system_size, expected_system_hash = expected_sources["partitions/system.img"]
         if system_size != expected_system_size or system_hash != expected_system_hash:
             raise SystemExit("system.img.gz解压后的系统镜像不匹配")
         checked["payload/system.img.gz -> system.img"] = {
@@ -319,7 +356,7 @@ def main() -> int:
         if unexpected:
             raise SystemExit(f"刷机包出现未登记载荷：{unexpected}")
 
-        app_page = verify_app_page(archive.read("payload/system-patches/config-tab"))
+        app_page = verify_app_page(archive.read("payload/system-patches/config-tab"), args.version)
         project_apks = {
             "管理程序": (
                 "D31-Wireless-ADB-1.11.6.apk",
@@ -346,6 +383,10 @@ def main() -> int:
                 "1.0.4",
             ),
         }
+        if args.version == "1.4.4":
+            del project_apks["管理程序"]
+            project_apks["短信程序"] = ("D31-Messages.apk", "net.elfradio.d31phone.debug", "11", "0.5.2-dev-debug")
+            project_apks["独立系统支持"] = ("D31-System-Support-1.1.0.apk", "net.elfradio.d31system", "6", "1.1.0")
         project_apk_results: dict[str, dict[str, str]] = {}
         for label, (filename, package_name, version_code, version_name) in project_apks.items():
             extracted_apk = temporary_path / filename
@@ -386,21 +427,19 @@ def main() -> int:
             docker_desktop_path(args.system_verifier),
             docker_desktop_path(extracted_system),
             docker_desktop_path(args.config_template),
+            args.version,
         ]
         system_output = run_checked(system_command, "独立挂载核验system镜像")
+        if args.version == "1.4.4":
+            extracted_remote = temporary_path / "D31ElfRemote.apk"
+            run_checked(["wsl.exe", "-d", "docker-desktop", "--", "debugfs", "-R",
+                         "dump /priv-app/D31ElfRemote/D31ElfRemote.apk " + docker_desktop_path(extracted_remote),
+                         docker_desktop_path(extracted_system)], "回读系统elfRemote")
+            project_apk_results["系统elfRemote"] = verify_project_apk(
+                extracted_remote, args.aapt, args.apksigner, "系统elfRemote", "net.elfradio.d31bootstrap", "170", "1.34.6-candidate")
 
         manifest = json.loads(archive.read("payload/manifest.json"))
-        if manifest.get("版本") != "1.4.3":
-            raise SystemExit("包内清单版本不匹配")
-        manifest_files = manifest.get("文件")
-        if not isinstance(manifest_files, list):
-            raise SystemExit("包内清单文件列表格式错误")
-        for item in manifest_files:
-            path = str(item.get("path", ""))
-            if not path or path.startswith("/") or ":" in path or "\\" in path:
-                raise SystemExit(f"包内清单出现非相对路径：{path}")
-            if FORBIDDEN_PARTS.intersection(Path(path).parts):
-                raise SystemExit(f"包内清单出现禁止的用户配置路径：{path}")
+        verify_manifest_files(manifest, checked, args.version)
 
     report["checked_payloads"] = checked
     report["应用页"] = app_page

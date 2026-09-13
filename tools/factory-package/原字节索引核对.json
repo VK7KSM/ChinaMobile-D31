@@ -1,0 +1,291 @@
+{
+  "status": "通过",
+  "count": 35,
+  "coreAutocrlf": "true",
+  "method": "独立临时索引执行git add及checkout-index，并逐项核对原字节blob、长度和SHA-256",
+  "sharedIndex": "未改动，发布前由主线将新规则和35项源码一并加入正式索引",
+  "defaultApproved": "1.4.4",
+  "historicalSources": "sources-v1.4.1/1.4.2/1.4.3保留；生产PowerShell入口显式传入sources-v1.4.4及version1.4.4",
+  "files": [
+    {
+      "path": "build_factory_package.py",
+      "bytes": 9604,
+      "sha256": "0C4DD1C6AF3AC7F6A679690E3EC4BFDD15FA2A3FC2903882E6E0CB1BCAD35237",
+      "gitBlob": "357877fc0d5bc3a20b1c60925b4a07ed735f06ec",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "build_factory_package.ps1",
+      "bytes": 6870,
+      "sha256": "60C2340CAC7B6AD32FCE54645D8E56B23D9BBD5F1E4C010EF74F4BA2B3F7482D",
+      "gitBlob": "dfd4d094f44d21e9c52935705b7ca9195c5d458d",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "verify_factory_package.py",
+      "bytes": 21080,
+      "sha256": "DA0485D0E3BE2FA4D565D514C29E7E64FDA2B15D26BD41DB84F2CF07DB7D8EAF",
+      "gitBlob": "31ff00fe90737ae845dca53e5276ad02637d877c",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "verify_d31_system_image.sh",
+      "bytes": 4915,
+      "sha256": "50D9ECC911E6961F41E7D41C4D0B927EF73C00E8E2B1C50C7F12193B885F675C",
+      "gitBlob": "08a1e317efbc624ddf5da8a28146195df4fea2f4",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "verify_oat.py",
+      "bytes": 2612,
+      "sha256": "2B46FEAE571515EF4DC5CD343BB41A55A6FF037E54EA5956F9018156953F6C49",
+      "gitBlob": "a8d78f08d3223f2e3ca00a7a2024df5a61d0d5fe",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "test_source_members.py",
+      "bytes": 2221,
+      "sha256": "9AAE712E15F06FECD122C570DFACC94386305648776BB096618D9ECB8FC3E20D",
+      "gitBlob": "e98c35e68c80359a9cca700b0471afb95d271135",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "test_manifest_contract.py",
+      "bytes": 2955,
+      "sha256": "6DBAC765B55D384C66758B7D4439268509AEFF58BA7BE0169E34F9428957201F",
+      "gitBlob": "40cf76a77b22cba56a608dd87360db223270cdd6",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "test_factory_init.py",
+      "bytes": 5951,
+      "sha256": "141382C9701580D8817F3A00F5AC03ABD568F8C0A0D9A6CD0815FCF54AC92885",
+      "gitBlob": "83f228dfde4276aa5e5d92e55ee404f56061cd63",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "sources-v1.4.3.json",
+      "bytes": 6136,
+      "sha256": "41A0465603D4701E192093B50F0BFC592BA3F0CDF7FE90A22FE70B9D82C23860",
+      "gitBlob": "23c0967f1b5b34d1942b37070fafecefc8c94330",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "sources-v1.4.4.json",
+      "bytes": 6995,
+      "sha256": "18D8A594903F4D4CAC7300924C10897C68F654E7CE1B537394B5440D869075B7",
+      "gitBlob": "b0735bb81fb1e461852147e3ca800b45ac6b44b5",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "native/update_binary.c",
+      "bytes": 28409,
+      "sha256": "7301F3B2766D0E8F4BDC97008BB00FB7F5C7A8395CED2DC7D54E36A8C7EEB428",
+      "gitBlob": "e515779c7ad8f32034d50cd1fd3281169fc55800",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "native/tls_align.S",
+      "bytes": 242,
+      "sha256": "67AE9A9F277010FC8B434EA8D4A3DCC0A4C1E3E853CB5BEE20089DBD92D76D23",
+      "gitBlob": "5401403f1cf56859fcd3f3679e4cbe2d038ba269",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "native/updater-script",
+      "bytes": 52,
+      "sha256": "C737856FCFC44487151615184A9742F45CA90643FE08372E7581AD9D5D0E1DEB",
+      "gitBlob": "35523a44f185d5117b26f76282170723ca04715b",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "templates/config-tab",
+      "bytes": 1643,
+      "sha256": "2D3892FDEFAF94DC94DFBFA3358079DA5E40E5B0AC209BEE9F90B6CB5E5F24BB",
+      "gitBlob": "464be2a8c721d18958cbdf7db2757c249adcfb12",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "templates/init-package-restrictions.xml",
+      "bytes": 1824,
+      "sha256": "D573D17073F1085545DC7DB9A499523140B98A38766ADADDF3AED9F50FA1E865",
+      "gitBlob": "78f90fbf24368a4409ba8b4073038b39d5ce9fdf",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "templates/init-runtime-permissions.xml",
+      "bytes": 2178,
+      "sha256": "7F74C2CDB8F95D93396FCB1FA153CAF225B3236C35C1D2E6A51D460F08181249",
+      "gitBlob": "472f9e3a0d3c3923478eec7ec417f1cecee85901",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "startup-handover/FactoryInit.java",
+      "bytes": 13557,
+      "sha256": "73CB8FC4D374B1227ACE2D5C92C493096038A0D867EF077023C40EE13A2404B4",
+      "gitBlob": "fcb02302a2a36b072c85a6418a4ad59c3d986c38",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "startup-handover/HandoverPolicy.java",
+      "bytes": 1450,
+      "sha256": "0D16EFCE038DEC0F4F388AAEB3BFC112DFE8C73D591BF6ADB5AFC6DA54DAE304",
+      "gitBlob": "07ad54a3c1b4810ea66ab012c3a27e594ee5ddc2",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "startup-handover/HandoverRuntime.java",
+      "bytes": 15211,
+      "sha256": "E8619EB4B9AFB9586EBEC273650CB6208993C8A010F06EE65E475B0C39B08D06",
+      "gitBlob": "402f53a382a4100245eddbca47b9d9e5f57d43bc",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "startup-handover/StartupHandover.java",
+      "bytes": 1119,
+      "sha256": "AE3578D6E3843D11373B107195298802BD3C0AB205BAE44AD0ADFEE6503CA8CB",
+      "gitBlob": "23a6cffc16afb9b486165c597d760ab7f587bd4c",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "v144-build/prepare_system_overlay.py",
+      "bytes": 3129,
+      "sha256": "969A7EB01E929B5AA2F72DD3D90C40F36E59821A959758AA278A80A9752F99C1",
+      "gitBlob": "7c965260f61599700e7c36402fc6d816b1f3ffdc",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "v144-build/derive_system_image.py",
+      "bytes": 4912,
+      "sha256": "331D7C2FDEC2E4EF88C5FF0DDFAB4E6D61008EEE04732170CDAABD35866169A9",
+      "gitBlob": "d46ce747bddd8031fb6131bf8d63586e0f91dfc2",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "v144-build/prepare_sources.py",
+      "bytes": 6182,
+      "sha256": "638D19AF39B67D33BB01CCFDFDF8B4FFD192832FA6799BE5C0E0699411E7A2EB",
+      "gitBlob": "af8ba8d60f64d8a2c2bfa2657290839c0e70f7f8",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "v144-build/compare_system_tree.py",
+      "bytes": 2878,
+      "sha256": "BB899F25A97394B6AF1009F770C7E09AB52D919A3323D8BA227C6BE8D7C0BEBB",
+      "gitBlob": "3065c10c4fc7f48d9c80d7e04346e92a836f88f1",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "v144-build/audit_system_tree.sh",
+      "bytes": 720,
+      "sha256": "63349DA17FB22DE76595ED08316DF7CA890A400F30C1F7D274D6C0C2F773319F",
+      "gitBlob": "d739d4b5a4875168721874673f05fc2d879fc449",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "v144-build/build_handover.ps1",
+      "bytes": 1384,
+      "sha256": "CD98BA3D9DF921CB9FA6E59A40D9E1A9EFC219B8DAF755F3EF3C4307A7B5B08F",
+      "gitBlob": "b52e26c9b6982c16c973eb8251d703876b97169a",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "v144-build/test_factory_init_v144.py",
+      "bytes": 5163,
+      "sha256": "F546CC0EF542062F3AD31773CCECFEA8B8A4EA2588AAA87A3742CC221A3C008C",
+      "gitBlob": "62a752601d47a34aa0aa1f33495b6708911dec42",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "v144-build/test_release_v144.py",
+      "bytes": 4232,
+      "sha256": "5DABDF61D1CA61D38C353E580A8075516DE2D9691B312D5BC07E9A28101411CC",
+      "gitBlob": "dc4021f36d5edceb258928bdb544cc0ea9da491b",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "v144-build/finalize_package.py",
+      "bytes": 3966,
+      "sha256": "08D6D10F84F4FD47159CE5E9B4772BCC8C6DE07BF6024FF6291C7554B2A54239",
+      "gitBlob": "595e6bd4eb9ec9d2e3a6a8d778c73b1bef731403",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "v144-build/source-origins.json",
+      "bytes": 6966,
+      "sha256": "42829BC01609B0064CE157CD455D4AD9C9B9FA31B7BE1A24B5EA944B962F5DD5",
+      "gitBlob": "dac30a674ec1d45d00d202602791b61f49a3d320",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "approved-package-v1.4.4.json",
+      "bytes": 1129,
+      "sha256": "E3B2F6A55320AEB7A6D81B8BB9B6ACF7C4342E18BD60B1CF823A58A09E4F49A7",
+      "gitBlob": "5307b1a0d3b3605306d7755a84bf0ae85ae34c75",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "installed-files-v1.4.4.json",
+      "bytes": 9779,
+      "sha256": "03EBEB49EE2A636BA12222AB54BB86D61A0E1F024C6DC5DE9A4389B314382ADC",
+      "gitBlob": "7f3f5c0d619ef35f5810158091db80f2f763ca07",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "manifest-v1.4.4.json",
+      "bytes": 9077,
+      "sha256": "D5818278812826F9DD4897A51FE2A6BD008EABB98F21912CCD1345D1F0795316",
+      "gitBlob": "92655d026d2a10b9bb22a618d1a58388e481a425",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "approved-package.json",
+      "bytes": 1129,
+      "sha256": "E3B2F6A55320AEB7A6D81B8BB9B6ACF7C4342E18BD60B1CF823A58A09E4F49A7",
+      "gitBlob": "5307b1a0d3b3605306d7755a84bf0ae85ae34c75",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    },
+    {
+      "path": "installed-files.json",
+      "bytes": 9779,
+      "sha256": "03EBEB49EE2A636BA12222AB54BB86D61A0E1F024C6DC5DE9A4389B314382ADC",
+      "gitBlob": "7f3f5c0d619ef35f5810158091db80f2f763ca07",
+      "indexMatchesOriginal": true,
+      "checkoutMatchesOriginal": true
+    }
+  ]
+}

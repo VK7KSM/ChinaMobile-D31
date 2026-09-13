@@ -14,6 +14,7 @@ public final class ProbeService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        if (RemoteDeployment.systemManaged()) { stopSelf(); return; }
         Notification notification = new Notification.Builder(this)
                 .setSmallIcon(android.R.drawable.stat_notify_sync)
                 .setContentTitle("D31 系统探针")
@@ -40,6 +41,7 @@ public final class ProbeService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (RemoteDeployment.systemManaged()) { stopSelf(); return START_NOT_STICKY; }
         String action = intent == null ? "系统重建服务" : String.valueOf(intent.getAction());
         ProbeLog.append(this, "系统探针收到启动请求：" + action);
         BootReceiver.dispatchStorageEvent(this, intent);

@@ -24,8 +24,8 @@ public final class SipService extends Service implements SipEngine.Listener {
     public static final String ACTION_MESSAGES_CHANGED = "net.elfradio.d31phone.action.SIP_MESSAGES_CHANGED";
     public static final String EXTRA_PEER = "peer";
     public static final String EXTRA_BODY = "body";
-    private static final String CHANNEL = "d31_sip_messages";
-    private static final int NOTIFICATION_ID = 3108;
+    private static final String CHANNEL = "d31_sip_service";
+    private static final int NOTIFICATION_ID = -3108;
     private static final String TAG = "D31SipService";
 
     private SipMessageStore messages;
@@ -89,15 +89,8 @@ public final class SipService extends Service implements SipEngine.Listener {
     public void onMessageReceived(String peer, String body) {
         messages.add(peer, body, SipMessageStore.DIRECTION_IN, SipMessageStore.STATE_RECEIVED);
         broadcastMessagesChanged();
-        NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        manager.notify((int) (System.currentTimeMillis() & 0x7fffffff),
-            new NotificationCompat.Builder(this, CHANNEL)
-                .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle("SIP消息 · " + peer)
-                .setContentText(body)
-                .setAutoCancel(true)
-                .setContentIntent(mainPendingIntent())
-                .build());
+        ((dev.octoshrimpy.quik.common.QKApplication) getApplication()).getD31Notifications()
+            .postSip(messages, peer, true);
     }
 
     @Override
@@ -125,7 +118,8 @@ public final class SipService extends Service implements SipEngine.Listener {
     private void createChannel() {
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel channel = new NotificationChannel(
-                CHANNEL, "D31 SIP消息", NotificationManager.IMPORTANCE_LOW);
+                CHANNEL, "SIP连接服务", NotificationManager.IMPORTANCE_LOW);
+            channel.setSound(null, null);
             ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).createNotificationChannel(channel);
         }
     }
@@ -136,6 +130,8 @@ public final class SipService extends Service implements SipEngine.Listener {
             .setContentTitle("D31短信")
             .setContentText(text)
             .setOngoing(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setSilent(true)
             .setContentIntent(mainPendingIntent())
             .build();
     }

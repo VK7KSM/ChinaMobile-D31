@@ -26,6 +26,7 @@ final class LocalRecovery {
     }
 
     static AdbControl.ActionResult run(Context context) {
+        int adbPort = AdbControl.currentPort();
         StringBuilder log = new StringBuilder();
         log.append("D31本地急救 1.10.30\n")
                 .append("不会删除账号、短信、SIP配置、SIM数据或用户文件。\n")
@@ -49,8 +50,8 @@ final class LocalRecovery {
                 {"关闭运行时4G强制属性", "setprop sys.4g.enable false"},
                 {"关闭运行时VoLTE强制属性", "setprop sys.volte.enable false"},
                 {"启用持久ADB服务", "setprop persist.service.adb.enable 1"},
-                {"设置持久ADB端口", "setprop persist.adb.tcp.port 5555"},
-                {"设置当前ADB端口", "setprop service.adb.tcp.port 5555"},
+                {"设置持久ADB端口", "setprop persist.adb.tcp.port " + adbPort},
+                {"设置当前ADB端口", "setprop service.adb.tcp.port " + adbPort},
                 {"启用Android调试开关", "settings put global adb_enabled 1"},
                 {"设置持久MTK USB模式", "setprop persist.sys.usb.config mass_storage,adb"},
                 {"暂时停用MTK USB组合", "setprop sys.usb.config none"}
@@ -74,25 +75,25 @@ final class LocalRecovery {
                 .setAction("local-recovery"));
 
         long deadline = System.currentTimeMillis() + 25000L;
-        while (System.currentTimeMillis() < deadline && !isListening(5555)) {
+        while (System.currentTimeMillis() < deadline && !isListening(adbPort)) {
             sleep(1000);
         }
 
         log.append("\n== 最终属性回读 ==\n").append(readStatus());
-        boolean adbListening = isListening(5555);
+        boolean adbListening = isListening(adbPort);
         boolean probeListening = isListening(8765);
-        log.append("127.0.0.1:5555 ")
+        log.append("TCP端口 ").append(adbPort).append(' ')
                 .append(adbListening ? "正在监听\n" : "未监听\n")
                 .append("127.0.0.1:8765 ")
                 .append(probeListening ? "正在监听\n" : "未监听\n");
 
         boolean adbSucceeded = adbListening
-                && "5555".equals(readValue("getprop persist.adb.tcp.port"))
-                && "5555".equals(readValue("getprop service.adb.tcp.port"))
+                && Integer.toString(adbPort).equals(readValue("getprop persist.adb.tcp.port"))
+                && Integer.toString(adbPort).equals(readValue("getprop service.adb.tcp.port"))
                 && "running".equals(readValue("getprop init.svc.adbd"));
         boolean succeeded = adbSucceeded && startupPatchRestored;
         log.append("\n== 急救结论 ==\n")
-                .append(succeeded ? "急救完成。电脑现在可以连接D31的5555端口。\n"
+                .append(succeeded ? "急救完成。电脑现在可以连接D31的" + adbPort + "端口。\n"
                         : adbSucceeded
                                 ? "ADB已经恢复，但开机补丁没有回滚。请保留本页。\n"
                                 : "ADB仍未完整恢复。请保留本页，不要反复点击。\n");

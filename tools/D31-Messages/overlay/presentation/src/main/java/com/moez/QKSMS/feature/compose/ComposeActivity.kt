@@ -161,6 +161,21 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
 
     private var seekBarUpdater: Disposable? = null
     private var sipCompose: dev.octoshrimpy.quik.feature.phone.SipComposeController? = null
+    private var d31Resumed = false
+    private val screenReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context, intent: Intent) = updateReadVisibility()
+    }
+
+    private fun updateReadVisibility() {
+        val visible = d31Resumed && hasWindowFocus() &&
+            dev.octoshrimpy.quik.util.ConversationVisibility.isInteractiveUnlocked(this)
+        if (sipCompose != null) sipCompose?.setReading(visible) else activityVisibleIntent.onNext(visible)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        updateReadVisibility()
+    }
 
     private val viewModel by lazy { ViewModelProviders.of(this, viewModelFactory)[ComposeViewModel::class.java] }
 
@@ -217,6 +232,11 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
         binding = ComposeActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
         showBackButton(true)
+        registerReceiver(screenReceiver, android.content.IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_USER_PRESENT)
+        })
         if (intent.getStringExtra("d31_transport") == "sip") {
             sipCompose = dev.octoshrimpy.quik.feature.phone.SipComposeController(this, binding,
                 savedInstanceState?.getString("d31_peer") ?: intent.getStringExtra("d31_peer") ?: "")
@@ -411,7 +431,6 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
     override fun onStart() {
         super.onStart()
         if (sipCompose != null) { sipCompose?.refresh(); return }
-        activityVisibleIntent.onNext(true)
 
         // if first time stt icon is shown (since setting reset), pop up an instruction toast
         if (prefs.showStt.get() &&
@@ -424,13 +443,22 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        d31Resumed = true
+        updateReadVisibility()
+    }
+
     override fun onPause() {
+        d31Resumed = false
+        updateReadVisibility()
         super.onPause()
-        sipCompose?.saveDraft()
+        sipCompose?.pause()
         activityVisibleIntent.onNext(false)
     }
 
     override fun onDestroy() {
+        unregisterReceiver(screenReceiver)
         sipCompose?.dispose()
         super.onDestroy()
 

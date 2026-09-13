@@ -69,6 +69,7 @@ public final class SipConfigStore {
     public void save(boolean enabled, String server, int port, String username, String password,
                      String realm, Transport transport) {
         prefs.edit()
+            .remove("remote_task_id")
             .putBoolean("enabled", enabled)
             .putString("server", server.trim())
             .putInt("port", port)

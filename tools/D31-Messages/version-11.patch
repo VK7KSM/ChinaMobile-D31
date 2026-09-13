@@ -1,0 +1,14 @@
+diff --git a/presentation/build.gradle b/presentation/build.gradle
+--- a/presentation/build.gradle
++++ b/presentation/build.gradle
+@@ -28,8 +28,8 @@ android {
+         applicationId 'net.elfradio.d31phone'
+         minSdkVersion 23
+         targetSdkVersion 33
+-        versionCode 10
+-        versionName '0.5.1-dev'
++        versionCode 11
++        versionName '0.5.2-dev'
+         setProperty("archivesBaseName", "D31-Messages-v${versionName}")
+         testInstrumentationRunner "dev.octoshrimpy.quik.feature.phone.D31NotificationInstrumentation"
+         ndk {

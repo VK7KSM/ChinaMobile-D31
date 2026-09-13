@@ -6,9 +6,18 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="net.elfradio.d31.permission.READ_UNREAD" />
     <application android:allowBackup="false" android:label="D31 系统支持"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <service android:name=".SystemSupportService" android:exported="false" />
+        <service android:name=".MessageNotificationListener" android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
+        </service>
+        <provider android:name=".DesktopNoticeProvider" android:authorities="net.elfradio.d31system.notices"
+            android:exported="true" android:grantUriPermissions="false" />
+        <activity android:name=".NotificationCenterActivity" android:exported="false"
+            android:label="通知" android:launchMode="singleTop" />
         <receiver android:name=".SystemReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

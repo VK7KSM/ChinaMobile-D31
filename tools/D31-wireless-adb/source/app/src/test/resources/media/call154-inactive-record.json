@@ -1,0 +1,134 @@
+{
+  "flinger": "Library pre_processing\n  Noise Suppression / The Android Open Source Project\n    UUID: c06c8400-8e06-11e0-9cb6-0002a5d5c51b\n    TYPE: 58b4b260-8e06-11e0-aa8e-0002a5d5c51b\n    apiVersion: 00020000\n    flags: 00000203\n  Acoustic Echo Canceler / The Android Open Source Project\n    UUID: bb392ec0-8d4d-11e0-a896-0002a5d5c51b\n    TYPE: 7b491460-8d4d-11e0-bd61-0002a5d5c51b\n    apiVersion: 00020000\n    flags: 00000203\n  Automatic Gain Control / The Android Open Source Project\n    UUID: aa8130e0-66fc-11e0-bad0-0002a5d5c51b\n    TYPE: 0a8abfe0-654c-11e0-ba26-0002a5d5c51b\n    apiVersion: 00020000\n    flags: 00000203\nLibrary loudness_enhancer\n  Loudness Enhancer / The Android Open Source Project\n    UUID: fa415329-2034-4bea-b5dc-5b381c8d1e2c\n    TYPE: fe3199be-aed0-413f-87bb-11260eb63cf1\n    apiVersion: 00020000\n    flags: 00000008\nLibrary downmix\n  Multichannel Downmix To Stereo / The Android Open Source Project\n    UUID: 93f04452-e4fe-41cc-91f9-e475b6d1d69f\n    TYPE: 381e49cc-a858-4aa2-87f6-e8388e7601b2\n    apiVersion: 00020000\n    flags: 00000008\nLibrary visualizer\n  Visualizer / The Android Open Source Project\n    UUID: d069d9e0-8329-11df-9168-0002a5d5c51b\n    TYPE: e46b26a0-dddd-11db-8afd-0002a5d5c51b\n    apiVersion: 00020000\n    flags: 00000008\nLibrary reverb\n  Insert Preset Reverb / NXP Software Ltd.\n    UUID: 172cdf00-a3bc-11df-a72f-0002a5d5c51b\n    TYPE: 47382d60-ddd8-11db-bf3a-0002a5d5c51b\n    apiVersion: 00020000\n    flags: 00000048\n  Auxiliary Preset Reverb / NXP Software Ltd.\n    UUID: f29a1400-a3bb-11df-8ddc-0002a5d5c51b\n    TYPE: 47382d60-ddd8-11db-bf3a-0002a5d5c51b\n    apiVersion: 00020000\n    flags: 00000001\n  Insert Environmental Reverb / NXP Software Ltd.\n    UUID: c7a511a0-a3bb-11df-860e-0002a5d5c51b\n    TYPE: c2e5d5f0-94bd-4763-9cac-4e234d06839e\n    apiVersion: 00020000\n    flags: 00000048\n  Auxiliary Environmental Reverb / NXP Software Ltd.\n    UUID: 4a387fc0-8ab3-11df-8bad-0002a5d5c51b\n    TYPE: c2e5d5f0-94bd-4763-9cac-4e234d06839e\n    apiVersion: 00020000\n    flags: 00000001\nLibrary bundle\n  Volume / NXP Software Ltd.\n    UUID: 119341a0-8469-11df-81f9-0002a5d5c51b\n    TYPE: 09e8ede0-ddde-11db-b4f6-0002a5d5c51b\n    apiVersion: 00020000\n    flags: 00000050\n  Equalizer / NXP Software Ltd.\n    UUID: ce772f20-847d-11df-bb17-0002a5d5c51b\n    TYPE: 0bed4300-ddd6-11db-8f34-0002a5d5c51b\n    apiVersion: 00020000\n    flags: 00000048\n  Virtualizer / NXP Software Ltd.\n    UUID: 1d4033c0-8557-11df-9f2d-0002a5d5c51b\n    TYPE: 37cc2c00-dddd-11db-8577-0002a5d5c51b\n    apiVersion: 00020000\n    flags: 00000250\n  Dynamic Bass Boost / NXP Software Ltd.\n    UUID: 8631f300-72e2-11df-b57e-0002a5d5c51b\n    TYPE: 0634f220-ddd4-11db-a0fc-0002a5d5c51b\n    apiVersion: 00020000\n    flags: 00000248\nmAFSuspend: 0\nmMicMute: 0\nClients:\n  pid: 555\nNotification Clients:\n  pid: 555\n  pid: 555\n  pid: 555\n  pid: 555\n  pid: 555\n  pid: 555\n  pid: 555\n  pid: 555\nGlobal session refs:\n  session   pid count\nHardware status: 0\nStandby Time mSec: 3000\n\nOutput thread 0xa001 type 0 (MIXER):\n  mOutput name: primary\n  Thread name: AudioOut_2\n  I/O handle: 2\n  TID: 555\n  Standby: yes\n  Sample rate: 48000 Hz\n  HAL frame count: 1024\n  HAL format: 0x3 (pcm32)\n  HAL buffer size: 8192 bytes\n  Channel count: 2\n  Channel mask: 0x00000003 (front-left, front-right)\n  Format: 0x3 (pcm32)\n  Frame size: 8 bytes\n  Pending config events: none\n  Output device: 0x2 (SPEAKER)\n  Input device: 0 (NONE)\n  Audio source: 0 (default)\n  Normal frame count: 1024\n  Last write occurred (msecs): 3051661\n  Total writes: 1165\n  Delayed writes: 0\n  Blocked in write: no\n  Suspend count: 0\n  Sink buffer : 0xa002\n  Mixer buffer: 0xa003\n  Effect buffer: 0xa004\n  Fast track availMask=0xfe\n  mAFSuspend : 0\n  AudioStreamOut: 0xa005 flags 0x2 (PRIMARY)\n  Thread throttle time (msecs): 88\n  AudioMixer tracks: 0x00000000\n  FastMixer not initialized\n  Stream volumes in dB: 0:-3, 1:-5, 2:-14, 3:-41, 4:-18, 5:-14, 6:0, 7:-20, 8:-23, 9:-inf, 10:-12, 11:-2, 12:-41, 13:0, 14:0\n  Normal mixer raw underrun counters: partial=0 empty=0\n  0 Tracks\n  0 Effect Chains\n\nOutput thread 0xa006 type 0 (MIXER):\n  mOutput name: primary\n  Thread name: AudioOut_4\n  I/O handle: 4\n  TID: 555\n  Standby: yes\n  Sample rate: 48000 Hz\n  HAL frame count: 256\n  HAL format: 0x3 (pcm32)\n  HAL buffer size: 2048 bytes\n  Channel count: 2\n  Channel mask: 0x00000003 (front-left, front-right)\n  Format: 0x3 (pcm32)\n  Frame size: 8 bytes\n  Pending config events: none\n  Output device: 0x2 (SPEAKER)\n  Input device: 0 (NONE)\n  Audio source: 0 (default)\n  Normal frame count: 256\n  Last write occurred (msecs): 3289829\n  Total writes: 0\n  Delayed writes: 0\n  Blocked in write: no\n  Suspend count: 0\n  Sink buffer : 0xa007\n  Mixer buffer: 0xa008\n  Effect buffer: 0xa009\n  Fast track availMask=0xfe\n  mAFSuspend : 0\n  AudioStreamOut: 0xa00a flags 0x4 (FAST)\n  Thread throttle time (msecs): 0\n  AudioMixer tracks: 0x00000000\n  FastMixer not initialized\n  Stream volumes in dB: 0:-3, 1:-5, 2:-14, 3:-41, 4:-18, 5:-14, 6:0, 7:-20, 8:-23, 9:-inf, 10:-12, 11:-2, 12:-17, 13:0, 14:0\n  Normal mixer raw underrun counters: partial=0 empty=0\n  0 Tracks\n  0 Effect Chains\n\nInput thread 0xa00b type 3 (RECORD):\n  mInput name: primary\n  Thread name: AudioIn_14\n  I/O handle: 20\n  TID: 555\n  Standby: yes\n  Sample rate: 16000 Hz\n  HAL frame count: 320\n  HAL format: 0x1 (pcm16)\n  HAL buffer size: 640 bytes\n  Channel count: 1\n  Channel mask: 0x00000010 (front)\n  Format: 0x1 (pcm16)\n  Frame size: 2 bytes\n  Pending config events: none\n  Output device: 0x2 (SPEAKER)\n  Input device: 0x80000004 (BUILTIN_MIC)\n  Audio source: 0 (default)\n  No active record clients\n  Fast capture thread: no\n  Fast track available: no\n  FastCapture not initialized\n  1 Tracks of which 0 are active\n    Active Client Fmt Chn mask Session S   Server fCount SRate\n        no  555   1 00000010      42 0 00000000   2048 16000\n  0 Effect Chains\n\nusb_hw version 2.2.0\n  mic_mute: 0\n\nReroute submix audio module:\n route[0] rate in=0 out=0, addr=[]\n route[1] rate in=0 out=0, addr=[]\n route[2] rate in=0 out=0, addr=[]\n route[3] rate in=0 out=0, addr=[]\n route[4] rate in=0 out=0, addr=[]\n route[5] rate in=0 out=0, addr=[]\n route[6] rate in=0 out=0, addr=[]\n route[7] rate in=0 out=0, addr=[]\n route[8] rate in=0 out=0, addr=[]\n route[9] rate in=48000 out=48000, addr=[]\n",
+  "policy": "AudioPolicyManager: 0xa00c\nCommand Thread: 0xa00d\nTones Thread: 0xa00e\nAudioCommandThread 0xa00d Dump\n- Commands:\n   Command Time        Wait pParam\n  Last Command\n   03      000235.308  0    0xa00f\nAudioCommandThread 0xa00e Dump\n- Commands:\n   Command Time        Wait pParam\n  Last Command\n     none\n\nAudioPolicyManager Dump: 0xa00c\n Primary Output: 2\n Phone state: 0\n Force use for communications 1\n Force use for media 0\n Force use for record 0\n Force use for dock 8\n Force use for system 0\n Force use for hdmi system audio 0\n SupportedOutput devices: 0000443f\n SupportedInput devices: 0000109c\n UserChosenOutput devices: 00000000\n UserChosenInput devices: 00000000\n\n Available output devices:\n  Device 1:\n  - id:  1\n  - type: AUDIO_DEVICE_OUT_SPEAKER                        \n\n Available input devices:\n  Device 1:\n  - id:  4\n  - type: AUDIO_DEVICE_IN_BUILTIN_MIC                     \n  - sampling rates: 8000, 16000, 32000, 44100, 48000\n  - channel masks: 0x0010, 0x000c, 0x4000, 0x8000, 0xc000\n  - formats: AUDIO_FORMAT_PCM_16_BIT\n  Device 2:\n  - id:  6\n  - type: AUDIO_DEVICE_IN_FM_TUNER                        \n  - sampling rates: 8000, 16000, 32000, 44100, 48000\n  - channel masks: 0x0010, 0x000c, 0x4000, 0x8000, 0xc000\n  - formats: AUDIO_FORMAT_PCM_16_BIT\n  Device 3:\n  - id:  5\n  - type: AUDIO_DEVICE_IN_TELEPHONY_RX                    \n  - sampling rates: 8000, 16000, 32000, 44100, 48000\n  - channel masks: 0x0010, 0x000c, 0x4000, 0x8000, 0xc000\n  - formats: AUDIO_FORMAT_PCM_16_BIT\n  Device 4:\n  - id:  7\n  - type: AUDIO_DEVICE_IN_REMOTE_SUBMIX                   \n  - address: 0                               \n  - sampling rates: 48000\n  - channel masks: 0x000c\n  - formats: AUDIO_FORMAT_PCM_16_BIT\n\nHW Modules dump:\n- HW Module 1:\n  - name: primary\n  - handle: 1\n  - version: 3.0\n  - outputs:\n    output 0:\n    - name: primary\n    - sampling rates: 48000\n    - channel masks: 0x0003\n    - formats: AUDIO_FORMAT_PCM_16_BIT, AUDIO_FORMAT_PCM_32_BIT\n    - gains:\n\u0000      Gain 1:\n      - mode: 00000001\n      - channel_mask: 00000003\n      - min_value: -6400 mB\n      - max_value: 0 mB\n      - default_value: 0 mB\n      - step_value: 100 mB\n      - min_ramp_ms: 0 ms\n      - max_ramp_ms: 0 ms\n    - flags: 0x0002\n    - devices:\n      Device 1:\n      - type: AUDIO_DEVICE_OUT_EARPIECE                       \n      Device 2:\n      - type: AUDIO_DEVICE_OUT_SPEAKER                        \n      Device 3:\n      - type: AUDIO_DEVICE_OUT_WIRED_HEADSET                  \n      Device 4:\n      - type: AUDIO_DEVICE_OUT_WIRED_HEADPHONE                \n      Device 5:\n      - type: AUDIO_DEVICE_OUT_AUX_DIGITAL                    \n      Device 6:\n      - type: AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET              \n      Device 7:\n      - type: AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET              \n      Device 8:\n      - type: AUDIO_DEVICE_OUT_ALL_SCO                        \n      Device 9:\n      - type: AUDIO_DEVICE_OUT_FM                             \n    output 1:\n    - name: fast\n    - sampling rates: 48000\n    - channel masks: 0x0003\n    - formats: AUDIO_FORMAT_PCM_16_BIT, AUDIO_FORMAT_PCM_32_BIT\n    - flags: 0x0004\n    - devices:\n      Device 1:\n      - type: AUDIO_DEVICE_OUT_SPEAKER                        \n      Device 2:\n      - type: AUDIO_DEVICE_OUT_WIRED_HEADSET                  \n      Device 3:\n      - type: AUDIO_DEVICE_OUT_WIRED_HEADPHONE                \n      Device 4:\n      - type: AUDIO_DEVICE_OUT_EARPIECE                       \n  - inputs:\n    input 0:\n    - name: primary\n    - sampling rates: 8000, 16000, 32000, 44100, 48000\n    - channel masks: 0x0010, 0x000c, 0x4000, 0x8000, 0xc000\n    - formats: AUDIO_FORMAT_PCM_16_BIT\n    - flags: 0x0000\n    - devices:\n      Device 1:\n      - type: AUDIO_DEVICE_IN_BUILTIN_MIC                     \n      Device 2:\n      - type: AUDIO_DEVICE_IN_AMBIENT                         \n      Device 3:\n      - type: AUDIO_DEVICE_IN_WIRED_HEADSET                   \n      Device 4:\n      - type: AUDIO_DEVICE_IN_AUX_DIGITAL                     \n      Device 5:\n      - type: AUDIO_DEVICE_IN_MATV                            \n      Device 6:\n      - type: AUDIO_DEVICE_IN_TELEPHONY_RX                    \n      Device 7:\n      - type: AUDIO_DEVICE_IN_BACK_MIC                        \n      Device 8:\n      - type: AUDIO_DEVICE_IN_BLUETOOTH_SCO_HEADSET           \n      Device 9:\n      - type: AUDIO_DEVICE_IN_FM_TUNER                        \n  - devices:\n    Device 1:\n    - type: AUDIO_DEVICE_OUT_WIRED_HEADSET                  \n    - gains:\n\u0000      Gain 1:\n      - mode: 00000001\n      - channel_mask: 00000003\n      - min_value: -6400 mB\n      - max_value: 0 mB\n      - default_value: 0 mB\n      - step_value: 100 mB\n      - min_ramp_ms: 0 ms\n      - max_ramp_ms: 0 ms\n    Device 2:\n    - type: AUDIO_DEVICE_OUT_WIRED_HEADPHONE                \n    - gains:\n\u0000      Gain 1:\n      - mode: 00000001\n      - channel_mask: 00000003\n      - min_value: -6400 mB\n      - max_value: 0 mB\n      - default_value: 0 mB\n      - step_value: 100 mB\n      - min_ramp_ms: 0 ms\n      - max_ramp_ms: 0 ms\n- HW Module 2:\n  - name: a2dp\n  - handle: 7\n  - version: 2.0\n  - outputs:\n    output 0:\n    - name: a2dp\n    - sampling rates: 44100\n    - channel masks: 0x0003\n    - formats: AUDIO_FORMAT_PCM_16_BIT\n    - flags: 0x0000\n    - devices:\n      Device 1:\n      - type: AUDIO_DEVICE_OUT_ALL_A2DP                       \n  - inputs:\n    input 0:\n    - name: a2dp\n    - sampling rates: 44100\n    - channel masks: 0x000c\n    - formats: AUDIO_FORMAT_PCM_16_BIT\n    - flags: 0x0000\n    - devices:\n      Device 1:\n      - type: AUDIO_DEVICE_IN_BLUETOOTH_A2DP                  \n- HW Module 3:\n  - name: usb\n  - handle: 8\n  - version: 2.0\n  - outputs:\n    output 0:\n    - name: usb_accessory\n    - sampling rates: 44100\n    - channel masks: 0x0003\n    - formats: AUDIO_FORMAT_PCM_16_BIT\n    - flags: 0x0000\n    - devices:\n      Device 1:\n      - type: AUDIO_DEVICE_OUT_USB_ACCESSORY                  \n    output 1:\n    - name: usb_device\n    - sampling rates: Dynamic\n    - channel masks: Dynamic\n    - formats: Dynamic\n    - flags: 0x0000\n    - devices:\n      Device 1:\n      - type: AUDIO_DEVICE_OUT_USB_DEVICE                     \n  - inputs:\n    input 0:\n    - name: usb_device\n    - sampling rates: Dynamic\n    - channel masks: 0x000c\n    - formats: AUDIO_FORMAT_PCM_16_BIT\n    - flags: 0x0000\n    - devices:\n      Device 1:\n      - type: AUDIO_DEVICE_IN_USB_DEVICE                      \n- HW Module 4:\n  - name: r_submix\n  - handle: 9\n  - version: 2.0\n  - outputs:\n    output 0:\n    - name: r_submix\n    - sampling rates: 48000\n    - channel masks: 0x0003\n    - formats: AUDIO_FORMAT_PCM_16_BIT\n    - flags: 0x0000\n    - devices:\n      Device 1:\n      - type: AUDIO_DEVICE_OUT_REMOTE_SUBMIX                  \n      - address: 0                               \n  - inputs:\n    input 0:\n    - name: r_submix\n    - sampling rates: 48000\n    - channel masks: 0x000c\n    - formats: AUDIO_FORMAT_PCM_16_BIT\n    - flags: 0x0000\n    - devices:\n      Device 1:\n      - type: AUDIO_DEVICE_IN_REMOTE_SUBMIX                   \n      - address: 0                               \n\nOutputs dump:\n- Output 2 dump:\n Latency: 85\n Flags 00000002\n ID: 2\n Sampling rate: 48000\n Format: 00000003\n Channels: 00000003\n Devices 00000002\n Stream volume refCount muteCount\n 00     -3.000     00       00\n 01     -5.000     00       00\n 02     -14.000     00       00\n 03     -41.000     00       00\n 04     -18.000     00       00\n 05     -14.000     00       00\n 06     -1.000     00       00\n 07     -20.000     00       00\n 08     -23.000     00       00\n 09     -758.000     00       01\n 10     -12.041     00       00\n 11     -2.000     00       00\n 12     -41.000     00       00\n 13     0.000     00       00\n 14     -1.000     00       00\n- Output 4 dump:\n Latency: 10\n Flags 00000004\n ID: 3\n Sampling rate: 48000\n Format: 00000003\n Channels: 00000003\n Devices 00000002\n Stream volume refCount muteCount\n 00     -3.000     00       00\n 01     -5.000     00       00\n 02     -14.000     00       00\n 03     -41.000     00       00\n 04     -18.000     00       00\n 05     -14.000     00       00\n 06     -1.000     00       00\n 07     -20.000     00       00\n 08     -23.000     00       00\n 09     -758.000     00       01\n 10     -12.041     00       00\n 11     -2.000     00       00\n 12     -17.000     00       00\n 13     0.000     00       00\n 14     -1.000     00       00\n\nInputs dump:\n- Input 20 dump:\n ID: 8\n Sampling rate: 16000\n Format: 1\n Channels: 00000010\n Devices 80000004\n Ref Count 0\n Open Ref Count 1\n\nStreams dump:\n Stream  Can be muted  Index Min  Index Max  Index Cur [device : index]...\n 00      true          00         10         0001 : 05, 0002 : 10, 0008 : 05, 0400 : 05, 4000 : 05, 40000000 : 04, \n 01      true          00         15         0001 : 12, 0002 : 10, 0008 : 12, 0080 : 12, 0400 : 12, 4000 : 12, 40000000 : 12, \n 02      true          00         15         0001 : 12, 0002 : 10, 0008 : 12, 0080 : 12, 0400 : 12, 4000 : 12, 40000000 : 12, \n 03      true          00         15         0001 : 12, 0002 : 03, 0008 : 12, 0080 : 11, 0400 : 12, 4000 : 12, 40000000 : 11, \n 04      true          00         15         0002 : 08, 40000000 : 06, \n 05      true          00         15         0001 : 12, 0002 : 10, 0008 : 12, 0080 : 12, 0400 : 12, 4000 : 12, 40000000 : 12, \n 06      true          01         15         40000000 : 07, \n 07      true          00         15         0001 : 12, 0002 : 10, 0008 : 12, 0080 : 12, 0400 : 12, 4000 : 12, 40000000 : 12, \n 08      true          00         15         0001 : 12, 0002 : 10, 0008 : 12, 0080 : 12, 0400 : 12, 4000 : 12, 40000000 : 12, \n 09      true          00         15         0001 : 12, 0002 : 03, 0008 : 12, 0080 : 11, 0400 : 12, 4000 : 12, 40000000 : 11, \n 10      true          00         01         40000000 : 01, \n 11      true          00         01         40000000 : 01, \n 12      true          00         15         0001 : 12, 0002 : 03, 0008 : 12, 0080 : 11, 0400 : 12, 4000 : 12, 40000000 : 11, \n 13      true          00         01         40000000 : 01, \n 14      true          00         01         40000000 : 01, \n\nTotal Effects CPU: 0.000000 MIPS, Total Effects memory: 0 KB\nRegistered effects:\n\nAudio Patches:\n  Audio patch 1:\n  - handle:  1\n  - audio flinger handle: 18\n  - owner uid: 1013\n  - 1 sources:\n    - Mix ID 2 I/O handle 2\n  - 1 sinks:\n    - Device ID 1 AUDIO_DEVICE_OUT_SPEAKER\n  Audio patch 2:\n  - handle:  2\n  - audio flinger handle:  5\n  - owner uid: 1013\n  - 1 sources:\n    - Mix ID 3 I/O handle 4\n  - 1 sinks:\n    - Device ID 1 AUDIO_DEVICE_OUT_SPEAKER\n\nVoe volume dump:\n    Id       Min  Max  Cur  Amplification Device\n 0x00000001   0    10    5        28       handset\n 0x00000002   0    10    10       100       speaker\n 0x0000000c   0    10    5        28       headphone\n 0x00004000   0    10    5        28       usb\n 0x00000400   0    10    5        28       hdmi\n 0x00000030   0    7    5        55       bluetooth-sco\n",
+  "external": {
+    "read_only": true,
+    "personal_values_emitted": false,
+    "sdk": 23,
+    "sample_started_elapsed_ms": 1021,
+    "cellular": {
+      "methods": [
+        "getCallState[]:int",
+        "getCallStateForSubscriber[int]:int"
+      ],
+      "call_state": 0,
+      "phone_count": 1
+    },
+    "audio": {
+      "service_methods": [
+        "getCurrentAudioFocus[]:int",
+        "getMode[]:int"
+      ],
+      "mode": 0,
+      "focus_gain": 2,
+      "system_methods": [
+        "getNumStreamTypes[]:int",
+        "isSourceActive[int]:boolean",
+        "isStreamActive[int, int]:boolean",
+        "isStreamActiveRemotely[int, int]:boolean"
+      ],
+      "streams": [
+        {
+          "stream": 0,
+          "active": false,
+          "remote_active": false
+        },
+        {
+          "stream": 1,
+          "active": false,
+          "remote_active": false
+        },
+        {
+          "stream": 2,
+          "active": false,
+          "remote_active": false
+        },
+        {
+          "stream": 3,
+          "active": false,
+          "remote_active": false
+        },
+        {
+          "stream": 4,
+          "active": false,
+          "remote_active": false
+        },
+        {
+          "stream": 5,
+          "active": false,
+          "remote_active": false
+        },
+        {
+          "stream": 6,
+          "active": false,
+          "remote_active": false
+        },
+        {
+          "stream": 7,
+          "active": false,
+          "remote_active": false
+        },
+        {
+          "stream": 8,
+          "active": false,
+          "remote_active": false
+        },
+        {
+          "stream": 9,
+          "active": false,
+          "remote_active": false
+        }
+      ],
+      "sources": [
+        {
+          "source": 0,
+          "active": false
+        },
+        {
+          "source": 1,
+          "active": false
+        },
+        {
+          "source": 2,
+          "active": false
+        },
+        {
+          "source": 3,
+          "active": false
+        },
+        {
+          "source": 4,
+          "active": false
+        },
+        {
+          "source": 5,
+          "active": false
+        },
+        {
+          "source": 6,
+          "active": false
+        },
+        {
+          "source": 7,
+          "active": false
+        },
+        {
+          "source": 8,
+          "active": false
+        }
+      ],
+      "input_owner_attribution": "NOT_AVAILABLE_IN_BOOLEAN_SOURCE_API"
+    },
+    "nexui": {
+      "resolved": true,
+      "provider_component": "com.starnet.vsdk.busyness.provider.CallStatusProvider",
+      "provider_package": "com.starnet.nexui",
+      "statuses": [
+        "IDLE"
+      ],
+      "scope": "NEXUI_SESSION_MAP_AND_HFP_NOT_REGISTRATION"
+    },
+    "sample_finished_elapsed_ms": 1030,
+    "occupancy_verified": false
+  }
+}

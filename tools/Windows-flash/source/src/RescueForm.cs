@@ -18,6 +18,8 @@ namespace D31FlashTool
         private readonly string toolRoot;
         private readonly Label status;
         private bool busy;
+        internal string ConnectedEndpoint { get; private set; }
+        internal bool RecoveryAttempted { get; private set; }
 
         internal RescueForm(string root, string address)
         {
@@ -43,7 +45,7 @@ namespace D31FlashTool
             layout.Controls.Add(addressRow);
             layout.Controls.Add(new Label { Text = "8765命令探针", AutoSize = true, Font = new Font(Font, FontStyle.Bold), Padding = new Padding(0, 5, 0, 0) });
             probeActions = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false };
-            probeActions.Controls.Add(MakeButton("检查探针", "\uE721", async delegate { await Run(async delegate { string addressText = host.Text.Trim(); return await Task.Run(() => RescueClient.Health(addressText)); }); }));
+            probeActions.Controls.Add(MakeButton("检查探针", "\uE721", async delegate { await Run(async delegate { string addressText = DeviceDetector.NormalizeAddress(host.Text); return await Task.Run(() => RescueClient.Health(addressText)); }); }));
             probeActions.Controls.Add(MakeButton("恢复ADB", "\uE777", async delegate { await Restore(false); }));
             probeActions.Controls.Add(MakeButton("导出诊断", "\uE896", async delegate { await Export(); }));
             layout.Controls.Add(probeActions);
@@ -90,19 +92,30 @@ namespace D31FlashTool
         }
         private async Task Restore(bool vendor)
         {
-            if (MessageBox.Show(this, "只恢复所选D31的无线ADB（5555），不刷机、不清除数据、不重启整机。继续？", "恢复ADB", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) return;
+            if (MessageBox.Show(this, "恢复所选D31的ADB，保留有效运行端口，其次使用持久端口，仅两者无效时默认5555。不改持久属性或USB配置。继续？", "恢复ADB", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) return;
             await Run(async delegate
             {
-                string address = RescueClient.ValidateHost(host.Text.Trim());
+                RecoveryAttempted = true;
+                ConnectedEndpoint = null;
+                string address = RescueClient.ValidateHost(DeviceDetector.NormalizeAddress(host.Text));
+                string endpoint = host.Text.Trim();
                 var adapter = (RescueAdapter)adapters.SelectedItem;
                 string target = mac.Text;
-                string result = await Task.Run(() => vendor ? UptoolClient.Run(adapter, target, true) : RescueClient.Execute(address, RescueClient.StartAdb));
+                string result = await Task.Run(() => vendor ? UptoolClient.Run(adapter, target, true) : RescueClient.Execute(address, RescueClient.RestoreAdb));
                 log.AppendText(result + "\r\n");
+                if (!vendor)
+                {
+                    int port = RescueClient.PortFromReceipt(result);
+                    endpoint = address + ":" + port;
+                    log.AppendText("恢复后端口快照：" + port + "；尚未验证ADB握手。\r\n");
+                }
                 if (vendor) await Task.Delay(3500);
                 await Task.Run(() => DeviceDetector.PrepareDedicatedServer(toolRoot));
-                string serial = await Task.Run(() => DeviceDetector.Connect(toolRoot, address));
+                string serial = await Task.Run(() => DeviceDetector.Connect(toolRoot, endpoint));
                 var device = await Task.Run(() => DeviceDetector.Inspect(toolRoot, serial, address));
-                return "ADB握手和D31识别通过：" + device.Model + "。关闭急救窗口后可连接ADB，继续只读检查。";
+                ConnectedEndpoint = serial;
+                host.Text = serial;
+                return "ADB握手和D31识别通过：" + serial + "，" + device.Model + "。可继续只读检查。";
             });
         }
         private async Task Export()
@@ -112,8 +125,8 @@ namespace D31FlashTool
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
                 await Run(async delegate
                 {
-                    string address = host.Text.Trim();
-                    string result = await Task.Run(() => RescueClient.Execute(address, "id; uptime; getprop sys.boot_completed; getprop init.svc.adbd; getprop service.adb.tcp.port; df /data /system; ps | grep -E 'd31-rescue|nexui|adbd'"));
+                    string address = DeviceDetector.NormalizeAddress(host.Text);
+                    string result = await Task.Run(() => RescueClient.Execute(address, "id; uptime; getprop sys.boot_completed; getprop init.svc.adbd; getprop service.adb.tcp.port; getprop persist.adb.tcp.port; df /data /system; ps | grep -E 'd31-rescue|nexui|adbd'"));
                     File.WriteAllText(dialog.FileName, result, System.Text.Encoding.UTF8);
                     return "诊断已保存：" + dialog.FileName;
                 });

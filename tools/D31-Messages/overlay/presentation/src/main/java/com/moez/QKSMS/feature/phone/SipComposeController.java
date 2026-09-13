@@ -21,6 +21,7 @@ public final class SipComposeController implements SipEngine.Listener {
     private final MessageAdapter adapter = new MessageAdapter();
     private String draftKey;
     private String peer;
+    private boolean resumed;
     private List<SipMessageStore.Message> messages = new ArrayList<>();
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) { refresh(); }
@@ -65,12 +66,28 @@ public final class SipComposeController implements SipEngine.Listener {
             .putString("recipient", view.sipRecipient.getText().toString()).apply();
     }
     public String getPeer() { return peer; }
+    public void setReading(boolean visible) {
+        resumed = visible;
+        if (visible) {
+            SipMessageStore.setActivePeer(peer.isEmpty() ? null : peer);
+            refresh();
+        } else {
+            SipMessageStore.clearActivePeer(peer);
+        }
+    }
+    public void pause() {
+        resumed = false;
+        SipMessageStore.clearActivePeer(peer);
+        saveDraft();
+    }
     public void dispose() {
+        pause();
         SipEngine.get().removeListener(this);
         activity.unregisterReceiver(receiver);
         store.close();
     }
     public void refresh() {
+        if (resumed && !peer.isEmpty() && SipMessageStore.isReading(activity, peer)) store.markRead(peer);
         messages = peer.isEmpty() ? new ArrayList<>() : store.messages(peer);
         adapter.notifyDataSetChanged();
         view.messagesEmpty.setVisibility(messages.isEmpty() ? View.VISIBLE : View.GONE);
@@ -89,6 +106,7 @@ public final class SipComposeController implements SipEngine.Listener {
             SipService.sendMessage(activity, target, body);
             drafts.edit().remove(draftKey).apply();
             peer = target;
+            if (resumed) SipMessageStore.setActivePeer(peer);
             draftKey = "body:" + peer;
             view.toolbarTitle.setText(peer);
             view.sipRecipient.setVisibility(View.GONE);

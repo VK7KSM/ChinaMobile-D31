@@ -1,13 +1,15 @@
 #!/bin/sh
 set -eu
 
-if [ "$#" -ne 2 ]; then
-    echo "用法：$0 system.img config-tab模板" >&2
+if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
+    echo "用法：$0 system.img config-tab模板 [版本]" >&2
     exit 2
 fi
 
 image=$1
 config_template=$2
+version=${3:-1.4.3}
+case "$version" in 1.4.3|1.4.4) ;; *) exit 2;; esac
 expected_bytes=1610612736
 
 [ -f "$image" ] || { echo "system镜像不存在。" >&2; exit 3; }
@@ -101,6 +103,28 @@ grep -Fq '/data/local/d31-system-support/start.sh' "$startup_hook"
 [ "$(sha256sum "$mount_point/vendor/3rd-app/getnumber.apk" | cut -d ' ' -f 1)" = 2162cac91fa16a676e4b2987ad313e70e9e351bea2448af87e1e13c02f4cf94f ]
 echo "通过，取号组件为已审核的无代码、无短信权限制品。"
 echo "通过，开机补丁和双网卡ARP策略启动钩子存在。"
+
+if [ "$version" = 1.4.4 ]; then
+    for relative in priv-app/D31ElfRemote priv-app/D31ElfRemote/lib priv-app/D31ElfRemote/lib/arm; do
+        [ -d "$mount_point/$relative" ] && [ ! -L "$mount_point/$relative" ]
+        [ "$(stat -c '%a:%u:%g' "$mount_point/$relative")" = 755:0:0 ]
+    done
+    [ ! -e "$mount_point/priv-app/D31ElfRemote/lib/arm64" ]
+    [ ! -L "$mount_point/priv-app/D31ElfRemote/lib/arm64" ]
+    apk="$mount_point/priv-app/D31ElfRemote/D31ElfRemote.apk"
+    library="$mount_point/priv-app/D31ElfRemote/lib/arm/libjingle_peerconnection_so.so"
+    [ "$(sha256sum "$apk" | cut -d ' ' -f 1)" = 3da0a647b602163098ecb110dea881dc519a6b3f15c25797806a5205bf861df8 ]
+    [ "$(sha256sum "$library" | cut -d ' ' -f 1)" = 976ad84ff585eb7121ff7d800a172e60995f634d59a64a7f913e4dac8907b08e ]
+    [ "$(stat -c '%a:%u:%g:%s' "$library")" = 644:0:0:6536680 ]
+    for relative in priv-app/D31ElfRemote/D31ElfRemote.apk priv-app/D31ElfRemote/lib/arm/libjingle_peerconnection_so.so etc/d31-elfremote.system; do
+        [ -f "$mount_point/$relative" ] && [ ! -L "$mount_point/$relative" ]
+        [ "$(stat -c '%a:%u:%g' "$mount_point/$relative")" = 644:0:0 ]
+    done
+    [ "$(stat -c '%a:%u:%g' "$mount_point/bin/d31-elfremote-start")" = 755:0:0 ]
+    grep -Fq '# D31_ELFREMOTE_BEGIN' "$startup_hook"
+    grep -Fq '/system/bin/sh /system/bin/d31-elfremote-start' "$startup_hook"
+    echo "通过，完整170及唯一ARM32库摘要、ABI目录和权限匹配。"
+fi
 
 umount "$mount_point"
 mounted=0

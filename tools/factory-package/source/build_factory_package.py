@@ -10,11 +10,33 @@ import json
 import re
 import shutil
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 SYSTEM_SIZE = 1_610_612_736
 EXPECTED_SOURCES = json.loads((Path(__file__).parent / "sources-v1.4.3.json").read_text(encoding="utf-8"))
+SOURCE_METADATA = {"oat-sources.json", "apk-metadata.json", "system-overlay.json", "system-live/bin/install-recovery.sh"}
+
+
+def validate_source_members(source: Path, expected: dict) -> None:
+    """来源集合必须精确；旧基线说明文件不是载荷，也不能由glob意外入包。"""
+    for name in expected:
+        path = PurePosixPath(name)
+        if (path.is_absolute() or ".." in path.parts or str(path) != name
+                or "\\" in name or not path.parts
+                or path.parts[0] not in {"apks", "runtime", "system_payload", "partitions", "system_files"}):
+            raise SystemExit("非法来源路径：" + name)
+    actual = set()
+    for path in source.rglob("*"):
+        if path.is_symlink():
+            raise SystemExit("来源不允许符号链接：" + path.relative_to(source).as_posix())
+        if path.is_file():
+            name = path.relative_to(source).as_posix()
+            if name not in SOURCE_METADATA:
+                actual.add(name)
+    if actual != set(expected):
+        raise SystemExit("来源成员不匹配：" + json.dumps({"多余": sorted(actual - set(expected)),
+                                                      "缺失": sorted(set(expected) - actual)}, ensure_ascii=False))
 SENSITIVE_PATTERNS = {
     "电子邮件地址": re.compile(rb"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
     "澳大利亚手机号": re.compile(rb"(?<!\d)04\d{8}(?!\d)"),
@@ -71,15 +93,19 @@ def main() -> int:
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--sources", type=Path, default=Path(__file__).parent / "sources-v1.4.3.json")
+    parser.add_argument("--version", choices=("1.4.3", "1.4.4"), default="1.4.3")
     args = parser.parse_args()
 
     source = args.source.resolve()
+    expected_sources = json.loads(args.sources.read_text(encoding="utf-8"))
+    validate_source_members(source, expected_sources)
     output = args.output.resolve()
     staging = output / "staging"
     staging.mkdir(parents=True, exist_ok=False)
 
     source_verification: dict[str, dict[str, object]] = {}
-    for relative_path, (expected_size, expected_hash) in EXPECTED_SOURCES.items():
+    for relative_path, (expected_size, expected_hash) in expected_sources.items():
         candidate = source / relative_path
         if not candidate.is_file():
             raise SystemExit(f"缺少固定源文件：{relative_path}")
@@ -114,6 +140,8 @@ def main() -> int:
     payload.mkdir()
     artifacts.append(copy_and_hash(boot_image, payload / "boot.img"))
     artifacts.append(copy_and_hash(source / "partitions/logo.img", payload / "logo.img"))
+    if "partitions/recovery.img" in expected_sources:
+        artifacts.append(copy_and_hash(source / "partitions/recovery.img", payload / "recovery.img"))
 
     compressed_system = payload / "system.img.gz"
     with system_image.open("rb") as source_file, compressed_system.open("wb") as compressed_file:
@@ -127,21 +155,20 @@ def main() -> int:
         "uncompressed_bytes": system_image.stat().st_size,
     })
 
-    for apk in sorted((source / "apks").glob("*.apk")):
-        artifacts.append(copy_and_hash(apk, payload / "apps" / apk.name))
-    for item in sorted((source / "runtime").iterdir()):
-        if item.is_file():
-            artifacts.append(copy_and_hash(item, payload / "runtime" / item.name))
-    for item in sorted((source / "system_payload").iterdir()):
-        if item.is_file():
-            artifacts.append(copy_and_hash(item, payload / "system-patches" / item.name))
+    destinations = {"apks": "apps", "runtime": "runtime", "system_payload": "system-patches"}
+    for name in sorted(expected_sources):
+        parts = PurePosixPath(name).parts
+        if parts[0] in destinations:
+            if len(parts) != 2:
+                raise SystemExit("载荷来源必须是一级文件：" + name)
+            artifacts.append(copy_and_hash(source / name, payload / destinations[parts[0]] / parts[1]))
 
     for artifact in artifacts:
         artifact["path"] = Path(str(artifact["path"])).relative_to(staging).as_posix()
 
     manifest = {
         "产品": "D31 SVP3390完整刷机包",
-        "版本": "1.4.3",
+        "版本": args.version,
         "目标构建": "alps/full_hct6737t_66_m0/hct6737t_66_m0:6.0/MRA58K/1583081804:userdebug/test-keys",
         "数据策略": "清空userdata，只写入APK本体及无账号系统功能文件",
         "禁止写入分区": ["boot", "recovery", "nvram", "nvdata", "protect1", "protect2", "proinfo", "keystore", "oemkeystore", "frp"],
@@ -169,7 +196,7 @@ def main() -> int:
     privacy_report = output / "privacy_scan_structured.json"
     privacy_report.write_text(json.dumps(privacy_findings, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    unsigned = output / "D31_SVP3390_Factory_Flash_v1.4.3_unsigned.zip"
+    unsigned = output / f"D31_SVP3390_Factory_Flash_v{args.version}_unsigned.zip"
     with zipfile.ZipFile(unsigned, "w", compression=zipfile.ZIP_STORED, allowZip64=False) as archive:
         for item in sorted(staging.rglob("*")):
             if item.is_file():

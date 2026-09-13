@@ -1,1 +1,3 @@
 overlay/** -text -whitespace
+README.md -text
+.gitattributes -text

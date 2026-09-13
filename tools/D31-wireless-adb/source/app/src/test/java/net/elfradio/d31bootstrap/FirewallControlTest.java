@@ -10,6 +10,17 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public final class FirewallControlTest {
+    @Test public void managementRulesFollowCurrentAdbPortOnBothFamilies() {
+        FirewallControl.RuleInputs inputs = new FirewallControl.RuleInputs();
+        inputs.adbPort = 5654;
+        inputs.localIpv4.add("192.0.2.0/24");
+        inputs.localIpv6.add("2001:db8::/64");
+        String command = String.join("\n", FirewallControl.buildApplyCommands(inputs));
+        assertTrue(command.contains("-s 192.0.2.0/24 -p tcp --dport 5654 -j RETURN"));
+        assertTrue(command.contains("-s 2001:db8::/64 -p tcp --dport 5654 -j RETURN"));
+        assertTrue(command.contains("-s fe80::/10 -p tcp --dport 5654 -j RETURN"));
+        assertFalse(command.contains("--dport 5555"));
+    }
     @Test
     public void freshInstallDefaultsFirewallToEnabled() {
         assertTrue(FirewallControl.DEFAULT_ENABLED);

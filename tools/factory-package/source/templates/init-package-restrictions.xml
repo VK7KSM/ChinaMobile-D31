@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package-restrictions>
+  <pkg name="com.starnet.getnumber" enabled="0">
+    <disabled-components>
+      <item name="com.starnet.getnumber.BootReceiver" />
+      <item name="com.starnet.getnumber.GetNumberService" />
+      <item name="com.starnet.getnumber.SmsListener" />
+      <item name="com.starnet.getnumber.MainActivity" />
+    </disabled-components>
+  </pkg>
+  <pkg name="com.starnet.files" enabled="0">
+    <disabled-components>
+      <item name="com.starnet.files.UsbMountNotifyActivity" />
+    </disabled-components>
+  </pkg>
+  <pkg name="org.mozilla.firefox" enabled="0">
+    <disabled-components>
+      <item name="androidx.work.impl.background.systemalarm.RescheduleReceiver" />
+    </disabled-components>
+  </pkg>
+  <pkg name="net.thunderbird.android" enabled="0">
+    <disabled-components>
+      <item name="androidx.work.impl.background.systemalarm.RescheduleReceiver" />
+      <item name="com.fsck.k9.controller.push.BootCompleteReceiver" />
+    </disabled-components>
+  </pkg>
+  <pkg name="net.elfradio.d31bootstrap" enabled="0">
+    <disabled-components>
+      <item name="net.elfradio.d31bootstrap.BootReceiver" />
+      <item name="net.elfradio.d31bootstrap.VendorNetworkReceiver" />
+      <item name="net.elfradio.d31bootstrap.UsbBrowseActivity" />
+      <item name="net.elfradio.d31bootstrap.UsbInsertPromptActivity" />
+    </disabled-components>
+    <enabled-components>
+      <item name="net.elfradio.d31bootstrap.RemoteManualReceiver" />
+    </enabled-components>
+  </pkg>
+  <pkg name="net.elfradio.d31system" enabled="0" />
+  <pkg name="me.zhanghai.android.files" enabled="0" />
+  <pkg name="net.elfradio.d31phone.debug" enabled="0" />
+  <pkg name="net.elfradio.d31zelloguard" enabled="0" />
+  <pkg name="com.loudtalks" enabled="0" />
+</package-restrictions>

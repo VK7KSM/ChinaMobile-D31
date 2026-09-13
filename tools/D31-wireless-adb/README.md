@@ -1,8 +1,28 @@
 # D31无线ADB与8765命令探针
 
+## 2026-09-13开发版双APK
+
+固件1.4.4与Windows工具1.6.7分别使用完整170和基础169。首次蓝牙传输、安装及打开使用基础APK；按钮为“开启或恢复ADB”，按界面实际端口连接。Windows支持动态检测端口或显式`IP:port`，不要将5555当作所有版本固定端口。
+
+| 用途 | GitHub v1.4.4下载 | R2镜像 | 字节数 |
+| --- | --- | --- | --- |
+| 首次引导、Windows维护：基础169 | [D31-wireless-adb-v1.34.6-basic.apk](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.4/D31-wireless-adb-v1.34.6-basic.apk) | [镜像](https://cdn.elfradio.net/d31/D31-wireless-adb-v1.34.6-basic.apk) | 135656 |
+| 系统预置、完整功能：完整170 | [D31-elfRemote-v1.34.6-full.apk](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.4/D31-elfRemote-v1.34.6-full.apk) | [镜像](https://cdn.elfradio.net/d31/D31-elfRemote-v1.34.6-full.apk) | 4892370 |
+
+```text
+352D3143B4F18857CDAB08FFDABCE8D96F87A12865FC8DB70B0E333A82E07816  D31-wireless-adb-v1.34.6-basic.apk
+3DA0A647B602163098ECB110DEA881DC519A6B3F15C25797806A5205BF861DF8  D31-elfRemote-v1.34.6-full.apk
+```
+
+两者均为开发版，APK内部版本名保留`1.34.6-candidate-basic`／`1.34.6-candidate`。包名均为`net.elfradio.d31bootstrap`且同签名，不能并排安装；不要用低版本基础包替换已有完整包，也不要为版本冲突卸载正在承担管理或救援的应用。完整包系统预置位置为`/system/priv-app/D31ElfRemote/D31ElfRemote.apk`；独立系统支持1.1.0承担存储、网络与通知支持。
+
+旧探针已有ADB连接时可直接连接维护，无需先更换旧APK。ADB不可用时先8765、后uptool；恢复以真实握手为准。独立8765守护继续使用1.11.6载荷及原启用标记，不能把169／170或1.34.6写成它的版本。[首次引导与恢复步骤](../../README.md#刷机前提启用adb)、[本轮全部功能及验收边界](../../docs/D31-v1.4.4逐项复核.md)。
+
+以下保留历史版本、测试和接口记录。历史APK下载及旧按钮不作为本轮首次引导入口，当前下载以上表为准；新完整源码构建以[源码来源与构建说明](source/源码来源与构建.md)为准。
+
 ## 2026-09-09开发版组成更新
 
-Windows工具1.6.5内置已签名1.11.6 APK，版本代码60，源码已同步到本目录。下载[当前APK](D31-wireless-adb-v1.11.6-signed.apk)或[Cloudflare镜像](https://cdn.elfradio.net/d31/D31-wireless-adb-v1.11.6-signed.apk)，可同签名覆盖安装。文件77654字节，SHA-256为 `2B52229010CFD4E704BE9EB386C4D0157FF73DF055AFBE961B8B848F8029A97F`。
+历史Windows工具1.6.5内置已签名1.11.6 APK，版本代码60。[历史APK](D31-wireless-adb-v1.11.6-signed.apk)保留作为原件，文件77654字节，SHA-256为 `2B52229010CFD4E704BE9EB386C4D0157FF73DF055AFBE961B8B848F8029A97F`。当前首次引导下载见上方基础169，不再把旧60版称为当前基础包。
 
 本版优先独立8765，其次既有本机命令通道，最后才使用原厂兼容接口；已经提交的任务不会因回执丢失重复执行。修正任务结果持久化异常、ADB健康误报及蜂窝地址误选。59项测试及真机局部恢复验证通过，详见[最终固件复核](../../docs/D31-v1.4.2逐项复核.md)。
 
@@ -10,7 +30,7 @@ Windows工具1.6.5内置已签名1.11.6 APK，版本代码60，源码已同步�
 
 ## 2026-09-08安装包签名修正
 
-以下为历史记录：该次发布[D31-wireless-adb-v1.11.5-signed.apk](D31-wireless-adb-v1.11.5-signed.apk)，Windows工具1.6.4内置该修正版；当前下载请使用上方1.11.6。
+以下为历史记录：该次发布[D31-wireless-adb-v1.11.5-signed.apk](D31-wireless-adb-v1.11.5-signed.apk)，Windows工具1.6.4内置该修正版；当前首次引导下载请使用本文顶部基础169。
 
 此前1.6.1工具误带未签名的守护载荷，安卓6安装器会报“解析软件包时出现问题”。现已补齐v1签名，并核对与1.11.0的证书一致；包名不变，版本代码57。可直接覆盖同签名旧版，不要先卸载。旧1.11.5下载路径也已替换为签名版，建议使用上述带`-signed`的新地址避开缓存。
 

@@ -11,7 +11,7 @@ public final class HandoverRuntime implements HandoverPolicy.Ops {
     static final String[] FLAGS = {"sys.4g.enable", "sys.volte.enable"};
     static final String[][] TARGETS = {
         {"imscc", PATCH + "imscc-firefox-telegram-messages-wrapper-v3.apk", "/system/vendor/3rd-app/imscc.apk", "966c005e5416aeee2f0cd44b690915ef2465079ba5e32f968501182802fb1678", "21d9c16603ad8536320e5748a39b267cb6c82c592d348567e79f7535b235bc02"},
-        {"nexui", PATCH + "nexui-v8-ethernet-gate.apk", "/system/vendor/3rd-app/nexui.apk", "992b7169112f8438e0d16898ca4d61a68995c1a7c674021025ebf51ce9096243", "6343737a28acedd366e1d5f6e26c6b72dd46b2b9c945fb857f1208988c7279c7"},
+        {"nexui", PATCH + "nexui-v8-ethernet-gate.apk", "/system/vendor/3rd-app/nexui.apk", "7cdf23a34cbfc008e7a00e4d1255640e93dd0233ac7a44148dd21e85f0c9cd4e", "6343737a28acedd366e1d5f6e26c6b72dd46b2b9c945fb857f1208988c7279c7"},
         {"tls", PATCH + "libvsip-tls12-dns-transport-v2.so", "/data/app-lib/nexui/libvsip.so", "defa367ee93f4759fbb7b4debb9c5e4648bc71695de1f02975014f256596be37", "24b829f88a275b7e01e227ff583036f7b8e5512eab2efc90410cb4713d965617"},
         {"getnumber", PATCH + "getnumber-cellular-labels-v1-unsigned.apk", "/system/vendor/3rd-app/getnumber.apk", "3b69433f5c56dd253f1e0ee5e323ecfd5859c7dbecd9b6f19332f78e15205fa8", "5e1541f16f3636b115d7587f9c47b2a3bdd97c1c945fdc6a621b64bd4bb50dc5"}
     };

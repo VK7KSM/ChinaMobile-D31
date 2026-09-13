@@ -38,14 +38,56 @@ $ExpectedRescueRestoreHash = "783D95431DCE93094347C5CEDA31F367102CEF1786DF4E18A1
 $ExpectedRescueTestHash = "012FBBA56C97AE9A8A2A7E034EAB5CAB396C8D7E096FFEEB9E551DE6713BFD18"
 $SessionLog = $null
 
-function Assert-InstalledPayload {
+function Read-InstalledPayloadManifest {
     $files = Get-Content -Raw -LiteralPath (Join-Path $PackageRoot 'installed-files.json') | ConvertFrom-Json
+    if (@($files).Count -eq 0) { throw '刷后文件核验清单为空' }
+    $seen = @{}
     foreach ($file in $files) {
-        if ($file.path -notmatch '^/data/[a-zA-Z0-9/_.-]+$' -or $file.sha256 -notmatch '^[0-9a-fA-F]{64}$') {
+        if ($file.path -notmatch '^/(data|system)/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*$' -or
+            $file.path -match '/\.{1,2}(?:/|$)' -or $seen.ContainsKey([string]$file.path) -or
+            $file.path -match '/factory-init-required$' -or $file.sha256 -notmatch '^[0-9a-fA-F]{64}$') {
             throw '刷后文件核验清单无效'
         }
+        $seen[[string]$file.path] = $file
+        if ($file.path.StartsWith('/system/') -and
+            ([string]$file.mode -notmatch '^0[0-7]{3}$' -or $null -eq $file.uid -or $null -eq $file.gid -or
+             [string]$file.uid -ne '0' -or [string]$file.gid -ne '0')) { throw '系统文件权限清单无效' }
+    }
+    if ($ApprovedPackage.elfRemote) {
+        $remote = $ApprovedPackage.elfRemote
+        if ($remote.package -cne 'net.elfradio.d31bootstrap' -or
+            $remote.systemApk -cne '/system/priv-app/D31ElfRemote/D31ElfRemote.apk' -or
+            [string]$remote.versionCode -notmatch '^[1-9][0-9]{0,8}$' -or [int]$remote.versionCode -lt 96 -or
+            $remote.versionName -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?$' -or
+            $remote.sha256 -notmatch '^[a-fA-F0-9]{64}$' -or
+            $ApprovedPackage.installedFilesSha256 -notmatch '^[a-fA-F0-9]{64}$' -or
+            (Get-FileHash -LiteralPath (Join-Path $PackageRoot 'installed-files.json')).Hash -ne $ApprovedPackage.installedFilesSha256) {
+            throw '系统elfRemote批准合同或安装清单摘要无效'
+        }
+        $required = @{'/system/priv-app/D31ElfRemote/D31ElfRemote.apk'='0644'; '/system/bin/d31-elfremote-start'='0755';
+            '/system/etc/d31-elfremote.system'='0644'; '/system/bin/install-recovery.sh'='0750';
+            '/system/priv-app/D31ElfRemote/lib/arm/libjingle_peerconnection_so.so'='0644'}
+        foreach ($path in $required.Keys) {
+            if (-not $seen.ContainsKey($path) -or $seen[$path].mode -cne $required[$path]) { throw "系统必需项未覆盖：$path" }
+        }
+        if ($seen[$remote.systemApk].sha256 -ne $remote.sha256) { throw '系统APK与批准完整制品摘要不一致' }
+    } elseif ([version]$ApprovedPackage.version -ge [version]'1.4.4' -or @($files | Where-Object { $_.path.StartsWith('/system/') }).Count) {
+        throw '新固件缺少系统elfRemote批准合同'
+    }
+    return $files
+}
+
+function Assert-InstalledPayload {
+    $files = @(Read-InstalledPayloadManifest)
+    foreach ($file in $files) {
         if ((Get-RemoteSha256 $file.path) -ne $file.sha256) {
             throw "刷后载荷与固件不一致：$($file.path)"
+        }
+        if ($file.path.StartsWith('/system/')) {
+            $attributes = Get-CheckedDeviceValue "test -f '$($file.path)' && test ! -L '$($file.path)' && busybox stat -c '%a %u %g' '$($file.path)'"
+            if ($attributes -cne ($file.mode.Substring(1) + ' 0 0')) { throw "系统文件权限或属主不一致：$($file.path)" }
+            $context = Get-CheckedDeviceValue "ls -Z '$($file.path)'"
+            if ($context -notmatch '(?:^|\s)u:object_r:system_file:s0(?:\s|$)') { throw "系统文件SELinux标签不一致：$($file.path)" }
         }
     }
     Write-Step "刷后$($files.Count)项载荷SHA-256全部匹配，包含应用、独立守护和Recovery激活文件。"
@@ -107,6 +149,140 @@ function Invoke-AdbOptional {
 function Get-DeviceValue {
     param([string]$Command)
     return ((Invoke-Adb -s $Serial shell $Command) -join "`n").Trim()
+}
+
+function Get-CheckedDeviceValue {
+    param([string]$Command)
+    # 旧ADB可能吞掉远端退出码；关键交接须有本次唯一结束标记。
+    $prefix = 'D31_RECOVERY_EXIT_' + [guid]::NewGuid().ToString('N') + '_'
+    $wrapped = '( ' + $Command + ' ); d31_recovery_exit=$?; echo; echo ' + $prefix + '$d31_recovery_exit'
+    $raw = (Invoke-Adb -s $Serial shell $wrapped) -join "`n"
+    $text = $raw.Replace("`r", '')
+    $match = [regex]::Match($text, '(?s)\A(?<body>.*)\n' + [regex]::Escape($prefix) + '(?<code>[0-9]{1,3})\n?\z')
+    if (-not $match.Success -or [regex]::Matches($text, [regex]::Escape($prefix)).Count -ne 1 -or
+        [int]$match.Groups['code'].Value -ne 0) {
+        throw '关键交接设备退出未确认，保留日志与维护预留，不重启或自动重发'
+    }
+    return $match.Groups['body'].Value.Trim()
+}
+
+function Assert-NoActiveRepair {
+    $command = '[ "$(id -u)" = 0 ] || exit 70; p=/data/local; for n in d31-remote runtime maintenance repair.json; do [ -d "$p" ] && [ ! -L "$p" ] || exit 71; names=$(busybox ls -a "$p") || exit 72; printf ''%s\n'' "$names" | busybox grep -Fx "$n" >/dev/null; r=$?; if [ "$r" = 1 ]; then echo D31_MAINTENANCE_ABSENT_V1; exit 0; fi; [ "$r" = 0 ] || exit 73; p="$p/$n"; done; echo D31_MAINTENANCE_PRESENT_V1'
+    if ((Get-DeviceValue $command) -ne 'D31_MAINTENANCE_ABSENT_V1') { throw 'D31修复未结束或状态无法读取，禁止刷写交接' }
+}
+
+function Assert-LegacyFlashDeployment {
+    param($Health)
+    # 缺失health不是旧版证据；任何系统部署或更新运行态都不得走旧版回退。
+    $probe = 'for target in /system/etc/d31-elfremote.system /system/priv-app/D31ElfRemote /data/local/d31-remote/runtime/active.json /data/local/d31-remote/releases /data/local/d31-remote/runtime/updates/supervisor.json; do p=; remaining=${target#/}; while [ -n "$remaining" ]; do n=${remaining%%/*}; if [ "$remaining" = "$n" ]; then remaining=; else remaining=${remaining#*/}; fi; parent=${p:-/}; [ -d "$parent" ] && [ ! -L "$parent" ] || exit 71; names=$(busybox ls -a "$parent") || exit 72; printf ''%s\n'' "$names" | busybox grep -Fx "$n" >/dev/null; r=$?; if [ "$r" = 1 ]; then break; fi; [ "$r" = 0 ] || exit 73; p="$p/$n"; if [ -z "$remaining" ]; then echo D31_MODERN_DEPLOYMENT_PRESENT_V1; exit 0; fi; done; done; echo D31_LEGACY_DEPLOYMENT_ABSENT_V1'
+    if ((Get-CheckedDeviceValue $probe) -ne 'D31_LEGACY_DEPLOYMENT_ABSENT_V1') {
+        throw '缺少有效维护health且存在系统或更新部署，禁止按旧版绕过维护'
+    }
+    $path = Get-CheckedDeviceValue 'pm path net.elfradio.d31bootstrap'
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        $packages = Get-CheckedDeviceValue 'pm list packages'
+        $lines = @($packages -split "`r?`n")
+        if ($null -ne $Health.version_code -or $lines -cnotcontains 'package:android' -or
+            $lines -ccontains 'package:net.elfradio.d31bootstrap' -or
+            @($lines | Where-Object { $_ -notmatch '^package:[a-zA-Z0-9_.]+$' }).Count) {
+            throw 'PM未能证明原厂机确实未安装elfRemote，禁止绕过维护'
+        }
+        return
+    }
+    if ($path -notmatch '^package:/data/app/net\.elfradio\.d31bootstrap-[0-9]+/base\.apk$') {
+        throw '无法证明已安装旧版elfRemote，禁止绕过维护'
+    }
+    $packageState = Get-CheckedDeviceValue 'dumpsys package net.elfradio.d31bootstrap'
+    $current = ($packageState -split 'Hidden system packages:', 2)[0]
+    $versions = [regex]::Matches($current, '(?m)^\s*versionCode=([0-9]+)\b')
+    if ($versions.Count -ne 1 -or [int64]$versions[0].Groups[1].Value -lt 1 -or
+        [int64]$versions[0].Groups[1].Value -ge 96 -or
+        ($null -ne $Health.version_code -and [string]$Health.version_code -ne $versions[0].Groups[1].Value)) {
+        throw 'PM版本或health不能证明真实旧版，禁止绕过维护'
+    }
+}
+
+function Enter-FlashMaintenance {
+    Assert-NoActiveRepair
+    $health = (Get-CheckedDeviceValue 'if [ -f /data/local/d31-remote/runtime/state/health.json ]; then cat /data/local/d31-remote/runtime/state/health.json; else echo "{}"; fi') | ConvertFrom-Json
+    if ($null -eq $health) { throw '维护health无效，禁止绕过' }
+    if ($null -ne $health.version_code -and [string]$health.version_code -notmatch '^[1-9][0-9]{0,8}$') { throw '维护health版本无效，禁止绕过' }
+    if ($null -eq $health.version_code -or [int]$health.version_code -lt 96) {
+        Assert-LegacyFlashDeployment $health
+        return $null
+    }
+    if ([int]$health.maintenance_protocol -ne 1) { throw '新版核心尚未提供维护协议，禁止绕过' }
+    $active = (Get-DeviceValue 'cat /data/local/d31-remote/runtime/active.json') | ConvertFrom-Json
+    $apk = [string]$active.path
+    if ($apk -notmatch '^/data/local/d31-remote/releases/[a-f0-9]{64}/remote\.apk$' -and $apk -ne '/system/priv-app/D31ElfRemote/D31ElfRemote.apk') { throw '维护载荷路径无效' }
+    $id = [guid]::NewGuid().ToString('N')
+    $prefix = "CLASSPATH='$apk' /system/bin/app_process /system/bin net.elfradio.d31bootstrap.RemoteWindowsMaintenance"
+    if ((Get-CheckedDeviceValue "$prefix reserve $id") -ne 'D31_WINDOWS_RESERVED_V1') { throw '未取得Windows刷机维护预留' }
+    return @{ Prefix=$prefix; Id=$id }
+}
+
+function Assert-ElfRemoteProcess {
+    param([string]$ProcessId, [string]$Name, [string]$Apk)
+    if ($ProcessId -notmatch '^[1-9][0-9]{0,8}$') { throw 'elfRemote进程号无效' }
+    if ((Get-CheckedDeviceValue "busybox pidof $Name") -cne $ProcessId) { throw 'elfRemote进程不是当前唯一实例' }
+    $status = Get-CheckedDeviceValue "cat /proc/$ProcessId/status"
+    if ($status -notmatch '(?m)^Uid:\s+0\s+0\s+0\s+0\s*$') { throw 'elfRemote实际进程不是root' }
+    $maps = Get-CheckedDeviceValue "cat /proc/$ProcessId/maps"
+    $art = '/data/dalvik-cache/arm64/' + $Apk.TrimStart('/').Replace('/','@') + '@classes.dex'
+    if ($maps -cnotmatch ('(?m)\s' + [regex]::Escape($art) + '\s*$')) { throw 'elfRemote实际ART映射不是批准系统APK' }
+}
+
+function Assert-SystemElfRemote {
+    if (-not $ApprovedPackage.elfRemote) { return }
+    $expected = $ApprovedPackage.elfRemote
+    $apk = [string]$expected.systemApk
+    if ((Get-CheckedDeviceValue 'pm path net.elfradio.d31bootstrap') -cne ('package:'+$apk)) { throw '完整elfRemote未从唯一批准系统路径加载' }
+    $packageState = Get-CheckedDeviceValue 'dumpsys package net.elfradio.d31bootstrap'
+    $current = ($packageState -split 'Hidden system packages:', 2)[0]
+    $versions = [regex]::Matches($current, '(?m)^\s*versionCode=([0-9]+)\b')
+    $names = [regex]::Matches($current, '(?m)^\s*versionName=(\S+)\s*$')
+    if ($versions.Count -ne 1 -or $versions[0].Groups[1].Value -ne [string]$expected.versionCode -or
+        $names.Count -ne 1 -or $names[0].Groups[1].Value -cne $expected.versionName) { throw '完整elfRemote的PM版本不符' }
+    if ((Get-RemoteSha256 $apk) -ne $expected.sha256) { throw '完整elfRemote实际APK摘要不符' }
+    $ready = Get-CheckedDeviceValue 'i=0; while [ $i -lt 30 ]; do if [ -s /data/local/d31-remote/runtime/state/health.json ] && [ -s /data/local/d31-remote/runtime/updates/supervisor.json ]; then echo D31_SYSTEM_RUNTIME_PRESENT_V1; exit 0; fi; sleep 2; i=$((i+1)); done; exit 74'
+    if ($ready -cne 'D31_SYSTEM_RUNTIME_PRESENT_V1') { throw '完整elfRemote首启运行态缺失' }
+    $boot = Get-CheckedDeviceValue 'cat /proc/sys/kernel/random/boot_id'
+    if ($boot -notmatch '^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$') { throw '当前启动标识无效' }
+    $active = (Get-CheckedDeviceValue 'cat /data/local/d31-remote/runtime/active.json') | ConvertFrom-Json
+    if ($active.path -cne $apk -or $active.sha256 -ne $expected.sha256 -or $active.versionCode -ne $expected.versionCode) { throw '首次启动活动版本不是批准系统基线' }
+    $health = (Get-CheckedDeviceValue 'cat /data/local/d31-remote/runtime/state/health.json') | ConvertFrom-Json
+    $supervisor = (Get-CheckedDeviceValue 'cat /data/local/d31-remote/runtime/updates/supervisor.json') | ConvertFrom-Json
+    $corePid = Get-CheckedDeviceValue 'cat /data/local/d31-remote/runtime/state/remote.pid'
+    $nowText = Get-CheckedDeviceValue 'date +%s'
+    if ($nowText -notmatch '^[1-9][0-9]{8,12}$') { throw '设备时间无法核验' }
+    $nowMs = [int64]$nowText * 1000
+    foreach ($state in @($health,$supervisor)) {
+        if ($null -eq $state.uid -or [string]$state.uid -ne '0' -or $state.version_code -ne $expected.versionCode -or
+            $state.maintenance_protocol -ne 1 -or [string]$state.time_ms -notmatch '^[1-9][0-9]{11,15}$' -or
+            ($nowMs-[int64]$state.time_ms) -lt -1000 -or ($nowMs-[int64]$state.time_ms) -ge 20000) { throw '核心或监督心跳版本、身份或新鲜度不符' }
+    }
+    if ($health.apk_sha256 -ne $expected.sha256 -or $health.local_ready -isnot [bool] -or $health.local_ready -ne $true -or
+        [string]$health.pid -cne $corePid -or [string]::IsNullOrWhiteSpace($health.instance)) { throw '核心本机健康或当前PID不符' }
+    Assert-ElfRemoteProcess $corePid 'd31-elfremote' $apk
+    Assert-ElfRemoteProcess ([string]$supervisor.pid) 'd31-remote-supervisor' $apk
+    $permissions = Get-CheckedDeviceValue 'for p in /data/local/d31-remote /data/local/d31-remote/runtime /data/local/d31-remote/runtime/state; do test -d "$p" && test ! -L "$p" || exit 75; busybox stat -c ''%a %u %g'' "$p" || exit 76; done'
+    if ($permissions.Replace("`r",'') -cne "700 0 0`n700 0 0`n700 0 0") { throw 'elfRemote首次运行目录权限不符' }
+    $activeAgain = (Get-CheckedDeviceValue 'cat /data/local/d31-remote/runtime/active.json') | ConvertFrom-Json
+    if ((Get-CheckedDeviceValue 'cat /proc/sys/kernel/random/boot_id') -cne $boot -or
+        (Get-CheckedDeviceValue 'cat /data/local/d31-remote/runtime/state/remote.pid') -cne $corePid -or
+        $activeAgain.path -cne $active.path -or $activeAgain.sha256 -ne $active.sha256 -or $activeAgain.versionCode -ne $active.versionCode) { throw '首次核验期间启动或活动核心发生切换' }
+    Write-Step '系统完整elfRemote的PM版本、摘要、核心和监督进程、健康及目录权限已通过本次本机核验。'
+}
+
+function Assert-FactoryInitialization {
+    $initialization = Get-CheckedDeviceValue 'test ! -e /data/local/d31-startup-handover/factory-init-required && cat /data/local/d31-startup-handover/factory-init-complete && CLASSPATH=/data/local/d31-startup-handover/handover.jar app_process /system/bin FactoryInit --verify'
+    if ($initialization -notmatch '(?m)^FACTORY_STATE_VERIFIED\s*$') { throw '首次初始化的权限、组件或短信阻断未通过回读' }
+    $tcpDefault = Get-CheckedDeviceValue 'cat /data/local/d31-startup-handover/factory-runtime-complete && grep -q ''name="TcpAcclerate" value="false"\|value="false" name="TcpAcclerate"'' /data/data/com.starnet.nexui/shared_prefs/starNetBaseConfigFile.xml && echo TCP_DEFAULT_OK'
+    if ($tcpDefault -notmatch '(?m)^TCP_DEFAULT_OK\s*$') { throw '首次启动的TCP加速关闭设置没有通过回读。' }
+    if ($ApprovedPackage.elfRemote) {
+        $versionLine = '(?m)^' + [regex]::Escape([string]$ApprovedPackage.version) + '\s*$'
+        if ($initialization -notmatch $versionLine -or $tcpDefault -notmatch $versionLine) { throw '首次初始化完成标记不是当前批准固件版本' }
+    }
 }
 
 function Convert-AndroidSizeToBytes {
@@ -371,7 +547,8 @@ function Wait-ForAndroid {
                 $health = Invoke-D31Probe '/health'
                 if ($health.service -eq 'd31-root-rescue' -and $health.uid -eq 0 -and -not $health.busy) {
                     $id = [guid]::NewGuid().ToString()
-                    $command = 'if [ "$(getprop sys.boot_completed)" = 1 ]; then if [ "$(getprop init.svc.adbd)" != running ] || [ "$(getprop service.adb.tcp.port)" != 5555 ]; then setprop service.adb.tcp.port 5555; stop adbd; start adbd; echo ADB_RESTORED; fi; fi'
+                    $command = 'if [ "$(getprop sys.boot_completed)" = 1 ]; then if [ "$(getprop init.svc.adbd)" != running ] || [ "$(getprop service.adb.tcp.port)" != __PORT__ ]; then setprop service.adb.tcp.port __PORT__; stop adbd; sleep 1; start adbd; echo ADB_RESTORED; fi; fi'
+                    $command = $command.Replace('__PORT__', [string]$DeviceAdbPort)
                     $result = Invoke-D31Probe '/exec' @{id=$id; command=$command; timeout=5}
                     if ($result.state -eq 'running') { $result = Invoke-D31Probe ("/jobs/" + $id) }
                     if ($result.output -match 'ADB_RESTORED') { Write-Step '已通过独立探针恢复D31机内ADB监听。' }
@@ -387,7 +564,7 @@ function Wait-ForAndroid {
             if ($bootResult.ExitCode -eq 0 -and $boot -eq "1") { return }
         }
     } while ((Get-Date) -lt $deadline)
-    throw "Recovery刷写触发后，D31未在$TimeoutSeconds秒内恢复TCP ADB。请查看D31屏幕；不要盲目断电或重复刷写。"
+    throw "Recovery刷写触发后，D31未在${TimeoutSeconds}秒内恢复TCP ADB。请查看D31屏幕；不要盲目断电或重复刷写。"
 }
 
 function Invoke-D31Probe {
@@ -411,6 +588,7 @@ function Invoke-D31Probe {
     } finally { $response.Dispose() }
 }
 
+$null = Read-InstalledPayloadManifest
 if (([int]$DevicePreflightOnly.IsPresent + [int]$PreflightOnly.IsPresent + [int]$PackagePreflightOnly.IsPresent) -gt 1) {
     throw '只读检查模式不能同时指定'
 }
@@ -432,9 +610,11 @@ if ($PackagePreflightOnly) {
     return
 }
 if (-not (Test-Path -LiteralPath $Adb -PathType Leaf)) { throw "刷机目录缺少ADB：$Adb" }
-if ($Serial -notmatch '^\d{1,3}(\.\d{1,3}){3}:5555$' -or $AdbPort -ne 5042) {
-    throw 'D31必须指定完整IPv4:5555序列号，并使用电脑ADB端口5042'
+if ($Serial -notmatch '^(\d{1,3}(?:\.\d{1,3}){3}):([1-9][0-9]{0,4})$' -or $AdbPort -ne 5042) {
+    throw 'D31必须指定完整IPv4与实际ADB端口，并使用电脑ADB端口5042'
 }
+$DeviceAdbPort = [int]$Matches[2]
+if ($DeviceAdbPort -gt 65535 -or @($Matches[1].Split('.') | Where-Object { [int]$_ -gt 255 }).Count) { throw 'D31的IP或端口超出有效范围' }
 $DeviceIp = $Serial.Substring(0, $Serial.LastIndexOf(':'))
 
 Write-Host $(if ($DevicePreflightOnly) { "[1/3] 连接D31并核对root、构建和网络。" } else { "[2/8] 连接D31并核对root、构建和有线网卡。" })
@@ -443,6 +623,7 @@ $state = ((Invoke-Adb -s $Serial get-state) -join "`n").Trim()
 if ($state -ne "device") { throw "D31 ADB状态不是device：$state" }
 $identity = Get-DeviceValue "id"
 if ($identity -notmatch 'uid=0\(root\)') { throw "D31 ADB shell不是root：$identity" }
+Assert-NoActiveRepair
 $fingerprint = Get-DeviceValue "getprop ro.build.fingerprint"
 if ($fingerprint -ne $ExpectedFingerprint) { throw "构建指纹不匹配：$fingerprint" }
 $ethernet = Get-DeviceValue "ip -4 addr show dev eth0"
@@ -518,12 +699,20 @@ $remotePackageHash = Get-RemoteSha256 $RemotePackage
 if ($remotePackageHash -ne $ExpectedPackageHash) { throw "D31内的ZIP SHA-256不匹配" }
 
 Write-Step "[7/8] 写入Recovery安装命令并重启；从此步骤开始会清空userdata。"
-$recoveryCommand = "mkdir -p /cache/recovery; printf '%s\n' '--update_package=$RemotePackage' '--locale=zh_CN' > /cache/recovery/command; chmod 0600 /cache/recovery/command; cat /cache/recovery/command; sync"
-$commandResult = Get-DeviceValue $recoveryCommand
+$flashMaintenance = Enter-FlashMaintenance
+$recoveryCommand = "set -e; mkdir -p /cache/recovery; printf '%s\n' '--update_package=$RemotePackage' '--locale=zh_CN' > /cache/recovery/command; chmod 0600 /cache/recovery/command; cat /cache/recovery/command; sync"
+try {
+$commandResult = Get-CheckedDeviceValue $recoveryCommand
 if ($commandResult -notmatch [regex]::Escape("--update_package=$RemotePackage")) {
     throw "Recovery命令回读不一致，尚未重启"
 }
 Invoke-Adb -s $Serial reboot recovery | Out-Null
+} catch {
+    if ($flashMaintenance) {
+        Write-Step 'Recovery交接结果不确定，保留本次维护预留。先核对设备与Recovery命令，再用日志中的原编号处理；禁止盲目重复刷写。'
+    }
+    throw
+}
 
 Write-Step "[8/8] 等待Recovery安装和D31首次启动，最长30分钟。"
 Wait-ForAndroid
@@ -532,7 +721,10 @@ if ($postFingerprint -ne $ExpectedFingerprint) { throw "首次启动后的构建
 Assert-InstalledPayload
 foreach ($packageName in @("org.mozilla.firefox", "org.videolan.vlc", "com.loudtalks", "org.telegram.messenger.web", "net.thunderbird.android", "me.zhanghai.android.files", "net.elfradio.d31bootstrap", "net.elfradio.d31zelloguard", "net.elfradio.d31phone.debug", "net.elfradio.d31system")) {
     $verify = Get-DeviceValue "pm path $packageName"
-    if ($verify -notmatch '(?m)^package:/data/app/.+/base\.apk\s*$') {
+    $expectedPath = if ($packageName -eq 'net.elfradio.d31bootstrap' -and $ApprovedPackage.elfRemote) {
+        '^package:' + [regex]::Escape([string]$ApprovedPackage.elfRemote.systemApk) + '$'
+    } else { '^package:/data/app/' + [regex]::Escape($packageName) + '-[0-9]+/base\.apk$' }
+    if ($verify -notmatch $expectedPath) {
         throw "首次启动后没有检测到预装应用：$packageName"
     }
 }
@@ -544,10 +736,8 @@ $patchState = Get-DeviceValue 'b=$(cat /proc/sys/kernel/random/boot_id); p=/data
 if ($patchState -notmatch '(?m)^.*HANDOVER_COMPLETE\s*$' -or $patchState -notmatch '(?m)^HANDOVER_EXIT=0\s*$') {
     throw "首次启动后桌面、TLS和会议入口补丁没有进入就绪状态：$patchState"
 }
-$initialization = Get-DeviceValue 'test ! -e /data/local/d31-startup-handover/factory-init-required && cat /data/local/d31-startup-handover/factory-init-complete && CLASSPATH=/data/local/d31-startup-handover/handover.jar app_process /system/bin FactoryInit --verify'
-if ($initialization -notmatch 'FACTORY_STATE_VERIFIED') { throw "首次初始化的权限、组件或短信阻断未通过回读：$initialization" }
-$tcpDefault = Get-DeviceValue 'cat /data/local/d31-startup-handover/factory-runtime-complete && grep -q ''name="TcpAcclerate" value="false"\|value="false" name="TcpAcclerate"'' /data/data/com.starnet.nexui/shared_prefs/starNetBaseConfigFile.xml && echo TCP_DEFAULT_OK'
-if ($tcpDefault -notmatch 'TCP_DEFAULT_OK') { throw '首次启动的TCP加速关闭设置没有通过回读。' }
+Assert-FactoryInitialization
+Assert-SystemElfRemote
 $supportReady = Get-DeviceValue 'test -S /dev/socket/d31-system-actions && ps | grep -E "net.elfradio.d31system|/data/local/d31-system-support/guard"'
 if ($supportReady -notmatch 'net\.elfradio\.d31system' -or $supportReady -notmatch '/data/local/d31-system-support/guard') {
     throw '独立存储服务或本机命令通道未就绪，不能判定刷机通过。'

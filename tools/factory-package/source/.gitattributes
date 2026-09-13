@@ -1,0 +1,5 @@
+# 冻结来源按原字节入库，禁止core.autocrlf改变摘要。
+* -text
+# 本轮两份已核验为纯LF的shell脚本保持可执行换行。
+/verify_d31_system_image.sh text eol=lf
+/v144-build/audit_system_tree.sh text eol=lf

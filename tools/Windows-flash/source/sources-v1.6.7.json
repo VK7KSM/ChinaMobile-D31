@@ -1,0 +1,309 @@
+{
+  "toolVersion": "1.6.7",
+  "firmwareVersion": "1.4.4",
+  "count": 50,
+  "files": [
+    {
+      "path": "tools/Windows-flash/source/build.ps1",
+      "bytes": 778,
+      "sha256": "6F927FA18C91B46553F10ABCF3E112779B4A22BB2CE497C4B9D1C5095C204F48",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/build-v1.6.7.ps1",
+      "bytes": 22028,
+      "sha256": "47481DBD852711584D145F002B9B7AFE8810D82DDADFF5A4DF391F55DB97041E",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/src/FirmwareManager.cs",
+      "bytes": 17335,
+      "sha256": "BD68874087CDFFB7213EA93BA9F002EAAA9605585B6ECFD75ECA4C563E405D7A",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/src/MainForm.cs",
+      "bytes": 46014,
+      "sha256": "FE84DD263059E8ACC427D19B2C58A9EFBB33BB22E1EDBA1449620CD63E8A5CCC",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/src/MaintenanceGuard.cs",
+      "bytes": 1664,
+      "sha256": "8C354C347CA78F8ABB0C79DA907230D16AE357F820B4479B9B20AC38328DE33C",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/src/Program.cs",
+      "bytes": 22200,
+      "sha256": "9DFFDDB7136E338E4F3178A8973838A85277067B4F4E5662434688166F642322",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/src/RescueClient.cs",
+      "bytes": 16566,
+      "sha256": "277BCB3401313886E81BFD71E1430F5DD0FB4EE25701EEF5FC5971705E48C0DC",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/src/RescueForm.cs",
+      "bytes": 9154,
+      "sha256": "B677D8E7F6112CFE27199F6E8E10294605688F4B516BF2BF01A38D16EBC56B2D",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/src/RuntimeAssets.cs",
+      "bytes": 7267,
+      "sha256": "913F3D67CDE02A1A8490006E44F851EDF02B12895BBD353ADBC3E9EB8A8F1536",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/scripts/create_d31_rescue.ps1",
+      "bytes": 15392,
+      "sha256": "E3699FF9FBDC139FC619F288D046D42A828F2E75BAF7754812F1D3D8D539B44B",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/AdbPortTests.cs",
+      "bytes": 11552,
+      "sha256": "CF1981B36F4AF3B94FDA40AE2A9097CC4D96E0E5DE1EA61DC5249044F60E413A",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/adb_port_fixture.sh",
+      "bytes": 1413,
+      "sha256": "8544268CC59E414BB1788B7E32C92457063EC35EFC040FAF4C3A06A64FCB72C1",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/AuditRecoveryAdmission.ps1",
+      "bytes": 1939,
+      "sha256": "B4390971330F2720E94ADF90F44F33F1247F561E90CFD19F2E0683206B16043E",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/BackendFakeAdb.cs",
+      "bytes": 15040,
+      "sha256": "08F72367B057C1A09577BD74DD4A4FD465851B6773CBFB396275659DA3BE1597",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/BasicProbeExeTests.cs",
+      "bytes": 7681,
+      "sha256": "F7A6E4DE6AC18A997B32110605644145A47DC5AFCADA39CDB33F55C07CFC90DF",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/BasicProbeIntegratedTests.ps1",
+      "bytes": 2408,
+      "sha256": "93D213D3BB5ACEFD2ECEFDFE0F729222CA037D19D941964483FB22C0655D80B7",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/BasicProbeMaintenanceFixture.sh",
+      "bytes": 352,
+      "sha256": "D6EA8463367DE0EF4AD1231A2D8D411A9500DD0F63BE22F03380928C186A3121",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/BasicProbeMaintenanceTests.cs",
+      "bytes": 5559,
+      "sha256": "57D203E36E8C87B89B06B9DDD21E1633522E9C6082AEAD4138041551427B75F0",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/BasicProbeRuntimeHarness.cs",
+      "bytes": 479,
+      "sha256": "160ED39663BF17CE703FADC5AF876E613581D5E0B9751E3FF5715853FF24D032",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/BasicProbeTests.ps1",
+      "bytes": 26756,
+      "sha256": "E1E3AC3C5B5CE0791A188D285CECA0ED959D9E69E120992586EE12B2BD19D8B0",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/check_rescue_readonly.ps1",
+      "bytes": 484,
+      "sha256": "733B48E3DE82467B3290B9DF097B4AB3555BA36C32FC42B782EB74F879F691A3",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/check_uptool_readonly.ps1",
+      "bytes": 764,
+      "sha256": "E274048A62341D1FD17867DE22CCD4C351D6C2A3C352F7436791B314A6EBBC8D",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/DownloadRegression.cs",
+      "bytes": 4021,
+      "sha256": "8512287EFB080B9CA97F29EBE6BE8A3B3A0EDC38C6CA8C8AF56583B18C321893",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/ReleasedArtifactAudit.cs",
+      "bytes": 3208,
+      "sha256": "04A5F5AE37E65516BAE935B7202B1C6A843A8AD758508A0C5F4DF2B7CE52A31C",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/RescueLayoutTests.cs",
+      "bytes": 2104,
+      "sha256": "124045168FA5982643B5EE76299FCDE21090909B41CBF6CDBB892B7C62758C90",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/RescueTests.cs",
+      "bytes": 3417,
+      "sha256": "26DAC61C06F40EB4211D54C492B9C8644D254A2244810EC344F21AFF739C1C39",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/serve_download_fixture.py",
+      "bytes": 2206,
+      "sha256": "B7BB52F474E21B30A0706B29561322F98D65649DA8D9FF486A66EF5E7A09F0E6",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/Test-D31RescueOffline.ps1",
+      "bytes": 6424,
+      "sha256": "5CDCEA649689DB69DB75FDC73BF3EDDEED7E85119E9F6ED0FD0001E981B031BB",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestBackend.ps1",
+      "bytes": 8809,
+      "sha256": "7AF19C833CE26FF8C381A66F1EFFA707D967201C1FBBC05F4FBCE4E2458D879B",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestBackendFixture.ps1",
+      "bytes": 1707,
+      "sha256": "1C294ABC4A29AF1674E8D7BED3EBF906EF0007A6C0C4E0E5F8B907634D6F6ADC",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestCandidateReport.ps1",
+      "bytes": 9735,
+      "sha256": "FAA393283DD12FF5ACA86ACC29A6DF90E04EF64428C59A8EBAB3BA28B10E1EB6",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestFirmwareBuild.ps1",
+      "bytes": 3782,
+      "sha256": "0A533A9ADA547E9476AFB0E3C37C7F54DD72ED5F7E4A54CC83FAF9F0DE818914",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestFirmwareNative.ps1",
+      "bytes": 1833,
+      "sha256": "539ECC897B40881C57181811D9C885F1A5B5CA95169CE342583F4A81919DC656",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestFlashMaintenance.ps1",
+      "bytes": 3891,
+      "sha256": "585B8F362965E59AB79C5BDECF80E58533D9B1BD8C8B15D3975077934FF1E7CC",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestMaintenanceShell.ps1",
+      "bytes": 3255,
+      "sha256": "1611C55972B625794A0B133408A6CD94EAA2BFBF4ADE108828CE575DC3251EF9",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestPostBoot.ps1",
+      "bytes": 3223,
+      "sha256": "95DCD36094603B74F82B56775AA15F20C580EE0037528C665F50AADBB7BEB0C8",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestSystemFirmware.ps1",
+      "bytes": 8624,
+      "sha256": "DA3A28470632C65D52D9B0D23B61BB9D0C76F029DEB9B3D7D867D571D6164879",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/verify_rescue_roundtrip.ps1",
+      "bytes": 2668,
+      "sha256": "E51E0B88783F9510AF93E2F7595ED63E2AF4A16D6C216D002F31FCDAA9076B8D",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tools/BasicProbe.Common.psm1",
+      "bytes": 9324,
+      "sha256": "49E45DF22ABF9E43105EBB9FF3C2B6909E9EFFB35FE6418CC12A41D1579C5D8F",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tools/BasicProbe.Migration.psm1",
+      "bytes": 14392,
+      "sha256": "E654FF4A542C97EEB5AB847B00C011AFBBFE1654E3D6B4D2AFBF3E2755400A6D",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tools/Export-BasicProbeResource.ps1",
+      "bytes": 1250,
+      "sha256": "342640AE93A8E65718EFE6BE45CB6591DDC42130CF17D41F3AC378B80F715218",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tools/FirmwareContract.psm1",
+      "bytes": 3396,
+      "sha256": "0E46F1F5F860A58E3A59FA54538F4BD3CE9F5419C8B65D517822162E2EA5B422",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tools/Get-BasicProbeMigrationPlan.ps1",
+      "bytes": 1748,
+      "sha256": "6E9DFBC55120228845FAEF22A54256B788DC4C06A463434797D089B6066F77B3",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/tools/Prepare-BasicProbeResources.ps1",
+      "bytes": 2332,
+      "sha256": "4EFDFDF2EABCEDC2AA34091BD29722D22754D168042DE95F5DFF99BCBA84D79C",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/assets/elfradio-icon-256.png",
+      "bytes": 52046,
+      "sha256": "F21A54E4929F5880B6286A7CA80433FBCAA70C8B2F331BBE827CA4CC1E99E885",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/assets/elfradio-logo.png",
+      "bytes": 17861,
+      "sha256": "A0DCC747C13F29D5C6E6465EAE28C8114282A4F8DD214D961CF40D654FC63640",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/assets/elfradio.ico",
+      "bytes": 52068,
+      "sha256": "AF3C4823E12F840868976B4717CE80E03BE6E79AF755510DC5A5E04A860311E1",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/factory-package/source/flash_d31_recovery.ps1",
+      "bytes": 44168,
+      "sha256": "6E8D28C90084CFC5637F45FAE4641256075B00BCF24A58E4BC811400776A53BA",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/src/BuildConstants.g.cs",
+      "bytes": 3413,
+      "sha256": "1C28F83D86D0F042A13BD7AA7AB6A88B5F0DC5AD5E88CD38AEAF8A9F6C2293BC",
+      "gitAutocrlfUnchanged": true
+    },
+    {
+      "path": "tools/Windows-flash/source/build-original-workspace.ps1",
+      "bytes": 22028,
+      "sha256": "47481DBD852711584D145F002B9B7AFE8810D82DDADFF5A4DF391F55DB97041E",
+      "gitAutocrlfUnchanged": true
+    }
+  ],
+  "licenseUnchanged": true,
+  "uploaded": false
+}

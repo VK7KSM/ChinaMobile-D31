@@ -106,11 +106,11 @@ class UnifiedConversationsAdapter(
             avatars.visibility = android.view.View.INVISIBLE
             sipAvatar.isVisible = true
             title.text = message.peer
-            title.setTypeface(null, Typeface.NORMAL)
+            title.setTypeface(null, if (message.unread > 0) Typeface.BOLD else Typeface.NORMAL)
             snippet.text = message.body.replace('\n', ' ')
             snippet.maxLines = 1
             date.text = "SIP · " + dates.format(Date(message.timestamp))
-            unread.isVisible = false
+            unread.isVisible = message.unread > 0
             scheduled.isVisible = false
             pinned.isVisible = false
             root.setOnLongClickListener(null)

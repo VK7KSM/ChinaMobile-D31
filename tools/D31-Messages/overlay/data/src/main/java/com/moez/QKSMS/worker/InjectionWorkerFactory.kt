@@ -20,7 +20,6 @@ package dev.octoshrimpy.quik.worker
 
 import android.content.Context
 import androidx.work.ListenableWorker
-import androidx.work.Worker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import dev.octoshrimpy.quik.blocking.BlockingClient
@@ -57,15 +56,13 @@ class InjectionWorkerFactory @Inject constructor(
         workerClassName: String,
         workerParameters: WorkerParameters
     ): ListenableWorker? {
-        // 内部约束任务由WorkManager自己的工厂创建，不能强转为Worker。
-        if (workerClassName != HousekeepingWorker::class.java.name &&
-            workerClassName != ReceiveSmsWorker::class.java.name &&
-            workerClassName != ReceiveMmsWorker::class.java.name) return null
-        val instance = Class
-            .forName(workerClassName)
-            .asSubclass(Worker::class.java)
-            .getDeclaredConstructor(Context::class.java, WorkerParameters::class.java)
-            .newInstance(appContext, workerParameters)
+        // 只构造需要注入的自有任务；内部ListenableWorker交回WorkManager默认工厂。
+        val instance = when (workerClassName) {
+            HousekeepingWorker::class.java.name -> HousekeepingWorker(appContext, workerParameters)
+            ReceiveSmsWorker::class.java.name -> ReceiveSmsWorker(appContext, workerParameters)
+            ReceiveMmsWorker::class.java.name -> ReceiveMmsWorker(appContext, workerParameters)
+            else -> return null
+        }
 
         when (instance) {
             is HousekeepingWorker ->

@@ -15,7 +15,49 @@ namespace D31FlashTool
 {
     internal static class RescueClient
     {
-        internal const string StartAdb = "test \"$(id -u)\" = 0 && setprop ctl.stop adbd && sleep 1 && setprop service.adb.tcp.port 5555 && setprop ctl.start adbd && sleep 2";
+        // uptool按分号拆入200字节槽；保持单条、无分号且不足200字节。
+        // 先读持久值再读运行值，最后一个有效值优先；输出只可能是十进制端口。
+        // p仅为awk生成的有效十进制整数，省略其引号节约2字节，保留异步stop后的既有1秒等待。
+        internal const string StartAdb = "p=$( (getprop persist.adb.tcp.port&&getprop service.adb.tcp.port)|busybox awk '/^[0-9]+$/&&$0>0&&$0<65536{p=$0+0}END{print p?p:5555}')&&setprop service.adb.tcp.port $p&&stop adbd&&sleep 1&&start adbd";
+        internal const string ReadAdb = "echo D31_ADB_PORT_V1 && getprop service.adb.tcp.port && getprop persist.adb.tcp.port && getprop init.svc.adbd && echo D31_ADB_PORT_END";
+        internal const string RestoreAdb = StartAdb + " && sleep 2 && " + ReadAdb;
+
+        internal static int ValidPort(string value)
+        {
+            int port;
+            return !String.IsNullOrEmpty(value) && value.All(c => c >= '0' && c <= '9') &&
+                Int32.TryParse(value, out port) && port > 0 && port <= 65535 ? port : 0;
+        }
+
+        internal static int SelectPort(string service, string persistent)
+        {
+            int port = ValidPort(service);
+            if (port == 0) port = ValidPort(persistent);
+            return port == 0 ? 5555 : port;
+        }
+
+        internal static int PortFromReceipt(string receipt)
+        {
+            var result = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(receipt);
+            RequireCompleted(result);
+            object output;
+            if (!result.TryGetValue("output", out output)) throw new IOException("探针未返回ADB端口快照。");
+            string[] lines = Convert.ToString(output).Replace("\r", "").TrimEnd('\n').Split('\n');
+            if (lines.Length != 5 || lines[0] != "D31_ADB_PORT_V1" || lines[4] != "D31_ADB_PORT_END")
+                throw new IOException("探针端口快照缺失或不完整，不能确认恢复端口。");
+            return SelectPort(lines[1], lines[2]);
+        }
+
+        internal static int ReadAdbPort(string host) { return PortFromReceipt(Execute(host, ReadAdb)); }
+
+        private static void RequireCompleted(Dictionary<string, object> result)
+        {
+            object state, exitCode, truncated;
+            if (result == null || !result.TryGetValue("state", out state) || Convert.ToString(state) != "completed" ||
+                !result.TryGetValue("exit_code", out exitCode) || exitCode == null || Convert.ToString(exitCode) != "0" ||
+                (result.TryGetValue("truncated", out truncated) && Convert.ToBoolean(truncated)))
+                throw new IOException("探针任务未确认完成；不重放恢复命令，也不将属性当作ADB握手结果。");
+        }
         internal static string ValidateHost(string host)
         {
             IPAddress ip;
@@ -66,23 +108,30 @@ namespace D31FlashTool
         internal static string Execute(string host, string command)
         {
             Health(host);
+            return ExecuteCore(command, (path, body) => Request(host, path, body), () => Thread.Sleep(250));
+        }
+
+        internal static string ExecuteCore(string command, Func<string, object, Dictionary<string, object>> request, Action wait)
+        {
             string id = Guid.NewGuid().ToString();
             Dictionary<string, object> result;
-            try { result = Request(host, "/exec", new { id = id, command = command, timeout = 30 }); }
+            try { result = request("/exec", new { id = id, command = command, timeout = 30 }); }
             catch (WebException)
             {
                 // POST回执丢失时查询原任务，不能新建任务重放写操作。
-                result = Request(host, "/jobs/" + id, null);
+                try { result = request("/jobs/" + id, null); }
+                catch (Exception ex) { throw new IOException("恢复命令回执未知，原任务号：" + id + "；不自动重发。", ex); }
             }
             var watch = Stopwatch.StartNew();
-            while (Convert.ToString(result["state"]) == "running" && watch.Elapsed.TotalSeconds < 45)
+            object state;
+            while (result != null && result.TryGetValue("state", out state) && Convert.ToString(state) == "running" && watch.Elapsed.TotalSeconds < 45)
             {
-                Thread.Sleep(250);
-                result = Request(host, "/jobs/" + id, null);
+                wait();
+                try { result = request("/jobs/" + id, null); }
+                catch (Exception ex) { throw new IOException("任务查询回执未知，原任务号：" + id + "；不自动重发。", ex); }
             }
-            object exitCode;
-            if (Convert.ToString(result["state"]) != "completed" || !result.TryGetValue("exit_code", out exitCode) || exitCode == null || Convert.ToInt32(exitCode) != 0)
-                throw new IOException("探针任务未成功完成：" + new JavaScriptSerializer().Serialize(result));
+            try { RequireCompleted(result); }
+            catch (IOException ex) { throw new IOException("原任务号：" + id + "；" + ex.Message, ex); }
             return new JavaScriptSerializer().Serialize(result);
         }
     }
@@ -149,6 +198,8 @@ namespace D31FlashTool
                 (source[0] & 1) != 0 || (target[0] & 1) != 0 || source.All(v => v == 0) || target.All(v => v == 0))
                 throw new ArgumentException("源地址和目标地址必须是不同的单播MAC。");
             byte[] command = Encoding.ASCII.GetBytes(RescueClient.StartAdb);
+            if (command.Length >= 200 || RescueClient.StartAdb.Contains(";"))
+                throw new InvalidOperationException("uptool恢复命令超出已验证的单槽合同。");
             int length = restore ? command.Length + 4 : 0;
             byte[] body = new byte[16 + length];
             Put(body, 0, restore ? 0x0301u : 0x0101u, 2);
@@ -211,7 +262,7 @@ namespace D31FlashTool
                 if (!restore) return "uptool单播查询通过：目标返回有效设备信息，校验正确。";
                 byte[] commandFrame = Frame(source, target, Session(), true);
                 if (pcap_sendpacket(handle, commandFrame, commandFrame.Length) != 0) throw new IOException("恢复ADB命令发送失败。");
-                return "已向查询通过的目标发送一次固定恢复ADB命令，尚需实际ADB握手验证。";
+                return "已发送一次保留有效运行/持久端口的恢复命令，仅无有效配置时使用5555；旧uptool无命令输出回执，端口与ADB握手尚未确认。";
             }
             finally { pcap_close(handle); }
         }

@@ -10,16 +10,19 @@
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/xattr.h>
 #include <unistd.h>
 #include <zlib.h>
 
 #define SYSTEM_BLOCK "/dev/block/platform/mtk-msdc.0/11230000.msdc0/by-name/system"
 #define BOOT_BLOCK "/dev/block/platform/mtk-msdc.0/11230000.msdc0/by-name/boot"
+#define RECOVERY_BLOCK "/dev/block/platform/mtk-msdc.0/11230000.msdc0/by-name/recovery"
 #define DATA_BLOCK "/dev/block/platform/mtk-msdc.0/11230000.msdc0/by-name/userdata"
 #define LOGO_BLOCK "/dev/block/platform/mtk-msdc.0/11230000.msdc0/by-name/logo"
 #define EXPECTED_LOGO_SIZE 8388608ULL
 #define EXPECTED_SYSTEM_SIZE 1610612736ULL
 #define EXPECTED_BOOT_SIZE 16777216ULL
+#define EXPECTED_RECOVERY_SIZE 16777216ULL
 #define EXPECTED_DATA_SIZE 13517717504ULL
 #define EXPECTED_FINGERPRINT "alps/full_hct6737t_66_m0/hct6737t_66_m0:6.0/MRA58K/1583081804:userdebug/test-keys"
 
@@ -49,8 +52,7 @@ static const PayloadFile payload_files[] = {
     {"payload/apps/Telegram-12.10.1.apk", "/data/app/org.telegram.messenger.web-1/base.apk", 0644, 1000, 1000},
     {"payload/apps/Thunderbird-22.0.apk", "/data/app/net.thunderbird.android-1/base.apk", 0644, 1000, 1000},
     {"payload/apps/D31-File-Manager-1.7.4-d31.2.apk", "/data/app/me.zhanghai.android.files-2/base.apk", 0644, 1000, 1000},
-    {"payload/apps/D31-Messages-0.4.0.apk", "/data/app/net.elfradio.d31phone.debug-1/base.apk", 0644, 1000, 1000},
-    {"payload/apps/D31-Wireless-ADB-1.11.6.apk", "/data/app/net.elfradio.d31bootstrap-1/base.apk", 0644, 1000, 1000},
+    {"payload/apps/D31-Messages.apk", "/data/app/net.elfradio.d31phone.debug-1/base.apk", 0644, 1000, 1000},
     {"payload/apps/D31-Zello-Guard-0.2.7.apk", "/data/app/net.elfradio.d31zelloguard-2/base.apk", 0644, 1000, 1000},
     {"payload/system-patches/apply-home-patch.sh", "/data/local/d31-patches/apply-home-patch.sh", 0750, 0, 0},
     {"payload/system-patches/startup-handover.jar", "/data/local/d31-startup-handover/handover.jar", 0700, 0, 0},
@@ -64,7 +66,7 @@ static const PayloadFile payload_files[] = {
     {"payload/system-patches/getnumber-cellular-labels-v1-unsigned.apk", "/data/local/d31-patches/getnumber-cellular-labels-v1-unsigned.apk", 0644, 0, 0},
     {"payload/system-patches/libvsip-tls12-dns-transport-v2.so", "/data/local/d31-patches/libvsip-tls12-dns-transport-v2.so", 0644, 0, 0},
     {"payload/system-patches/nexui-v8-ethernet-gate.apk", "/data/local/d31-patches/nexui-v8-ethernet-gate.apk", 0644, 0, 0},
-    {"payload/apps/D31-System-Support-1.0.4.apk", "/data/app/net.elfradio.d31system-1/base.apk", 0644, 1000, 1000},
+    {"payload/apps/D31-System-Support-1.1.0.apk", "/data/app/net.elfradio.d31system-1/base.apk", 0644, 1000, 1000},
     {"payload/system-patches/support-guard", "/data/local/d31-system-support/guard", 0700, 0, 0},
     {"payload/system-patches/support-start.sh", "/data/local/d31-system-support/start.sh", 0700, 0, 0},
     {"payload/system-patches/support-state.jar", "/data/local/d31-system-support/state.jar", 0700, 0, 0},
@@ -84,7 +86,7 @@ static const PayloadFile payload_files[] = {
     {"payload/runtime/Zello-5.30.1-arm64.odex", "/data/app/com.loudtalks-1/oat/arm64/base.odex", 0644, 1000, 39999},
     {"payload/runtime/Telegram-12.10.1-arm64.odex", "/data/app/org.telegram.messenger.web-1/oat/arm64/base.odex", 0644, 1000, 39999},
     {"payload/runtime/D31-File-Manager-1.7.4-d31.2-arm64.odex", "/data/app/me.zhanghai.android.files-2/oat/arm64/base.odex", 0644, 1000, 39999},
-    {"payload/runtime/D31-Messages-0.4.0-arm64.odex", "/data/app/net.elfradio.d31phone.debug-1/oat/arm64/base.odex", 0644, 1000, 39999},
+    {"payload/runtime/D31-Messages-arm64.odex", "/data/app/net.elfradio.d31phone.debug-1/oat/arm64/base.odex", 0644, 1000, 39999},
     {"payload/runtime/D31-Zello-Guard-0.2.7-arm64.odex", "/data/app/net.elfradio.d31zelloguard-2/oat/arm64/base.odex", 0644, 1000, 39999},
 };
 
@@ -110,6 +112,10 @@ static const char *forbidden_system_paths[] = {
 };
 
 static const char *required_system_paths[] = {
+    "/system/priv-app/D31ElfRemote/D31ElfRemote.apk",
+    "/system/priv-app/D31ElfRemote/lib/arm/libjingle_peerconnection_so.so",
+    "/system/bin/d31-elfremote-start",
+    "/system/etc/d31-elfremote.system",
     "/system/vendor/3rd-app/nexui.apk",
     "/system/vendor/3rd-app/imscc.apk",
     "/system/vendor/3rd-app/dial.apk",
@@ -240,6 +246,8 @@ static int validate_required_entries(int zip_fd) {
         entry.uncompressed_size != EXPECTED_LOGO_SIZE) return -1;
     if (find_zip_entry(zip_fd, "payload/boot.img", &entry) != 0 ||
         entry.uncompressed_size != EXPECTED_BOOT_SIZE) return -1;
+    if (find_zip_entry(zip_fd, "payload/recovery.img", &entry) != 0 ||
+        entry.uncompressed_size != EXPECTED_RECOVERY_SIZE) return -1;
     for (index = 0; index < sizeof(payload_files) / sizeof(payload_files[0]); ++index) {
         if (find_zip_entry(zip_fd, payload_files[index].entry, &entry) != 0 ||
             entry.uncompressed_size == 0) return -1;
@@ -492,6 +500,39 @@ static int prepare_clean_data(int zip_fd) {
     return 0;
 }
 
+static int verify_remote_native_layout(void) {
+    static const char *directories[] = {
+        "/system/priv-app/D31ElfRemote",
+        "/system/priv-app/D31ElfRemote/lib",
+        "/system/priv-app/D31ElfRemote/lib/arm"
+    };
+    static const char library[] = "/system/priv-app/D31ElfRemote/lib/arm/libjingle_peerconnection_so.so";
+    static const char label[] = "u:object_r:system_file:s0";
+    struct stat status;
+    char actual_label[64];
+    unsigned char elf[20];
+    size_t index;
+    int fd;
+    for (index = 0; index <= sizeof(directories) / sizeof(directories[0]); ++index) {
+        int is_file = index == sizeof(directories) / sizeof(directories[0]);
+        const char *path = is_file ? library : directories[index];
+        if (lstat(path, &status) != 0 || status.st_uid != 0 || status.st_gid != 0 ||
+            (status.st_mode & 07777) != (is_file ? 0644 : 0755) ||
+            (is_file ? !S_ISREG(status.st_mode) : !S_ISDIR(status.st_mode))) return -1;
+        if (lgetxattr(path, "security.selinux", actual_label, sizeof(actual_label)) != sizeof(label) ||
+            memcmp(actual_label, label, sizeof(label)) != 0) return -1;
+        if (is_file && status.st_size != 6536680) return -1;
+    }
+    errno = 0;
+    if (lstat("/system/priv-app/D31ElfRemote/lib/arm64", &status) == 0 || errno != ENOENT) return -1;
+    fd = open(library, O_RDONLY | O_NOFOLLOW);
+    if (fd < 0) return -1;
+    int result = read_all(fd, elf, sizeof(elf));
+    if (close(fd) != 0) return -1;
+    if (result != 0 || memcmp(elf, "\177ELF\001\001", 6) != 0 || read_u16(elf + 18) != 40) return -1;
+    return 0;
+}
+
 static int verify_clean_system_image(void) {
     size_t index;
     struct stat status;
@@ -513,6 +554,7 @@ static int verify_clean_system_image(void) {
             }
         }
     }
+    if (result == 0 && verify_remote_native_layout() != 0) result = -1;
     if (result == 0 &&
         (file_contains("/system/vendor/starnet/launcher/config/config-tab", "org.mozilla.firefox") != 0 ||
          file_contains("/system/vendor/starnet/launcher/config/config-tab", "org.telegram.messenger.web") != 0 ||
@@ -544,7 +586,7 @@ int main(int argc, char **argv) {
     if (errno != 0 || end == argv[2] || *end != '\0' || parsed_fd < 0) return 3;
     output_fd = (int)parsed_fd;
 
-    ui_print("D31完整刷机包 v1.4.3");
+    ui_print("D31完整刷机包 v1.4.4");
     ui_print("将清除全部用户数据、账号和软件配置");
     ui_print("不会写入boot、Recovery、设备身份、校准或NVRAM分区");
 
@@ -554,6 +596,7 @@ int main(int argc, char **argv) {
     }
     if (block_size_matches(SYSTEM_BLOCK, EXPECTED_SYSTEM_SIZE) != 0 ||
         block_size_matches(BOOT_BLOCK, EXPECTED_BOOT_SIZE) != 0 ||
+        block_size_matches(RECOVERY_BLOCK, EXPECTED_RECOVERY_SIZE) != 0 ||
         block_size_matches(DATA_BLOCK, EXPECTED_DATA_SIZE) != 0 ||
         block_size_matches(LOGO_BLOCK, EXPECTED_LOGO_SIZE) != 0) {
         ui_print("拒绝：目标分区尺寸不匹配");
@@ -572,6 +615,12 @@ int main(int argc, char **argv) {
         return 13;
     }
     ui_print("boot逐字校验通过，仅保留原件，不写入");
+    if (verify_stored_block(zip_fd, "payload/recovery.img", RECOVERY_BLOCK, EXPECTED_RECOVERY_SIZE) != 0) {
+        ui_print("拒绝：现有Recovery与基线不一致；本包不修复或写入Recovery");
+        close(zip_fd);
+        return 14;
+    }
+    ui_print("Recovery逐字校验通过，仅保留原件，不写入");
     ui_print("预检通过，开始写入system分区");
     umount2("/system", MNT_DETACH);
     if (flash_gzip_system(zip_fd) != 0) {

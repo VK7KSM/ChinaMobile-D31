@@ -51,6 +51,18 @@ public final class SipEngine {
     private SipConfigStore.Profile profile;
     private volatile boolean registered;
     private String registrationDetail = "未启动";
+    private volatile String remoteState = "unregistered";
+    private volatile long remoteSampledAt = System.currentTimeMillis();
+
+    public void configurationChanging() {
+        registered=false;remoteState="registering";remoteSampledAt=System.currentTimeMillis();
+    }
+
+    public android.os.Bundle remoteStatus() {
+        android.os.Bundle result=new android.os.Bundle();
+        result.putString("state",remoteState);result.putLong("sampled_at",remoteSampledAt);
+        return result;
+    }
 
     private SipEngine() {}
 
@@ -126,6 +138,7 @@ public final class SipEngine {
 
         account = new D31Account();
         registrationDetail = "正在注册";
+        configurationChanging();
         notifyRegistration();
         account.create(config);
     }
@@ -147,6 +160,7 @@ public final class SipEngine {
         }
         registered = false;
         registrationDetail = "未启动";
+        remoteState="unregistered";remoteSampledAt=System.currentTimeMillis();
         notifyRegistration();
     }
 
@@ -213,14 +227,18 @@ public final class SipEngine {
     private final class D31Account extends Account {
         @Override
         public void onRegState(OnRegStateParam param) {
+            if(this!=account)return;
             try {
                 AccountInfo info = getInfo();
-                registered = info.getRegStatus() == pjsip_status_code.PJSIP_SC_OK;
+                registered = info.getRegIsActive() && info.getRegStatus() == pjsip_status_code.PJSIP_SC_OK;
+                remoteState=registered?"registered":info.getRegStatus()>=300?"failed":"unregistered";
                 registrationDetail = info.getRegStatus() + " " + info.getRegStatusText();
             } catch (Exception e) {
                 registered = false;
+                remoteState="unknown";
                 registrationDetail = e.getMessage();
             }
+            remoteSampledAt=System.currentTimeMillis();
             notifyRegistration();
         }
 

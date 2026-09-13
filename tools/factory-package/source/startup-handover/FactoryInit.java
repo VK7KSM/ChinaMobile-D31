@@ -46,11 +46,12 @@ public final class FactoryInit {
     static void userDefaults(boolean apply) throws Exception {
         String guard="net.elfradio.d31zelloguard/net.elfradio.d31zelloguard.GuardAccessibilityService";
         String notifications="net.elfradio.d31zelloguard/net.elfradio.d31zelloguard.GuardNotificationListener";
+        String support="net.elfradio.d31system/net.elfradio.d31system.MessageNotificationListener";
         String sms="net.elfradio.d31phone.debug";
         if(apply) {
             putSetting("secure","enabled_accessibility_services",addService(setting("secure","enabled_accessibility_services"),guard));
             putSetting("secure","accessibility_enabled","1");
-            putSetting("secure","enabled_notification_listeners",addService(setting("secure","enabled_notification_listeners"),notifications));
+            putSetting("secure","enabled_notification_listeners",addService(addService(setting("secure","enabled_notification_listeners"),notifications),support));
             putSetting("secure","sms_default_application",sms);
             HandoverRuntime.command("/system/bin/appops","set",sms,"WRITE_SMS","allow");
             putSetting("secure","show_ime_with_hard_keyboard","1");
@@ -58,6 +59,7 @@ public final class FactoryInit {
         if(!Arrays.asList(setting("secure","enabled_accessibility_services").split(":")).contains(guard)
                 || !setting("secure","accessibility_enabled").equals("1")) throw new IOException("Shortcut settings mismatch");
         if(!Arrays.asList(setting("secure","enabled_notification_listeners").split(":")).contains(notifications)) throw new IOException("Notification listener mismatch");
+        if(!Arrays.asList(setting("secure","enabled_notification_listeners").split(":")).contains(support)) throw new IOException("System support listener mismatch");
         if(!setting("secure","sms_default_application").equals(sms)
                 || !HandoverRuntime.command("/system/bin/appops","get",sms,"WRITE_SMS").contains("allow")) throw new IOException("Default SMS mismatch");
         if(!setting("secure","show_ime_with_hard_keyboard").equals("1")) throw new IOException("Keyboard setting mismatch");
@@ -110,7 +112,7 @@ public final class FactoryInit {
         HandoverRuntime.command("/system/bin/chmod","0660",temp.getPath());
         if(!temp.renameTo(prefs)) throw new IOException("Cannot commit TCP setting");
         HandoverRuntime.command("/system/bin/restorecon",prefs.getPath());
-        try(FileOutputStream out=new FileOutputStream(new File(ROOT,"factory-runtime-complete"))) { out.write("1.4.1\n".getBytes("UTF-8")); out.getFD().sync(); }
+        try(FileOutputStream out=new FileOutputStream(new File(ROOT,"factory-runtime-complete"))) { out.write("1.4.4\n".getBytes("UTF-8")); out.getFD().sync(); }
         System.out.println("FACTORY_TCP_ACCELERATION_DISABLED");
     }
     Object call(String name, Class<?>[] types, Object... args) throws Exception {
@@ -171,10 +173,8 @@ public final class FactoryInit {
                 throw new IOException("Heads up setting mismatch");
         }
         if(apply) {
-            // 引导APK已完成职责，独立root探针由自己的启动入口运行。
-            HandoverRuntime.command("/system/bin/am","force-stop","--user","0","net.elfradio.d31bootstrap");
             File done=new File(ROOT,"factory-init-complete");
-            try(FileOutputStream out=new FileOutputStream(done)) { out.write("1.4.1\n".getBytes("UTF-8")); out.getFD().sync(); }
+            try(FileOutputStream out=new FileOutputStream(done)) { out.write("1.4.4\n".getBytes("UTF-8")); out.getFD().sync(); }
             if(!new File(ROOT,"factory-init-required").delete()) throw new IOException("Init marker removal failed");
         }
         System.out.println(apply?"FACTORY_INIT_VERIFIED":verify?"FACTORY_STATE_VERIFIED":"FACTORY_INIT_INSPECT_ONLY");

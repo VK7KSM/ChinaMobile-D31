@@ -1,6 +1,8 @@
 param(
-    [string]$SourceDirectory = "C:\Dev\H13_D22\research\d31\analysis\2026-09-09-factory-v1.4.3",
-    [string]$OutputDirectory = "C:\Dev\H13_D22\research\d31\dist\factory-flash-v1.4.3"
+    [string]$SourceDirectory = "C:\Dev\H13_D22\research\d31\analysis\2026-09-13-factory-v1.4.4",
+    [string]$OutputDirectory = "C:\Dev\H13_D22\research\d31\dist\factory-flash-v1.4.4",
+    [ValidateSet('1.4.4')][string]$Version = '1.4.4',
+    [string]$SourcesManifest = "C:\Dev\H13_D22\research\d31\factory_package\sources-v1.4.4.json"
 )
 
 $ErrorActionPreference = "Stop"
@@ -21,12 +23,12 @@ $tlsSource = Join-Path $root "research\d31\factory_package\native\tls_align.S"
 $pythonBuilder = Join-Path $root "research\d31\factory_package\build_factory_package.py"
 $pythonVerifier = Join-Path $root "research\d31\factory_package\verify_factory_package.py"
 $systemVerifier = Join-Path $root "research\d31\factory_package\verify_d31_system_image.sh"
-$configTemplate = Join-Path $root "research\d31\factory_package\templates\config-tab"
+$configTemplate = Join-Path $SourceDirectory "system_payload\config-tab"
 $aapt = "C:\Dev\android-sdk\build-tools\34.0.0\aapt.exe"
 $apksigner = "C:\Dev\android-sdk\build-tools\34.0.0\apksigner.bat"
 $openssl = "C:\Program Files\Git\usr\bin\openssl.exe"
 
-foreach ($required in @($clang, $readelf, $strip, $strings, $java, $signApk, $certificate, $privateKey, $conscrypt, $source, $tlsSource, $pythonBuilder, $pythonVerifier, $systemVerifier, $configTemplate, $aapt, $apksigner, $openssl, $SourceDirectory)) {
+foreach ($required in @($clang, $readelf, $strip, $strings, $java, $signApk, $certificate, $privateKey, $conscrypt, $source, $tlsSource, $pythonBuilder, $pythonVerifier, $systemVerifier, $configTemplate, $aapt, $apksigner, $openssl, $SourceDirectory, $SourcesManifest)) {
     if (-not (Test-Path -LiteralPath $required)) {
         throw "缺少制作依赖：$required"
     }
@@ -87,20 +89,20 @@ if (($binaryStrings -join "`n") -notmatch 'D31 update-binary self-test: PASS') {
     throw "update-binary缺少只读自检入口"
 }
 
-& C:\Python314\python.exe $pythonBuilder --source $SourceDirectory --binary $nativeBinary --output $OutputDirectory
+& C:\Python314\python.exe $pythonBuilder --source $SourceDirectory --binary $nativeBinary --output $OutputDirectory --sources $SourcesManifest --version $Version
 if ($LASTEXITCODE -ne 0) {
     throw "刷机包载荷构建失败：$LASTEXITCODE"
 }
 
-$unsigned = Join-Path $OutputDirectory "D31_SVP3390_Factory_Flash_v1.4.3_unsigned.zip"
-$signed = Join-Path $OutputDirectory "D31_SVP3390_Factory_Flash_v1.4.3_testkey.zip"
+$unsigned = Join-Path $OutputDirectory "D31_SVP3390_Factory_Flash_v${Version}_unsigned.zip"
+$signed = Join-Path $OutputDirectory "D31_SVP3390_Factory_Flash_v${Version}_testkey.zip"
 & $java -cp "$conscrypt;$signApk" com.android.signapk.SignApk -w $certificate $privateKey $unsigned $signed
 if ($LASTEXITCODE -ne 0) {
     throw "刷机包签名失败：$LASTEXITCODE"
 }
 
 $env:JAVA_HOME = Split-Path -Parent (Split-Path -Parent $java)
-& C:\Python314\python.exe $pythonVerifier --package $signed --output (Join-Path $OutputDirectory "package_verification.json") --certificate $certificate --openssl $openssl --binary $nativeBinary --updater-script (Join-Path $root "research\d31\factory_package\native\updater-script") --system-verifier $systemVerifier --config-template $configTemplate --aapt $aapt --apksigner $apksigner
+& C:\Python314\python.exe $pythonVerifier --package $signed --output (Join-Path $OutputDirectory "package_verification.json") --certificate $certificate --openssl $openssl --binary $nativeBinary --updater-script (Join-Path $root "research\d31\factory_package\native\updater-script") --system-verifier $systemVerifier --config-template $configTemplate --aapt $aapt --apksigner $apksigner --sources $SourcesManifest --version $Version
 if ($LASTEXITCODE -ne 0) {
     throw "签名刷机包离线校验失败：$LASTEXITCODE"
 }

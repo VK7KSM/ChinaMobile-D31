@@ -11,7 +11,7 @@ import java.io.InputStream;
 import java.util.List;
 
 final class AdbControl {
-    static final int PORT = 5555;
+    static final int DEFAULT_PORT = 5555;
     private static final String NEXUI_PACKAGE = "com.starnet.nexui";
     private static final int NEXUI_UID_FALLBACK = 10067;
 
@@ -29,7 +29,7 @@ final class AdbControl {
     private static final String ORIGINAL_ROOT_HELPER = "/system/bin/snSudoClient.real";
     private static final long ROOT_FAILURE_COOLDOWN_MILLIS = 120_000L;
     private static long rootBlockedUntil;
-    private static String securityCommand(Context context) {
+    private static String securityCommand() {
         return "while iptables -D INPUT -j D31_GUARD 2>/dev/null; do :; done; "
             + "iptables -F D31_GUARD 2>/dev/null || true; "
             + "iptables -X D31_GUARD 2>/dev/null || true; "
@@ -38,15 +38,19 @@ final class AdbControl {
             + "ip6tables -X D31_GUARD6 2>/dev/null || true";
     }
 
-    private static String hardRestartCommand(Context context) {
+    static String restartCommand(boolean systemManaged, int port) {
+        if (port < 1 || port > 65535) throw new IllegalArgumentException("ADB端口无效");
+        if (systemManaged) {
+            return "setprop service.adb.tcp.port " + port + " && stop adbd && start adbd";
+        }
         return "setprop persist.service.adb.enable 1; "
-            + "setprop persist.adb.tcp.port 5555; "
-            + "setprop service.adb.tcp.port 5555; "
+            + "setprop persist.adb.tcp.port " + port + "; "
+            + "setprop service.adb.tcp.port " + port + "; "
             + "settings put global adb_enabled 1; "
             + "setprop persist.sys.usb.config mass_storage,adb; "
             + "setprop sys.usb.config none; sleep 2; "
             + "setprop sys.usb.config mass_storage,adb; "
-            + securityCommand(context);
+            + securityCommand();
     }
 
     private AdbControl() {
@@ -64,15 +68,18 @@ final class AdbControl {
 
     static ActionResult restartEnabled(Context context) {
         StringBuilder log = new StringBuilder();
+        int port = currentPort();
+        boolean managed = RemoteDeployment.systemManaged();
         run(log, "当前身份", "id");
-        int exit = runRoot(log, "通过厂商root通道切换MTK USB状态",
-                hardRestartCommand(context));
+        int exit = runRoot(log, managed ? "仅重启设备adbd，保留USB与持久配置"
+                        : "原厂首次引导兼容恢复",
+                restartCommand(managed, port));
         long deadline = System.currentTimeMillis() + 25000L;
         while (System.currentTimeMillis() < deadline && !isHealthy(context)) {
             sleep(1000);
         }
         appendStatus(log, context);
-        boolean succeeded = exit == 0 && isHealthy(context);
+        boolean succeeded = exit == 0 && currentPort() == port && isHealthy(context);
         log.append("\n== 执行结论 ==\n")
                 .append(succeeded
                         ? "控制命令成功，设备本地检查通过；仍需电脑完成ADB协议握手\n"
@@ -116,29 +123,48 @@ final class AdbControl {
     private static void appendStatus(StringBuilder log, Context context) {
         log.append("\n== Android API状态 ==\nADB_ENABLED=")
                 .append(adbEnabled(context)).append('\n');
-        log.append("5555/8765未设置设备侧来源限制，由外部路由器控制公网入站\n");
         run(log, "ADB 属性",
                 "getprop ro.secure; getprop ro.debuggable; getprop ro.adb.secure; "
                 + "getprop persist.service.adb.enable; getprop persist.adb.tcp.port; "
                 + "getprop service.adb.tcp.port; getprop persist.sys.usb.config; "
                 + "getprop sys.usb.config; getprop sys.usb.state; "
                 + "getprop sys.usb.ffs.ready; getprop init.svc.adbd");
-        boolean listening = isListening();
-        log.append("\n== 本机端口验证 ==\n127.0.0.1:")
-                .append(PORT).append(listening ? " 正在监听\n" : " 未监听\n");
+        int port = currentPort();
+        boolean listening = TcpListenerState.isListening(port);
+        log.append("\n== 本机端口验证 ==\nTCP端口 ")
+                .append(port).append(listening ? " 正在监听\n" : " 未监听\n")
+                .append("被动读取监听表；电脑ADB协议握手需独立验证。\n");
     }
 
     static boolean isListening() {
-        return TcpListenerState.isListening(PORT);
+        return TcpListenerState.isListening(currentPort());
     }
 
     static boolean isHealthy(Context context) {
-        return tcpHealthy(readValue("getprop service.adb.tcp.port"),
-                readValue("getprop init.svc.adbd"), isListening());
+        int port = currentPort();
+        return tcpHealthy(Integer.toString(port),
+                readValue("getprop init.svc.adbd"), TcpListenerState.isListening(port));
     }
 
     static boolean tcpHealthy(String port, String state, boolean listening) {
-        return "5555".equals(port) && "running".equals(state) && listening;
+        return validPort(port) > 0 && "running".equals(state) && listening;
+    }
+
+    static int currentPort() {
+        return selectPort(readValue("getprop service.adb.tcp.port"),
+                readValue("getprop persist.adb.tcp.port"));
+    }
+
+    static int selectPort(String service, String persistent) {
+        int port = validPort(service);
+        if (port == 0) port = validPort(persistent);
+        return port == 0 ? DEFAULT_PORT : port;
+    }
+
+    private static int validPort(String value) {
+        if (value == null || !value.matches("[0-9]{1,5}")) return 0;
+        int port = Integer.parseInt(value);
+        return port > 0 && port <= 65535 ? port : 0;
     }
 
     private static int adbEnabled(Context context) {

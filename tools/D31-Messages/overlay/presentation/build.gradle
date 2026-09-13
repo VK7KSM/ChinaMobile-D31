@@ -28,10 +28,10 @@ android {
         applicationId 'net.elfradio.d31phone'
         minSdkVersion 23
         targetSdkVersion 33
-        versionCode 7
-        versionName '0.4.0-dev'
+        versionCode 11
+        versionName '0.5.2-dev'
         setProperty("archivesBaseName", "D31-Messages-v${versionName}")
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner "dev.octoshrimpy.quik.feature.phone.D31NotificationInstrumentation"
         ndk {
             abiFilters 'arm64-v8a'
         }
@@ -96,6 +96,14 @@ android {
 
     lint {
         abortOnError false
+    }
+    testOptions {
+        unitTests.all {
+            systemProperty 'robolectric.offline', 'true'
+            if (project.hasProperty('robolectricDependencyDir')) {
+                systemProperty 'robolectric.dependency.dir', project.property('robolectricDependencyDir')
+            }
+        }
     }
     namespace 'dev.octoshrimpy.quik'
     buildFeatures {
@@ -192,13 +200,17 @@ dependencies {
 
 
     // testing
-    androidTestImplementation("androidx.test.espresso:espresso-core:$espresso_version", {
-        exclude group: "com.android.support", module: "support-annotations"
-    })
-    androidTestImplementation "org.mockito:mockito-android:$mockito_version"
+    // 独立设备测试入口使用平台 Instrumentation，无需 Espresso 或 Mockito。
+    androidTestImplementation 'androidx.core:core-ktx:1.9.0'
+    androidTestImplementation 'androidx.lifecycle:lifecycle-process:2.4.1'
+    androidTestImplementation 'androidx.lifecycle:lifecycle-common-java8:2.5.1'
+    androidTestImplementation 'androidx.startup:startup-runtime:1.1.1'
+    androidTestImplementation "androidx.test:runner:$androidx_testrunner_version"
+    androidTestImplementation "junit:junit:$junit_version"
     testImplementation "androidx.test:runner:$androidx_testrunner_version"
     testImplementation "junit:junit:$junit_version"
     testImplementation "org.mockito:mockito-core:$mockito_version"
+    testImplementation 'org.robolectric:robolectric:4.10.3'
 
     // moshi
     implementation "com.squareup.moshi:moshi:$moshi_version"

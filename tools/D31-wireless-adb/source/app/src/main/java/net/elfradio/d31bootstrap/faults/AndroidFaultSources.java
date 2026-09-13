@@ -1,0 +1,271 @@
+package net.elfradio.d31bootstrap.faults;
+
+import android.system.ErrnoException;
+import android.system.Os;
+import android.system.OsConstants;
+import android.system.StructStat;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import net.elfradio.d31bootstrap.diagnostics.collection.*;
+
+/** Android 6 on-disk adapters. No shell, DropBox binder context, or logcat process. */
+public final class AndroidFaultSources implements FaultSources {
+    public static final String ARCHIVE_ROOT = "/data/local/d31-remote/faults";
+    private static final String[] ROOTS = {"/data/anr", "/data/tombstones", "/data/system/dropbox", "/data/local/d31-remote"};
+    private static final String[] CATEGORIES = {"ANR", "TOMBSTONE", "DROPBOX", "BOOT"};
+    private final CollectionAccess access;
+    private final CollectionAccess.Clock clock;
+    private final FaultDirectoryWalker directories;
+
+    public AndroidFaultSources() {
+        this.clock = AndroidCollectionAccess.systemClock();
+        this.access = new AndroidCollectionAccess("/system/bin/busybox", clock);
+        this.directories = new FaultDirectoryWalker.Android();
+    }
+    AndroidFaultSources(CollectionAccess access, CollectionAccess.Clock clock, FaultDirectoryWalker directories) {
+        this.access = access; this.clock = clock; this.directories = directories;
+    }
+    static boolean accepts(int root, String name) {
+        if (name == null) return false;
+        switch (root) {
+            case 0: return name.matches("traces[0-9A-Za-z_.-]*\\.txt|anr_[0-9A-Za-z_.-]+");
+            case 1: return name.matches("tombstone_[0-9]{2,3}(\\.pb)?");
+            case 2: return name.matches("(data_app_(crash|anr)|system_app_(crash|anr)|system_server_(crash|anr)|SYSTEM_TOMBSTONE|SYSTEM_SERVER_WATCHDOG)@[0-9]+\\.(txt|dat|lost)(\\.gz)?");
+            case 3: return name.matches("supervisor-launch-[0-9A-Za-z_-]+\\.log");
+            default: return false;
+        }
+    }
+    private static String fingerprint(CollectionAccess.Stat s) {
+        return FaultArchive.hash(s.type + ":" + s.device + ":" + s.inode + ":" + s.size + ":"
+                + s.modified + ":" + s.changed + ":" + s.mode + ":" + s.uid + ":" + s.gid);
+    }
+    private String signature(String path, CollectionAccess.Stat stat, int limit, long deadline) throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (CollectionAccess.Handle handle = access.openRegular(path, stat)) {
+            byte[] chunk = new byte[4096]; long expected = Math.min(stat.size, Math.min(limit, 4096));
+            while (bytes.size() < expected) {
+                if (Thread.currentThread().isInterrupted() || clock.elapsedRealtimeMillis() >= deadline)
+                    throw new CollectionAccess.Failure("SCAN_TIME_LIMIT");
+                int n = handle.read(chunk, 0, (int) Math.min(chunk.length, expected - bytes.size()));
+                if (n <= 0) throw new CollectionAccess.Failure("UNSTABLE_FILE"); bytes.write(chunk, 0, n);
+            }
+            if (!stat.same(handle.stat()) || !stat.same(access.lstat(path))) throw new CollectionAccess.Failure("UNSTABLE_FILE");
+        }
+        return FaultArchive.hash(fingerprint(stat) + ":" + FaultArchive.hash(bytes.toByteArray()));
+    }
+    static String code(Exception failure) {
+        if (failure instanceof CollectionAccess.Failure) {
+            String code = ((CollectionAccess.Failure) failure).code;
+            if (code.matches("[A-Z_]{1,64}")) return code;
+        }
+        return "SOURCE_IO_FAILED";
+    }
+    @Override public Scan discover(FaultPolicy policy) throws Exception {
+        return discover(policy, new JSONObject());
+    }
+    public JSONObject discoveryProbe() throws Exception {
+        Scan scan = discover(FaultPolicy.defaults()); JSONArray sample = new JSONArray();
+        int[] sampled = new int[CATEGORIES.length];
+        for (Candidate candidate : scan.candidates) for (int i = 0; i < CATEGORIES.length; i++) {
+            if (!CATEGORIES[i].equals(candidate.category) || sampled[i] >= 4) continue;
+            sampled[i]++;
+            sample.put(new JSONObject().put("eventId", candidate.id()).put("category", candidate.category)
+                    .put("sourceTimeMs", candidate.sourceTimeMs));
+        }
+        boolean complete = true;
+        JSONArray coverage = scan.coverage.getJSONArray("sources");
+        for (int i = 0; i < coverage.length(); i++) if (!"CHECKED".equals(coverage.getJSONObject(i).optString("state"))) complete = false;
+        JSONObject result = new JSONObject().put("schemaVersion", 1).put("kind", "FAULT_DISCOVERY_PROBE")
+                .put("state", complete ? "COMPLETE" : "PARTIAL").put("coverage", scan.coverage)
+                .put("candidateCount", scan.candidates.size()).put("sample", sample)
+                .put("sampleLimitPerSource", 4).put("sourceTimeBasis", "FILE_MTIME_NOT_FAULT_TIMESTAMP")
+                .put("transport", "BUSYBOX_FIND_PINNED_PROC_FD_PRINT0")
+                .put("verificationScope", "SOURCE_DISCOVERY_ONLY_NO_CAPTURE").put("archiveModified", false);
+        if (result.toString().getBytes(StandardCharsets.UTF_8).length > 8000) throw new IOException("DISCOVERY_SIZE_LIMIT");
+        return result;
+    }
+    @Override public Scan discover(FaultPolicy policy, JSONObject continuation) throws Exception {
+        List<Candidate> candidates = new ArrayList<Candidate>(); JSONArray coverage = new JSONArray();
+        JSONObject next = new JSONObject();
+        long start = clock.elapsedRealtimeMillis();
+        for (int root = 0; root < ROOTS.length; root++) {
+            JSONObject item = new JSONObject().put("category", CATEGORIES[root])
+                    .put("elapsedScope", "ENUMERATION_AND_CHILD_METADATA_EXCLUDES_SIGNATURES");
+            long remaining = Math.min(Math.max(1, policy.scanMs / ROOTS.length),
+                    policy.scanMs - (clock.elapsedRealtimeMillis() - start));
+            if (remaining <= 0 || Thread.currentThread().isInterrupted()) {
+                coverage.put(item.put("state", "NOT_CHECKED").put("reason", "SCAN_TIME_LIMIT").put("elapsedMs", 0)); continue;
+            }
+            String cursor = continuation.optString(CATEGORIES[root], "");
+            if (!cursor.isEmpty() && !accepts(root, cursor)) cursor = "";
+            next.put(CATEGORIES[root], cursor);
+            long enumerationStarted = -1;
+            try {
+                final int source = root;
+                final long deadline = clock.elapsedRealtimeMillis() + remaining;
+                final FaultDiscoveryPage page = new FaultDiscoveryPage(cursor);
+                final int[] counts = new int[3];
+                CollectionAccess.Stat before = access.lstat(ROOTS[source]);
+                enumerationStarted = clock.elapsedRealtimeMillis();
+                String reason = directories.walk(ROOTS[source], before, clock,
+                        clock.elapsedRealtimeMillis() + Math.max(1, remaining * 2 / 3), new FaultDirectoryWalker.Visitor() {
+                    @Override public void name(String name, FaultDirectoryWalker.Metadata metadata) throws IOException {
+                        counts[0]++;
+                        if (!accepts(source, name)) return;
+                        counts[1]++;
+                        try {
+                            CollectionAccess.Stat stat = metadata.lstat(name);
+                            if ("file".equals(stat.type)) page.add(name, stat); else counts[2]++;
+                        } catch (IOException failure) { counts[2]++; }
+                    }
+                });
+                item.put("elapsedMs", Math.max(0, clock.elapsedRealtimeMillis() - enumerationStarted));
+                if (!before.same(access.lstat(ROOTS[source]))) reason = "UNSTABLE_DIRECTORY";
+                int accepted = 0;
+                java.util.Set<String> processed = new java.util.HashSet<String>();
+                for (FaultDiscoveryPage.Entry entry : page.selected()) {
+                    if (clock.elapsedRealtimeMillis() >= deadline || Thread.currentThread().isInterrupted()) break;
+                    String path = ROOTS[source] + "/" + entry.name;
+                    try { candidates.add(new Candidate(CATEGORIES[source], path,
+                            signature(path, entry.stat, policy.maxFileBytes, deadline), Math.max(0, entry.stat.modified) * 1000)); accepted++; }
+                    catch (IOException failure) { counts[2]++; }
+                    processed.add(entry.name);
+                }
+                next.put(CATEGORIES[source], page.next(processed));
+                boolean complete = "ENUMERATION_FINISHED".equals(reason) && counts[2] == 0 && accepted == counts[1];
+                item.put("state", complete ? "CHECKED" : "PARTIAL").put("accepted", accepted)
+                        .put("unreadable", counts[2]).put("enumerated", counts[0]).put("matched", counts[1])
+                        .put("enumerationComplete", "ENUMERATION_FINISHED".equals(reason))
+                        .put("nonemptyEnumeration", counts[0] > 0)
+                        .put("selection", "LATEST_32_AND_ROTATING_32").put("sourceBudgetMs", remaining)
+                        .put("reason", complete ? "BOUNDED_ENUMERATION" : "ENUMERATION_FINISHED".equals(reason)
+                                ? "CANDIDATE_PAGE_OR_READ_LIMIT" : reason);
+            } catch (Exception failure) {
+                if (!item.has("elapsedMs")) item.put("elapsedMs", enumerationStarted < 0 ? 0
+                        : Math.max(0, clock.elapsedRealtimeMillis() - enumerationStarted));
+                item.put("state", "UNAVAILABLE").put("reason", code(failure));
+            }
+            coverage.put(item);
+        }
+        Collections.sort(candidates, new Comparator<Candidate>() {
+            @Override public int compare(Candidate a, Candidate b) {
+                int time = Long.compare(b.sourceTimeMs, a.sourceTimeMs);
+                return time == 0 ? a.id().compareTo(b.id()) : time;
+            }
+        });
+        return new Scan(candidates, new JSONObject().put("sources", coverage).put("discovery", "BOUNDED_FILE_METADATA")
+                .put("processExitDetection", "NOT_IMPLEMENTED").put("logcat", "NOT_COLLECTED")
+                .put("historicalFilesMayPredateMonitor", true)
+                .put("dedupScope", "STAT_AND_FIRST_4096_BYTES_NOT_EXHAUSTIVE_EVENT_DETECTION"), next);
+    }
+    private static boolean allowed(Candidate candidate) {
+        for (int i = 0; i < ROOTS.length; i++) {
+            String prefix = ROOTS[i] + "/";
+            if (candidate.category.equals(CATEGORIES[i]) && candidate.path.startsWith(prefix)
+                    && accepts(i, candidate.path.substring(prefix.length()))) return true;
+        }
+        return false;
+    }
+    @Override public Capture capture(Candidate candidate, File newAttempt, FaultPolicy policy) throws Exception {
+        return capture(candidate, newAttempt, policy, null);
+    }
+    Capture capture(Candidate candidate, File newAttempt, FaultPolicy policy, FaultEvidenceCollector.Store injectedStore) throws Exception {
+        if (!allowed(candidate)) throw new IOException("SOURCE_NOT_REGISTERED");
+        CollectionAccess.Stat current = access.lstat(candidate.path);
+        if (!candidate.fingerprint.equals(signature(candidate.path, current, policy.maxFileBytes,
+                clock.elapsedRealtimeMillis() + policy.scanMs)))
+            return unavailable("SOURCE_CHANGED", false);
+        CollectionLimits limits = new CollectionLimits(1, policy.maxFileBytes, policy.maxFileBytes,
+                policy.scanMs, 0, 65536, policy.windowMs == 0 ? 1 : policy.windowMs);
+        String category = candidate.category.equals("DROPBOX") ? "CUSTOM" : candidate.category;
+        final String[] prefixHash = new String[1];
+        final FaultEvidenceCollector.Store delegate = injectedStore == null ? store(newAttempt) : injectedStore;
+        JSONObject result = new FaultEvidenceCollector(access, clock).collect("fault",
+                Collections.singletonList(new FaultEvidenceCollector.Source("source", category, candidate.path)),
+                limits, new FaultEvidenceCollector.Store() {
+                    @Override public FaultEvidenceCollector.Receipt storeNew(String id, byte[] bytes) throws IOException {
+                        prefixHash[0] = FaultArchive.hash(java.util.Arrays.copyOf(bytes, Math.min(bytes.length, 4096)));
+                        return delegate.storeNew(id, bytes);
+                    }
+                });
+        result.put("sourceCategory", candidate.category).put("encoding", candidate.path.endsWith(".gz") ? "GZIP_RAW" : "RAW");
+        JSONObject item = result.getJSONArray("items").getJSONObject(0);
+        JSONObject before = item.optJSONObject("before");
+        if (before != null) {
+            CollectionAccess.Stat captured = new CollectionAccess.Stat(before.getString("type"), before.getLong("device"),
+                    before.getLong("inode"), before.getLong("size"), before.getLong("modified"), before.getLong("changed"),
+                    before.getInt("mode"), before.getLong("uid"), before.getLong("gid"));
+            long prefixLength = Math.min(captured.size, Math.min(policy.maxFileBytes, 4096));
+            if (prefixHash[0] != null && item.optLong("capturedBytes", 0) >= prefixLength
+                    && !candidate.fingerprint.equals(FaultArchive.hash(fingerprint(captured) + ":" + prefixHash[0]))) {
+                return incompleteSource(result, item, "UNSTABLE", "SOURCE_CHANGED");
+            }
+        }
+        if (candidate.path.endsWith(".lost") || candidate.path.endsWith(".lost.gz")) {
+            return incompleteSource(result, item, "UNAVAILABLE", "DROPBOX_ENTRY_LOST");
+        }
+        boolean retry = item.optString("state").matches("READ_FAILED|UNSTABLE|STORE_FAILED|NOT_CHECKED");
+        return new Capture(result, retry);
+    }
+    private static Capture incompleteSource(JSONObject result, JSONObject item, String state, String reason) throws Exception {
+        // 此适配器每次只采集一个源；来源身份不符或丢失标记不能保留单项COMPLETE计数。
+        item.put("state", state).put("reason", reason);
+        result.getJSONObject("counts").put("complete", 0).put("unchecked", 0).put("failed", 0).put("partial", 1);
+        result.put("state", "PARTIAL").put("reason", reason);
+        return new Capture(result, false);
+    }
+    FaultEvidenceCollector.Store store(File attempt) { return new AndroidEvidenceStore(attempt.getAbsolutePath()); }
+    private static Capture unavailable(String reason, boolean retry) throws Exception {
+        return new Capture(new JSONObject().put("schemaVersion", 1).put("state", "PARTIAL")
+                .put("reason", reason).put("items", new JSONArray()), retry);
+    }
+    private byte[] readProc(String path, int maxBytes) throws IOException {
+        CollectionAccess.Stat stat = access.lstat(path);
+        try (CollectionAccess.Handle handle = access.openRegular(path, stat)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream(); byte[] b = new byte[1024];
+            while (out.size() < maxBytes) {
+                int n = handle.read(b, 0, Math.min(b.length, maxBytes - out.size()));
+                if (n < 0) return out.toByteArray();
+                if (n == 0) throw new IOException("PROC_READ_STALLED"); out.write(b, 0, n);
+            }
+            throw new IOException("PROC_BYTE_LIMIT");
+        }
+    }
+    @Override public String bootKey() throws Exception {
+        String boot = new String(readProc("/proc/sys/kernel/random/boot_id", 128), StandardCharsets.US_ASCII).trim();
+        if (!boot.matches("[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}")) throw new IOException("BOOT_ID_UNAVAILABLE");
+        return FaultArchive.hash(boot);
+    }
+    @Override public JSONObject context() throws Exception {
+        JSONObject result = new JSONObject().put("schemaVersion", 1).put("capturedAtMs", clock.wallTimeMillis())
+                .put("elapsedMs", clock.elapsedRealtimeMillis());
+        for (String name : new String[]{"meminfo", "loadavg"}) {
+            try {
+                String text = new String(readProc("/proc/" + name, 16384), StandardCharsets.US_ASCII);
+                result.put(name, new JSONObject().put("state", "CAPTURED").put("text", text));
+            } catch (IOException failure) { result.put(name, new JSONObject().put("state", "UNAVAILABLE").put("reason", code(failure))); }
+        }
+        return result.put("threads", "NOT_COLLECTED").put("network", "NOT_COLLECTED")
+                .put("logcat", "NOT_COLLECTED").put("atomicSnapshot", false);
+    }
+    @Override public void checkPrivateRoot(File root) throws IOException {
+        if (!root.getAbsolutePath().equals(ARCHIVE_ROOT)) throw new IOException("PRODUCTION_ARCHIVE_PATH_REQUIRED");
+        try {
+            StructStat s = Os.lstat(root.getAbsolutePath());
+            if (!OsConstants.S_ISDIR(s.st_mode) || s.st_uid != 0 || s.st_gid != 0 || (s.st_mode & 07777) != 0700)
+                throw new IOException("PRIVATE_ARCHIVE_REQUIRED");
+        } catch (ErrnoException failure) { throw new IOException("PRIVATE_ARCHIVE_UNAVAILABLE"); }
+    }
+    @Override public void replace(File temporary, File destination) throws IOException {
+        try { Os.rename(temporary.getAbsolutePath(), destination.getAbsolutePath()); }
+        catch (ErrnoException failure) { throw new IOException("STATE_COMMIT_FAILED"); }
+    }
+}
