@@ -15,6 +15,20 @@ import static net.elfradio.d31bootstrap.diagnostics.DiagnosticContract.*;
 
 /** 两份既有清单的证据覆盖对照；不把历史采集升级成基准或三方诊断。 */
 public final class DiagnosticCoverageComparison {
+    private static final String ROOT_PATH = "/data/local/d31-system-support/start.sh";
+    private static final String ROOT_FIELD = "semantic.system_support.root";
+    // 项目标识不是新增语义字段；未定义的合同不能由文件存在或任意同名字段满足。
+    private static final String[] CONFIGURATION_ITEMS = {"system_support.root", "system_support.disabled",
+            "recovery.enabled", "startup.cellular_enabled", "rescue.enabled", "desktop.config_tab",
+            "initialization.components", "initialization.permissions", "initialization.completion"};
+    private static String configurationPath(String id) {
+        if (id.equals("system_support.root") || id.equals("system_support.disabled")) return ROOT_PATH;
+        if (id.equals("recovery.enabled")) return "/data/local/d31-recovery-entry/persistent.sh";
+        if (id.equals("rescue.enabled")) return "/data/local/d31-rescue/start.sh";
+        if (id.equals("startup.cellular_enabled")) return "/data/local/d31-startup-handover/start.sh";
+        return null;
+    }
+
     public JSONObject compare(DiagnosticManifest observation, DiagnosticManifest firmware, long nowMs)
             throws JSONException {
         if (nowMs < 0) throw invalid("NEGATIVE_NUMBER");
@@ -58,7 +72,7 @@ public final class DiagnosticCoverageComparison {
         for (String name : new String[]{"build", "baselineId", "baselineRevision", "firmwareId"})
             binding.put(name, equal(observation.raw.get(name), firmware.raw.get(name)));
         JSONObject groups = new JSONObject();
-        for (String name : new String[]{"PRESENCE", "FILE_CONTENT", "METADATA", "CONFIGURATION_SEMANTICS",
+        for (String name : new String[]{"PRESENCE", "FILE_CONTENT", "METADATA", "INVENTORY", "CONFIGURATION_SEMANTICS",
                 "ACTIVATION", "PERSONAL_DATA"}) groups.put(name, categories.containsKey(name) ? categories.get(name) : counts());
         JSONArray gaps = new JSONArray();
         if (!categories.containsKey("CONFIGURATION_SEMANTICS")) gaps.put("CONFIGURATION_SEMANTICS_NOT_COLLECTED");
@@ -66,7 +80,9 @@ public final class DiagnosticCoverageComparison {
         gaps.put("BOARD_BASELINE_APPROVAL_NOT_VERIFIED");
         gaps.put("THREE_PARTY_RULES_NOT_APPLIED");
         gaps.put("FULL_TREE_AND_PARTITION_AGGREGATION_NOT_IMPLEMENTED");
-        return new JSONObject().put("schemaVersion", SCHEMA_VERSION).put("engineVersion", "coverage-1.0.0")
+        JSONObject configuration = configurationCoverage(observation, firmware, oi, fi);
+        if (configuration.getInt("gapItems") > 0) gaps.put("CONFIGURATION_REQUIRED_ITEMS_INCOMPLETE");
+        return new JSONObject().put("schemaVersion", SCHEMA_VERSION).put("engineVersion", "coverage-1.1.0")
                 .put("derivedAtMs", nowMs).put("method", "HISTORICAL_TWO_INPUT_EVIDENCE_COVERAGE")
                 .put("offlineComparison", "NOT_COMPARED").put("rootCause", "NOT_ESTABLISHED")
                 .put("comparisonExtent", "SINGLE_BOUNDED_BATCH").put("wholeSystemCoverage", "NOT_ESTABLISHED")
@@ -78,7 +94,78 @@ public final class DiagnosticCoverageComparison {
                 .put("counts", new JSONObject().put("knownPaths", paths.size()).put("intersectionPaths", common)
                         .put("observationOnlyPaths", observationOnly).put("firmwareOnlyPaths", firmwareOnly)
                         .put("inventoryTotalKnown", false).put("fields", totals))
-                .put("categories", groups).put("gaps", gaps).put("entries", rows);
+                .put("categories", groups).put("gaps", gaps).put("entries", rows)
+                .put("configurationCoverage", configuration);
+    }
+
+    private static JSONObject configurationCoverage(DiagnosticManifest observation, DiagnosticManifest firmware,
+                                                     Map<String, Integer> oi, Map<String, Integer> fi)
+            throws JSONException {
+        JSONArray items = new JSONArray();
+        int observationKnown = 0, firmwareKnown = 0, bothKnown = 0, mappedItems = 0;
+        for (String id : CONFIGURATION_ITEMS) {
+            String path = configurationPath(id), field = "semantic." + id;
+            boolean mapped = path != null;
+            if (mapped) mappedItems++;
+            JSONObject left = configurationSide(observation, oi, path, field);
+            JSONObject right = configurationSide(firmware, fi, path, field);
+            boolean lk = left.getBoolean("observed"), rk = right.getBoolean("observed");
+            if (lk) observationKnown++;
+            if (rk) firmwareKnown++;
+            if (lk && rk) bothKnown++;
+            JSONArray reasons = new JSONArray();
+            String relation = "UNKNOWN";
+            if (!mapped) reasons.put("CONFIGURATION_FIELD_CONTRACT_NOT_DEFINED");
+            else if (lk && rk) {
+                relation = equal(observation.fieldEvidence(path, field).get("value"),
+                        firmware.fieldEvidence(path, field).get("value")) ? "SAME" : "DIFFERENT";
+                reasons.put("RAW_VALUES_ONLY_NO_ALLOWED_DIFFERENCE_RULES");
+            } else {
+                if (!lk) reasons.put("OBSERVATION_EVIDENCE_INSUFFICIENT");
+                if (!rk) reasons.put("FIRMWARE_EVIDENCE_INSUFFICIENT");
+            }
+            items.put(new JSONObject().put("id", id).put("mapped", mapped)
+                    .put("path", mapped ? path : JSONObject.NULL)
+                    .put("field", mapped ? field : JSONObject.NULL)
+                    .put("coverage", lk && rk ? "BOTH_OBSERVED" : "GAP").put("pair", relation)
+                    .put("reasons", reasons).put("observation", left).put("firmware", right));
+        }
+        return new JSONObject().put("catalogId", "d31-finite-configuration").put("catalogVersion", 3)
+                .put("extent", "FINITE_NINE_ITEM_CATALOG").put("status", bothKnown == CONFIGURATION_ITEMS.length
+                        ? "EVIDENCE_PRESENT" : "INCOMPLETE")
+                .put("requiredItems", CONFIGURATION_ITEMS.length).put("mappedItems", mappedItems)
+                .put("observationObservedItems", observationKnown).put("firmwareObservedItems", firmwareKnown)
+                .put("bothObservedItems", bothKnown).put("gapItems", CONFIGURATION_ITEMS.length - bothKnown)
+                .put("verifiedNotApplicableItems", 0).put("applicabilityRulesApplied", false)
+                .put("comparison", "HISTORICAL_RAW_VALUES_ONLY").put("wholeConfigurationCoverage", "NOT_ESTABLISHED")
+                .put("items", items);
+    }
+
+    private static JSONObject configurationSide(DiagnosticManifest manifest, Map<String, Integer> indexes,
+                                                String path, String field) throws JSONException {
+        JSONArray reasons = new JSONArray();
+        if (path == null) {
+            reasons.put("CONFIGURATION_FIELD_CONTRACT_NOT_DEFINED");
+            return new JSONObject().put("state", "NOT_CHECKED").put("observed", false)
+                    .put("pointer", JSONObject.NULL).put("presence", JSONObject.NULL).put("reasons", reasons);
+        }
+        JSONObject entry = manifest.entries.get(path);
+        JSONObject presence = manifest.presence(path);
+        JSONObject evidence = manifest.fieldEvidence(path, field);
+        String state = evidence.getString("state");
+        boolean supportedValue = !state.equals("OBSERVED") || (field.equals(ROOT_FIELD)
+                ? evidence.get("value") instanceof String : evidence.get("value") instanceof Boolean);
+        if (manifest.scopeFor(path) == null) reasons.put("OUTSIDE_SCOPE");
+        if (entry == null) reasons.put("PATH_NOT_LISTED");
+        if (!isPresent(presence)) reasons.put("PRESENCE_NOT_CONFIRMED");
+        if (entry == null || !entry.getJSONObject("fields").has(field)) reasons.put("FIELD_NOT_COLLECTED");
+        if (!state.equals("OBSERVED")) reasons.put("EVIDENCE_" + state);
+        if (!supportedValue) reasons.put("CONFIGURATION_VALUE_TYPE_UNSUPPORTED");
+        if (state.equals("NOT_APPLICABLE")) reasons.put("APPLICABILITY_RULE_NOT_VERIFIED");
+        return new JSONObject().put("state", state).put("observed", isPresent(presence) && state.equals("OBSERVED") && supportedValue)
+                .put("pointer", pointer(manifest, indexes, path, "fields/" + field))
+                .put("presence", reference(presence, pointer(manifest, indexes, path, "presence")))
+                .put("reasons", reasons);
     }
 
     private static JSONObject summary(DiagnosticManifest manifest, long now) throws JSONException {
@@ -137,6 +224,8 @@ public final class DiagnosticCoverageComparison {
     private static String category(String field) {
         if (field.equals("presence")) return "PRESENCE";
         if (field.equals("sha256")) return "FILE_CONTENT";
+        // 采集器用该保留字段记录目录枚举缺口，不是设备配置内容。
+        if (field.equals("semantic.enumeration")) return "INVENTORY";
         if (field.startsWith("semantic.")) return "CONFIGURATION_SEMANTICS";
         if (field.equals("activeSource") || field.equals("mountSource") || field.equals("activation")) return "ACTIVATION";
         return "METADATA";

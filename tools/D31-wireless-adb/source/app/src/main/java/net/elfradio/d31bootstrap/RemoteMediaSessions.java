@@ -25,7 +25,7 @@ public final class RemoteMediaSessions implements AutoCloseable {
     private final String hash;
     private final Map<String,Long> seen=new HashMap<>();
     private Bridge bridge;
-    private boolean enabled,videoEnabled,closed,inflight,stopping,stopDispatched,releaseUnknown;
+    private boolean enabled,videoEnabled,pttEnabled,prepareEnabled,closed,inflight,stopping,stopDispatched,releaseUnknown;
     private Runnable changed;
     private Thread readinessThread;
     private String lastNotified="";
@@ -40,8 +40,9 @@ public final class RemoteMediaSessions implements AutoCloseable {
         readinessThread=new Thread(()->{
             boolean ready=available(context);
             boolean camera=videoAvailable(context);
+            boolean output=pttAvailable(context);
             synchronized(RemoteMediaSessions.this){
-                if(!closed){enabled=ready;videoEnabled=camera;if(!ready)reason="MEDIA_STATIC_CAPABILITY_NOT_READY";changed();}
+                if(!closed){enabled=ready;videoEnabled=camera;pttEnabled=output;prepareEnabled=ready&&output;if(!ready&&!output)reason="MEDIA_STATIC_CAPABILITY_NOT_READY";changed();}
             }
         },"d31-media-readiness");
         readinessThread.setDaemon(true);readinessThread.start();
@@ -80,7 +81,17 @@ public final class RemoteMediaSessions implements AutoCloseable {
                     &&pm.checkPermission(android.Manifest.permission.RECORD_AUDIO,pkg)==android.content.pm.PackageManager.PERMISSION_GRANTED;
         }catch(Exception|LinkageError unavailable){return false;}
     }
-    public synchronized void setAvailable(boolean value){enabled=value;if(!value)stop();changed();}
+    public synchronized void setAvailable(boolean value){enabled=value;if(!value&&!"ptt".equals(mode))stop();changed();}
+    private static boolean pttAvailable(Context context){
+        try{
+            if(context==null||android.os.Build.VERSION.SDK_INT!=23||!"hct6735_66_m0".equals(android.os.Build.DEVICE))return false;
+            android.content.pm.PackageManager pm=context.getPackageManager();String pkg="net.elfradio.d31bootstrap";
+            android.content.pm.ServiceInfo service=pm.getServiceInfo(new android.content.ComponentName(pkg,pkg+".media.AppMediaService"),0);
+            return service.enabled&&!service.exported&&service.applicationInfo.enabled&&service.applicationInfo.uid>=10000
+                    &&pm.checkPermission(android.Manifest.permission.MODIFY_AUDIO_SETTINGS,pkg)==android.content.pm.PackageManager.PERMISSION_GRANTED;
+        }catch(Exception|LinkageError unavailable){return false;}
+    }
+    synchronized void setPttAvailable(boolean value){pttEnabled=value;if(!value&&("ptt".equals(mode)||"call".equals(mode)||"prepare".equals(mode)))stop();changed();}
     private static boolean videoAvailable(Context context){
         try{
             android.content.pm.PackageManager pm=context.getPackageManager();String pkg="net.elfradio.d31bootstrap";
@@ -91,8 +102,14 @@ public final class RemoteMediaSessions implements AutoCloseable {
                     &&ops!=null&&ops.checkOpNoThrow(android.app.AppOpsManager.OPSTR_CAMERA,app.uid,pkg)==android.app.AppOpsManager.MODE_ALLOWED;
         }catch(Exception|LinkageError unavailable){return false;}
     }
-    synchronized void setVideoAvailable(boolean value){videoEnabled=value;if(!value&&"video".equals(mode))stop();changed();}
-    public synchronized boolean available(){return enabled&&!closed&&!releaseUnknown;}
+    synchronized void setVideoAvailable(boolean value){videoEnabled=value;if(cameraOperationUnavailable())stop();changed();}
+    synchronized void setPrepareAvailable(boolean value){prepareEnabled=value;if(!value&&"prepare".equals(mode))stop();changed();}
+    private boolean prepareAvailable(){return prepareEnabled&&enabled&&pttEnabled&&available();}
+    private boolean cameraOperationUnavailable(){
+        String operation="prepare".equals(mode)?detail.optString("active_mode"):mode;
+        return !videoEnabled&&("video".equals(operation)||"photo".equals(operation));
+    }
+    public synchronized boolean available(){return (enabled||pttEnabled)&&!closed&&!releaseUnknown;}
     public synchronized boolean active(){return !id.isEmpty()||inflight||releaseUnknown;}
     private void changed(){
         JSONObject notice=snapshot();notice.remove("session");
@@ -101,18 +118,25 @@ public final class RemoteMediaSessions implements AutoCloseable {
     }
     void listener(Runnable listener){this.changed=listener;}
     public synchronized JSONArray modes(){
-        JSONArray result=new JSONArray();if(available()){result.put("microphone");if(videoEnabled)result.put("video");}return result;
+        JSONArray result=new JSONArray();if(available()){if(enabled){result.put("microphone");if(videoEnabled)result.put("video");}
+            if(pttEnabled)result.put("ptt");if(enabled&&pttEnabled)result.put("call");}return result;
     }
+    private boolean modeAvailable(String value){return "prepare".equals(value)?prepareAvailable():"ptt".equals(value)?pttEnabled:enabled&&(!"call".equals(value)||pttEnabled);}
     public synchronized JSONObject snapshot(){
         try{return new JSONObject().put("managed_media",available()).put("managed_media_modes",modes())
+                .put("managed_media_prepare_v1",prepareAvailable())
                 .put("session_id",id).put("mode",id.isEmpty()?"":mode).put("state",state).put("reason",reason)
                 .put("cleanup_complete",id.isEmpty()&&!inflight&&!releaseUnknown).put("session",new JSONObject(detail.toString()));
         }catch(JSONException impossible){throw new IllegalStateException(impossible);}
     }
     public synchronized void accept(JSONObject value){
+        accept(value,null);
+    }
+    public synchronized void accept(JSONObject value,JSONObject credentials){
         if(value==null||!available())return;
         final RtcOffer offer;
         try{offer=RtcOffer.parse(value,origin,clock.wall());}catch(Exception invalid){reason="MEDIA_OFFER_REJECTED";changed();return;}
+        if(!modeAvailable(offer.mode)){reason="MEDIA_MODE_NOT_AVAILABLE";changed();return;}
         if("video".equals(offer.mode)&&!videoEnabled){reason="MEDIA_VIDEO_CAPABILITY_NOT_READY";changed();return;}
         if(!id.isEmpty()||inflight)return;
         Iterator<Map.Entry<String,Long>> previous=seen.entrySet().iterator();
@@ -123,7 +147,9 @@ public final class RemoteMediaSessions implements AutoCloseable {
         deadline=clock.elapsed()+Math.min(45000,offer.expiresAt-clock.wall());detail=new JSONObject();
         try{
             if(bridge==null)bridge=factory.create();
-            bridge.start(hash,new JSONObject(value.toString()),callback(id,true));
+            JSONObject frozen=new JSONObject(value.toString());frozen.remove("_credentials");
+            if("prepare".equals(mode)&&credentials!=null)frozen.put("_credentials",new JSONObject(credentials.toString()));
+            bridge.start(hash,frozen,callback(id,true));
         }catch(Exception failure){inflight=false;reason="MEDIA_BRIDGE_START_FAILED";stop();}
         changed();
     }
@@ -142,16 +168,22 @@ public final class RemoteMediaSessions implements AutoCloseable {
                         .put("ice_connected",value.optBoolean("ice_connected"))
                         .put("capture_verified",value.optBoolean("capture_verified"))
                         .put("reason",reason).put("diagnostics",diagnostics(value.optJSONObject("diagnostics")))
-                        .put("cleanup_complete",value.optBoolean("cleanup_complete"));}catch(JSONException ignored){}
+                        .put("cleanup_complete",value.optBoolean("cleanup_complete"))
+                        .put("ptt_evidence",pttEvidence(value.optJSONObject("ptt_evidence")));
+                    if("call".equals(mode))appendCallState(detail,value);
+                    if("prepare".equals(mode))appendPreparedState(detail,value);
+                }catch(JSONException ignored){}
                 String cleanup=value.optString("cleanup_reason");
                 try{if(cleanup.matches("MEDIA_[A-Z0-9_]{1,80}"))detail.put("cleanup_reason",cleanup);}catch(JSONException ignored){}
                 if("closed".equals(actual)||"NOT_FOUND".equals(actual)){
                     state="closed";id="";stopping=false;if(closed&&bridge!=null){bridge.close();bridge=null;}return;
                 }
                 if("release_unconfirmed".equals(actual)){releaseUnknown=true;state=actual;return;}
-                if("streaming".equals(actual)&&!"streaming".equals(state)&&!stopping)deadline=clock.elapsed()+1800000;
+                if("prepare".equals(mode)){
+                    if(Boolean.TRUE.equals(value.opt("transport_ready"))&&!stopping)deadline=Long.MAX_VALUE;
+                }else if("streaming".equals(actual)&&!"streaming".equals(state)&&!stopping)deadline=clock.elapsed()+1800000;
                 state=actual;
-                if(closed||!enabled||stopping)stop();
+                if(closed||!modeAvailable(mode)||cameraOperationUnavailable()||stopping)stop();
                 }finally{changed();}
             }}
             public void failed(String code){synchronized(RemoteMediaSessions.this){
@@ -163,8 +195,69 @@ public final class RemoteMediaSessions implements AutoCloseable {
             }}
         };
     }
+    /** 待命连接只上报当前操作及活动状态；上传凭据不进入快照。 */
+    private static void appendPreparedState(JSONObject result,JSONObject value)throws JSONException {
+        for(String key:new String[]{"transport_ready","ready","capture_started","playback_started","video_started"})
+            if(value.opt(key) instanceof Boolean)result.put(key,value.opt(key));
+        Object operation=value.opt("operation");
+        if((operation instanceof Integer||operation instanceof Long)&&((Number)operation).longValue()>=0)result.put("operation",operation);
+        String active=value.optString("active_mode");
+        if(active.isEmpty()||Arrays.asList("ptt","call","microphone","video","photo","alarm").contains(active))result.put("active_mode",active);
+    }
+    /** 旧call状态仅透传严格布尔值；不将ready推断为语音内容已验收。 */
+    private static void appendCallState(JSONObject result,JSONObject value)throws JSONException {
+        for(String key:new String[]{"ready","subscribed","input_verified","output_verified","capture_frames_seen",
+                "playback_frames_seen","unmuted","input_ownership_required","output_ownership_required"})
+            if(value.opt(key) instanceof Boolean)result.put(key,value.opt(key));
+        if("speaker".equals(value.optString("route")))result.put("route","speaker");
+        result.put("local_recording",false).put("remote_audio_content","NOT_VERIFIED");
+    }
+    private static JSONObject pttEvidence(JSONObject source)throws JSONException {
+        JSONObject result=new JSONObject();if(source==null)return result;
+        for(String key:new String[]{"complete_pairs","saved_samples"}){
+            Object value=source.opt(key);if(value instanceof Integer&&(Integer)value>=0)result.put(key,value);
+        }
+        String error=source.optString("evidence_error");
+        if(error.matches("[A-Z0-9_]{0,100}"))result.put("evidence_error",error);
+        JSONObject playback=source.optJSONObject("playback");
+        if(playback!=null){
+            JSONObject selected=diagnostics(playback);
+            for(String key:new String[]{"subscribed","ice_connected","actual_remote_track","playback_started","playback_frames_seen","ready"})
+                if(playback.opt(key) instanceof Boolean)selected.put(key,playback.opt(key));
+            JSONObject shape=playback.optJSONObject("subscription_shape");
+            if(shape!=null){
+                JSONObject compact=new JSONObject();
+                for(String key:new String[]{"error_code_type","tracks_type","track_error_type","location_type"}){
+                    String value=shape.optString(key);if(value.matches("[A-Z_]{1,32}"))compact.put(key,value);
+                }
+                for(String key:new String[]{"location_remote","track_name_audio","mid_valid"})
+                    if(shape.opt(key) instanceof Boolean)compact.put(key,shape.opt(key));
+                if(shape.opt("track_count") instanceof Integer)compact.put("track_count",shape.opt("track_count"));
+                selected.put("subscription_shape",compact);
+            }
+            result.put("playback",selected);
+        }
+        JSONObject observer=source.optJSONObject("output_observer");
+        if(observer!=null){
+            JSONObject selected=new JSONObject();
+            for(String key:new String[]{"idle_wait_ms","idle_wait_attempts"}){
+                Object value=observer.opt(key);if(value instanceof Number&&((Number)value).longValue()>=0)selected.put(key,value);
+            }
+            for(String key:new String[]{"idle_wait_reason","idle_wait_first_reason","observer_error"}){
+                String value=observer.optString(key);if(value.matches("[A-Z0-9_]{0,100}"))selected.put(key,value);
+            }
+            for(String key:new String[]{"route_restored","late_route_restore"})
+                if(observer.opt(key) instanceof Boolean)selected.put(key,observer.opt(key));
+            result.put("output_observer",selected);
+        }
+        return result;
+    }
     private static JSONObject diagnostics(JSONObject source)throws JSONException {
         JSONObject result=new JSONObject();if(source==null)return result;
+        String stage=source.optString("failed_stage");
+        if(java.util.Arrays.asList("OPEN","PUBLISH","APPLY_PUBLISH","SUBSCRIBE","NEGOTIATION","ACTIVATE","BEFORE_ACTIVATE",
+                "ROUTE_OPEN","BACKEND_ACTIVATE","HARDWARE_STOP","ROUTE_RECOVER","AFTER_DEACTIVATE","SWITCH_CAMERA").contains(stage)
+                ||stage.matches("MEDIA_PREPARED_[A-Z0-9_]{1,80}"))result.put("failed_stage",stage);
         JSONObject pcm=source.optJSONObject("pcm"),video=source.optJSONObject("video");
         if(pcm!=null){
             JSONObject selected=new JSONObject();

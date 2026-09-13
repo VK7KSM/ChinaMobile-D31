@@ -113,7 +113,7 @@ final class LocalAudioCapture {
             String code=failure.getMessage();error=failure instanceof SecurityException?"MEDIA_LOCAL_AUDIO_PERMISSION_DENIED"
                     :code!=null&&code.matches("MEDIA_[A-Z0-9_]{1,80}")?code:failure.getClass().getSimpleName();
             if(durationEnded&&!cancellationRequested&&!requestCancellation.isCancelled()
-                    &&("MEDIA_CANCELLED".equals(code)||failure instanceof InterruptedException)){
+                    &&("MEDIA_CANCELLED".equals(code)||"MEDIA_LOCAL_AUDIO_NO_DATA".equals(code)||failure instanceof InterruptedException)){
                 outcome=bytes>0?"COMPLETED":"FAILED";error=bytes>0?"":"MEDIA_LOCAL_AUDIO_NO_DATA";
             }else if(!"TIMED_OUT".equals(outcome))outcome=cancellation.isCancelled()||requestCancellation.isCancelled()||failure instanceof InterruptedException?"CANCELLED"
                     :"MEDIA_LOCAL_AUDIO_TIMEOUT".equals(code)?"TIMED_OUT":"FAILED";

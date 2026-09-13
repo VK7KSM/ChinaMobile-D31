@@ -16,7 +16,7 @@ public final class AlarmCoreOwner implements AutoCloseable {
     public AlarmCoreOwner(Context context,File privateMediaRoot,AudioGuard combinedGuard,AlarmTasks.Changed changed)throws Exception {
         thread=new HandlerThread("d31-alarm-owner");thread.start();handler=new Handler(thread.getLooper());
         try{
-            AndroidAlarm platform=new AndroidAlarm(context,handler);
+            AndroidAlarm platform=new AndroidAlarm(context,handler,combinedGuard);
             alarm=new AlarmTasks(privateMediaRoot,platform,platform,combinedGuard,AndroidMediaDevice.CLOCK,changed);
         }catch(Exception failure){thread.quitSafely();throw failure;}
     }

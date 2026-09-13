@@ -137,9 +137,25 @@ final class AppMediaBackend implements AppMediaController.Backend,AutoCloseable 
     }
     public AppMediaController.Session create(String hash,RtcOffer offer,Cancellation cancel)throws Exception {
         cancel.check();File apk=verifiedApk(hash);final AudioGuard current=guard();
-        if(current instanceof AndroidAudioOccupancy)((AndroidAudioOccupancy)current).awaitFirstSample(1500);
-        current.requireIdle();cancel.check();
+        // 持久连接在自己的准备阶段核对占用并取得路由，单项复用；其余模式保持原前检。
+        if(!"prepare".equals(offer.mode)){
+            if(current instanceof AndroidAudioOccupancy)((AndroidAudioOccupancy)current).awaitFirstSample(1500);
+            current.requireIdle();
+        }
+        cancel.check();
         File files=appDirectory(app.getFilesDir()),codeCache=appDirectory(app.getCodeCacheDir());
+        return createSession(apk,hash,files,codeCache,current,offer);
+    }
+    /** 已完成APP身份及空闲前检后的模式工厂；会话构造不启动硬件或传输。 */
+    AppMediaController.Session createSession(File apk,String hash,File files,File codeCache,AudioGuard current,RtcOffer offer)throws Exception {
+        if("prepare".equals(offer.mode))
+            return new AppPreparedSession(app,files,new File(codeCache,"media-native"),apk,hash,offer,AndroidMediaDevice.CLOCK,current);
+        if("call".equals(offer.mode))
+            return new AppCallSession(files,offer,AndroidMediaDevice.CLOCK,
+                    AndroidCallOperations.factory(app,apk,hash,new File(codeCache,"media-native"),AndroidMediaDevice.CLOCK));
+        if("ptt".equals(offer.mode))
+            return new AppPttSession(app,files,new File(codeCache,"media-native"),apk,hash,offer,AndroidMediaDevice.CLOCK);
+        if(!"microphone".equals(offer.mode)&&!"video".equals(offer.mode))throw new IOException("MEDIA_MODE_NOT_IMPLEMENTED");
         final AppMediaRtcGuard rtcGuard=new AppMediaRtcGuard(app,current,new File(files,"media/rtc-diagnostics"),offer.id,hash);
         final AndroidRtcMicrophone peer=new AndroidRtcMicrophone(app,apk,hash,new File(codeCache,"media-native"),AndroidMediaDevice.CLOCK,offer);
         peer.inputGuard(rtcGuard);

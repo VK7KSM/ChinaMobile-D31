@@ -4,21 +4,24 @@ import java.io.IOException;
 import java.net.URI;
 import org.json.JSONObject;
 
-/** 接受已实现的单向媒体会话；鉴权字段不进入快照或日志。 */
+/** 本地媒体会话合同；云端能力独立验收，鉴权字段不进入快照或日志。 */
 public final class RtcOffer {
     public final String id;
     public final URI uri;
     public final long expiresAt;
     public final String mode, camera;
     final String token;
-    private RtcOffer(String id, URI uri, long expiry, String token, String mode, String camera) {
+    private final String uploadCredentials;
+    private RtcOffer(String id, URI uri, long expiry, String token, String mode, String camera, JSONObject identity) {
         this.id=id; this.uri=uri; this.expiresAt=expiry; this.token=token;this.mode=mode;this.camera=camera;
+        uploadCredentials=identity==null?null:identity.toString();
     }
+    JSONObject uploadIdentity()throws Exception{return uploadCredentials==null?null:new JSONObject(uploadCredentials);}
     public static RtcOffer parse(JSONObject value, URI controlOrigin, long now) throws Exception {
-        if(value==null || !("microphone".equals(value.optString("mode"))||"video".equals(value.optString("mode"))))
+        if(value==null || !supportsMode(value.optString("mode")))
             throw new IOException("MEDIA_MODE_NOT_IMPLEMENTED");
         String camera=value.optString("camera","front");
-        if("video".equals(value.optString("mode"))&&!"front".equals(camera)&&!"back".equals(camera))
+        if(("video".equals(value.optString("mode"))||"prepare".equals(value.optString("mode")))&&!"front".equals(camera)&&!"back".equals(camera))
             throw new IOException("MEDIA_CAMERA_INVALID");
         if(controlOrigin==null || !"https".equals(controlOrigin.getScheme()) || controlOrigin.getHost()==null
                 || controlOrigin.getUserInfo()!=null || controlOrigin.getQuery()!=null || controlOrigin.getFragment()!=null
@@ -33,7 +36,11 @@ public final class RtcOffer {
                 || port(uri)!=port(controlOrigin) || uri.getRawUserInfo()!=null || uri.getRawFragment()!=null
                 || !"/api/elfremote/media/device".equals(uri.getRawPath())
                 || !("session_id="+id).equals(uri.getRawQuery())) throw new IOException("MEDIA_ENDPOINT_REJECTED");
-        return new RtcOffer(id,uri,expiry,token,value.getString("mode"),camera);
+        return new RtcOffer(id,uri,expiry,token,value.getString("mode"),camera,
+                "prepare".equals(value.getString("mode"))?value.optJSONObject("_credentials"):null);
     }
     private static int port(URI uri){return uri.getPort()<0?443:uri.getPort();}
+    static boolean supportsMode(String mode){
+        return "microphone".equals(mode)||"video".equals(mode)||"ptt".equals(mode)||"call".equals(mode)||"prepare".equals(mode);
+    }
 }

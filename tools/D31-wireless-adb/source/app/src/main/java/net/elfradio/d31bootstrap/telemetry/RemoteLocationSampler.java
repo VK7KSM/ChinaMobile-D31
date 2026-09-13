@@ -24,6 +24,9 @@ public final class RemoteLocationSampler implements AutoCloseable {
     private String radio;
     private String cacheRecheck;
     private long radioWall, radioElapsed;
+    private boolean holdingRadio;
+    private String pendingRadio;
+    private long pendingRadioWall, pendingRadioElapsed;
 
     public RemoteLocationSampler(Context context, Runnable changed) {
         this(new Source() {
@@ -48,15 +51,19 @@ public final class RemoteLocationSampler implements AutoCloseable {
         if (closed || active || clock.elapsedRealtimeNanos() < nextNanos) return false;
         active = true;
         cacheRecheck = null;
+        JSONObject previous = reportRadio(radio, radioWall, radioElapsed);
+        holdingRadio = previous != null && previous.optJSONArray("wifiAccessPoints").length() >= 2;
+        pendingRadio = null;
         nextNanos = clock.elapsedRealtimeNanos() + INTERVAL_MS * 1000000L;
         worker.execute(() -> {
             try {
                 TelemetryCollector.LocationReading initial = readStage(0, true);
                 long initialCompleted = clock.elapsedRealtimeNanos();
+                boolean recheck = needsCacheRecheck(initial);
                 publish(initial);
                 if (!isClosed() && !Thread.currentThread().isInterrupted()) {
                     publish(readStage(GPS_WINDOW_MS, false));
-                    if (needsCacheRecheck(initial) && !isClosed() && !Thread.currentThread().isInterrupted()) {
+                    if (recheck && !isClosed() && !Thread.currentThread().isInterrupted()) {
                         // GPS可提前结束；仅定位工作线程等待已发出的扫描，不延长任何桥回包预算。
                         long delay = cacheRecheckDelayMs(initialCompleted, clock.elapsedRealtimeNanos());
                         if (delay > 0) Thread.sleep(delay);
@@ -66,7 +73,10 @@ public final class RemoteLocationSampler implements AutoCloseable {
             } catch (InterruptedException cancelled) { Thread.currentThread().interrupt(); }
             catch (Exception unavailable) {
                 publish(new TelemetryCollector.LocationReading(null, "provider_unavailable", false));
-            } finally { synchronized (RemoteLocationSampler.this) { active = false; } }
+            } finally {
+                finishRadioRound();
+                synchronized (RemoteLocationSampler.this) { active = false; }
+            }
         });
         return true;
     }
@@ -78,10 +88,38 @@ public final class RemoteLocationSampler implements AutoCloseable {
         return now < completed ? 0 : Math.max(0, 3000 - (now - completed) / 1000000L);
     }
 
-    private static boolean needsCacheRecheck(TelemetryCollector.LocationReading initial) {
+    private boolean needsCacheRecheck(TelemetryCollector.LocationReading initial) {
         if (initial == null || initial.radio == null) return false;
-        try { return "no_fresh_results_before_deadline".equals(new JSONObject(initial.radio).optString("wifi_scan_result")); }
+        try {
+            JSONObject observed = RemoteLocationRadio.validated(new JSONObject(initial.radio), clock.wallTimeMillis());
+            String result = observed.optString("wifi_scan_result");
+            return "no_fresh_results_before_deadline".equals(result) || ("results_updated".equals(result)
+                    && observed.getJSONArray("wifiAccessPoints").length() < 2);
+        }
         catch (Exception invalid) { return false; }
+    }
+
+    private JSONObject reportRadio(String value, long wall, long elapsed) {
+        if (value == null) return null;
+        long elapsedAge = clock.elapsedRealtimeNanos() - elapsed, wallAge = clock.wallTimeMillis() - wall;
+        if (elapsedAge < 0 || wallAge < 0 || Math.abs(wallAge - elapsedAge / 1000000L) > 1000) return null;
+        try { return RemoteLocationRadio.forReport(new JSONObject(value), clock.wallTimeMillis()); }
+        catch (Exception invalid) { return null; }
+    }
+
+    private void finishRadioRound() {
+        boolean notify = false;
+        synchronized (this) {
+            if (holdingRadio) {
+                // 只提交本轮已准入的原观测；失败或时钟失稳不能让上一轮Wi-Fi无限续留。
+                JSONObject fallback = reportRadio(pendingRadio, pendingRadioWall, pendingRadioElapsed);
+                String next = fallback == null ? null : fallback.toString();
+                notify = !java.util.Objects.equals(radio, next);
+                radio = next; radioWall = pendingRadioWall; radioElapsed = pendingRadioElapsed;
+                holdingRadio = false; pendingRadio = null;
+            }
+        }
+        notifyChanged(notify);
     }
 
     private void recheckCachedRadio() throws InterruptedException {
@@ -141,27 +179,42 @@ public final class RemoteLocationSampler implements AutoCloseable {
                 try {
                     long nowWall = clock.wallTimeMillis(), nowElapsed = clock.elapsedRealtimeNanos();
                     JSONObject observed = RemoteLocationRadio.validated(new JSONObject(reading.radio), nowWall);
-                    if (radioOnly && radio != null && observed.getJSONArray("cellTowers").length() == 0) {
-                        long elapsed = nowElapsed - radioElapsed, wall = nowWall - radioWall;
-                        if (elapsed >= 0 && wall >= 0 && Math.abs(wall - elapsed / 1000000L) <= 1000) {
-                            try {
-                                // 旧小区重新经过120秒准入，不能借十五分钟报告有效期变成新观测。
-                                JSONObject previous = RemoteLocationRadio.validated(new JSONObject(radio), nowWall);
-                                if (previous.getJSONArray("cellTowers").length() > 0) {
-                                    observed.put("cellTowers", previous.getJSONArray("cellTowers"))
-                                            .put("radioType", previous.getString("radioType"))
-                                            .put("cell_reason", previous.optString("cell_reason", "observed"))
-                                            .put("sampled_at_ms", Math.min(observed.getLong("sampled_at_ms"), previous.getLong("sampled_at_ms")));
-                                }
-                            } catch (Exception rejectedOldCells) { /* 旧观测无效不影响已验证的新Wi-Fi。 */ }
+                    if (holdingRadio && !radioOnly && observed.getJSONArray("wifiAccessPoints").length() < 2
+                            && !"wifi_disabled".equals(observed.optString("wifi_reason"))
+                            && !"wifi_disabled".equals(observed.optString("wifi_scan_result"))
+                            && reportRadio(radio, radioWall, radioElapsed) != null) {
+                        pendingRadio = observed.toString(); pendingRadioWall = nowWall; pendingRadioElapsed = nowElapsed;
+                    } else {
+                        String previousRadio = holdingRadio ? pendingRadio : radio;
+                        long previousWall = holdingRadio ? pendingRadioWall : radioWall;
+                        long previousElapsed = holdingRadio ? pendingRadioElapsed : radioElapsed;
+                        if (radioOnly && previousRadio != null && observed.getJSONArray("cellTowers").length() == 0) {
+                            long elapsed = nowElapsed - previousElapsed, wall = nowWall - previousWall;
+                            if (elapsed >= 0 && wall >= 0 && Math.abs(wall - elapsed / 1000000L) <= 1000) {
+                                try {
+                                    // 旧小区重新经过120秒准入，不能借十五分钟报告有效期变成新观测。
+                                    JSONObject previous = RemoteLocationRadio.validated(new JSONObject(previousRadio), nowWall);
+                                    if (previous.getJSONArray("cellTowers").length() > 0) {
+                                        observed.put("cellTowers", previous.getJSONArray("cellTowers"))
+                                                .put("radioType", previous.getString("radioType"))
+                                                .put("cell_reason", previous.optString("cell_reason", "observed"))
+                                                .put("sampled_at_ms", Math.min(observed.getLong("sampled_at_ms"), previous.getLong("sampled_at_ms")));
+                                    }
+                                } catch (Exception rejectedOldCells) { /* 旧观测无效不影响已验证的新Wi-Fi。 */ }
+                            }
                         }
+                        String validated = observed.toString();
+                        notify |= !validated.equals(radio);
+                        radio = validated; radioWall = nowWall; radioElapsed = nowElapsed;
+                        holdingRadio = false; pendingRadio = null;
                     }
-                    String validated = observed.toString();
-                    notify |= !validated.equals(radio);
-                    radio = validated; radioWall = nowWall; radioElapsed = nowElapsed;
                 } catch (Exception rejected) { /* 无效无线数据不替代已有新鲜观测。 */ }
             }
         }
+        notifyChanged(notify);
+    }
+
+    private void notifyChanged(boolean notify) {
         if (notify && !isClosed()) {
             try { changed.run(); } catch (RuntimeException unavailable) { /* 唤醒失败不能泄漏定位服务。 */ }
         }
@@ -193,13 +246,8 @@ public final class RemoteLocationSampler implements AutoCloseable {
                     !latest.listenerReleased ? "cleanup_failed" : latest.fix == null ? latest.reason : invalid);
         }
         result.put("radio", JSONObject.NULL);
-        if (radio != null) {
-            long elapsed = clock.elapsedRealtimeNanos() - radioElapsed, wall = clock.wallTimeMillis() - radioWall;
-            if (elapsed >= 0 && wall >= 0 && Math.abs(wall - elapsed / 1000000L) <= 1000) {
-                try { result.put("radio", RemoteLocationRadio.forReport(new JSONObject(radio), clock.wallTimeMillis())); }
-                catch (IllegalArgumentException stale) { /* 不能将旧扫描续期为本次报告时间。 */ }
-            }
-        }
+        JSONObject usableRadio = reportRadio(radio, radioWall, radioElapsed);
+        if (usableRadio != null) result.put("radio", usableRadio);
         return result;
     }
 
@@ -238,5 +286,10 @@ public final class RemoteLocationSampler implements AutoCloseable {
     }
 
     public synchronized boolean isActive() { return active; }
-    @Override public synchronized void close() { closed = true; worker.shutdownNow(); }
+    @Override public synchronized void close() {
+        closed = true;
+        if (holdingRadio) radio = null;
+        holdingRadio = false; pendingRadio = null;
+        worker.shutdownNow();
+    }
 }

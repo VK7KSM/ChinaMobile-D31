@@ -17,6 +17,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
@@ -42,6 +43,15 @@
         <service
             android:name=".telemetry.LocationCacheService"
             android:exported="false" />
+        <activity
+            android:name=".media.AlarmActivity"
+            android:process=":alarmui"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity="net.elfradio.d31bootstrap.alarmui"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density|fontScale"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"

@@ -33,4 +33,12 @@ public class AppMediaPcmStatsTest {
         JSONObject value=stats.snapshot();assertEquals(6,value.getLong("invalid_callbacks"));
         assertEquals(0,value.getLong("pcm_frames"));assertEquals(0,value.getDouble("rms"),0);
     }
+    @Test public void downlinkAcceptsOnlyItsDeclaredRateAndDoesNotKeepAudio()throws Exception{
+        AppMediaPcmStats stats=new AppMediaPcmStats(48000);byte[] data={0,64,0,(byte)192};
+        stats.accept(data,2,1,48000,true);stats.accept(data,2,1,16000,true);
+        JSONObject value=stats.snapshot();assertEquals(48000,value.getInt("sample_rate"));
+        assertEquals(2,value.getLong("samples"));assertEquals(1,value.getLong("invalid_callbacks"));
+        assertEquals(0.5,value.getDouble("peak"),0);assertEquals(0.5,value.getDouble("rms"),0);
+        assertFalse(value.getBoolean("contains_audio"));assertFalse(value.getBoolean("used_for_authorization"));
+    }
 }

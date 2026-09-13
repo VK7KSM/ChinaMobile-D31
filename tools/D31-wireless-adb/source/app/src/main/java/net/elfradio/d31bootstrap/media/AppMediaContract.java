@@ -36,7 +36,7 @@ final class AppMediaContract {
         if("query".equals(op)&&!value.optString("session_id").matches("[A-Za-z0-9_-]{0,96}"))throw new IOException("MEDIA_BRIDGE_SESSION_ID");
         if("start".equals(op)){
             String mode=value.getJSONObject("offer").optString("mode");
-            if(!"microphone".equals(mode)&&!"video".equals(mode))throw new IOException("MEDIA_MODE_NOT_IMPLEMENTED");
+            if(!RtcOffer.supportsMode(mode))throw new IOException("MEDIA_MODE_NOT_IMPLEMENTED");
         }
         return value;
     }

@@ -92,20 +92,60 @@ def render(report):
              '这是两份既有清单的历史证据对照，不是三方诊断、开发板冻结或刷机验收。', '',
              f"已知路径{counts['knownPaths']}；交集{counts['intersectionPaths']}；采集单边{counts['observationOnlyPaths']}；固件单边{counts['firmwareOnlyPaths']}。单边不自动等于缺失。", '',
              '| 类别 | 字段对 | 原始值相同 | 原始值不同 | 证据不足 |', '| --- | --- | --- | --- | --- |']
-    names = {'PRESENCE': '存在证据', 'FILE_CONTENT': '文件内容', 'METADATA': '元数据',
+    names = {'PRESENCE': '存在证据', 'FILE_CONTENT': '文件内容', 'METADATA': '元数据', 'INVENTORY': '目录枚举',
              'CONFIGURATION_SEMANTICS': '配置语义', 'ACTIVATION': '实际生效来源', 'PERSONAL_DATA': '已脱敏个人数据'}
     for key, value in report['categories'].items():
         lines.append(f"| {names[key]} | {value['total']} | {value['SAME']} | {value['DIFFERENT']} | {value['UNKNOWN']} |")
     lines += ['', '## 缺口与边界', '',
+              '- 配置语义：' + ('未取得可计入配置语义类别的字段证据。'
+                              if 'CONFIGURATION_SEMANTICS_NOT_COLLECTED' in report['gaps']
+                              else '仅统计已提供字段，未证明配置完整或修复完成。'),
               '- 原始值、采集来源字符串及身份未复制；路径和字段名仍可能敏感，报告仅作私有证据。',
               '- 脱敏、不适用、未检查、读取失败和不稳定均不算相同；原因计数可能重叠。',
               '- 未应用基准审批、最大快照年龄规则及允许差异规则，不能据此执行自动修复。',
               '- 完整文件树、分区聚合和运行验证未完成；未出现语义字段时不表示配置一致。',
+              '- semantic.enumeration仅表示目录枚举证据，不计入配置语义覆盖；配置语义字段对数量不代表完整配置已采集。',
               '- JSON的entries包含全部已知路径及逐字段缺口；引用按inputs的原件摘要和manifestPointer追溯。', '',
               '## 上下文与时效', '',
               f"采集时效：`{report['observation']['freshness']}`；固件时效：`{report['firmware']['freshness']}`。", '',
               '绑定差异字段：' + '、'.join(k for k, v in report['bindingEqual'].items() if not v), '',
               '条件差异字段：' + '、'.join(k for k, v in report['contextEqual'].items() if not v), '']
+    configuration = report.get('configurationCoverage')
+    if configuration is not None:
+        lines += ['', '## 有限配置必检目录', '']
+        if configuration.get('catalogId') != 'd31-finite-configuration' or configuration.get('catalogVersion') not in (1, 2, 3):
+            lines += ['当前工具不支持此必检目录版本；不能据此认定配置覆盖完整。']
+        else:
+            labels = {'system_support.root': '系统支持ROOT', 'system_support.disabled': '系统支持禁用条件',
+                      'recovery.enabled': 'Recovery启用条件', 'startup.cellular_enabled': '蜂窝启动配置',
+                      'rescue.enabled': '救援启用条件', 'desktop.config_tab': '桌面布局配置',
+                      'initialization.components': '初始化组件状态', 'initialization.permissions': '初始化权限结果',
+                      'initialization.completion': '初始化完成条件'}
+            states = {'OBSERVED': '已有原始证据', 'NOT_CHECKED': '未检查', 'READ_FAILED': '读取失败',
+                      'UNSTABLE': '不稳定', 'REDACTED': '已脱敏', 'NOT_APPLICABLE': '不适用声明未核验'}
+            reasons = {'CONFIGURATION_FIELD_CONTRACT_NOT_DEFINED': '字段合同尚未定义',
+                       'OBSERVATION_EVIDENCE_INSUFFICIENT': '采集侧证据不足',
+                       'FIRMWARE_EVIDENCE_INSUFFICIENT': '固件侧证据不足',
+                       'RAW_VALUES_ONLY_NO_ALLOWED_DIFFERENCE_RULES': '仅比较原始值，未应用允许差异规则',
+                       'OUTSIDE_SCOPE': '不在采集范围', 'PATH_NOT_LISTED': '路径未列入清单',
+                       'PRESENCE_NOT_CONFIRMED': '存在状态未确认', 'FIELD_NOT_COLLECTED': '未采集字段',
+                       'CONFIGURATION_VALUE_TYPE_UNSUPPORTED': '配置值类型不符合已定义合同',
+                       'APPLICABILITY_RULE_NOT_VERIFIED': '适用性规则未核验'}
+            lines += [f"目录版本{configuration['catalogVersion']}；必检{configuration['requiredItems']}项，双方有证据{configuration['bothObservedItems']}项，"
+                      f"缺口{configuration['gapItems']}项。仅为九项有限目录，未核验适用性，不代表配置全部覆盖。", '',
+                      '| 项目 | 采集侧 | 固件侧 | 原始关系 | 不足或边界 |', '| --- | --- | --- | --- | --- |']
+            for item in configuration['items']:
+                detail = [reasons.get(code, '未知不足理由') for code in item['reasons']]
+                for side, title in (('observation', '采集侧'), ('firmware', '固件侧')):
+                    for code in item[side]['reasons']:
+                        if code in reasons and code != 'CONFIGURATION_FIELD_CONTRACT_NOT_DEFINED':
+                            detail.append(title + '：' + reasons[code])
+                relation = {'SAME': '原始值相同', 'DIFFERENT': '原始值不同', 'UNKNOWN': '未知'}.get(item['pair'], '未知')
+                left = states.get(item['observation']['state'], '未知状态')
+                right = states.get(item['firmware']['state'], '未知状态')
+                lines.append(f"| {labels.get(item['id'], '未知项目')} | {left} | {right} | {relation} | {'；'.join(detail)} |")
+    else:
+        lines += ['', '## 有限配置必检目录', '', '旧报告未提供版本化必检目录，不能据此认定九项配置已覆盖。']
     return '\n'.join(lines)
 
 

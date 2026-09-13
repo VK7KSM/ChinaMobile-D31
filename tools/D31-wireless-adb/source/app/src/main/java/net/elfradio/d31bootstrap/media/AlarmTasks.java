@@ -6,7 +6,7 @@ import org.json.JSONObject;
 /** 必须由单一长驻core持有；accept立即返回，不能在短命exec中创建后退出。 */
 public final class AlarmTasks implements AutoCloseable {
     public static final int DURATION_MS=10000;
-    public interface Tone extends AutoCloseable { void close() throws Exception; }
+    public interface Tone extends AutoCloseable { void close() throws Exception; default boolean isActive(){return true;} }
     public interface Player { Tone start(int durationMs) throws Exception; }
     public interface Ticket { void cancel(); }
     public interface Scheduler { Ticket after(Runnable callback,long delayMs) throws Exception; }
@@ -70,7 +70,7 @@ public final class AlarmTasks implements AutoCloseable {
     private synchronized void pump(final long token) {
         if(token!=generation||tone==null)return;
         try {
-            if(clock.elapsed()>=deadline){finish("completed");return;}
+            if(!tone.isActive()||clock.elapsed()>=deadline){finish("completed");return;}
             guard.requireIdle();
             ticket=scheduler.after(new Runnable(){public void run(){pump(token);}},Math.min(100,deadline-clock.elapsed()));
             if(ticket==null)throw new IOException("ALARM_TIMER_UNAVAILABLE");

@@ -1,6 +1,5 @@
 package net.elfradio.d31bootstrap.telemetry;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 /** 只建立明确的报告/实际采集关联，不拍摄、不上传、不为设备录音虚构浏览器媒体协议。 */
@@ -11,14 +10,8 @@ public final class MediaAssociation {
     public static String automaticPhotoEligibility(JSONObject frozenReport, JSONObject reply) throws Exception {
         String id = TelemetryJson.id(frozenReport.getString("report_id"));
         if (reply == null || !Boolean.TRUE.equals(reply.opt("ok")) || !id.equals(reply.optString("report_id"))) return "REPORT_NOT_ACKNOWLEDGED";
-        if ("wifi".equals(frozenReport.optString("network"))) return "ELIGIBLE";
-        JSONObject event = frozenReport.optJSONObject("report_event");
-        if (event != null && "low_battery".equals(event.optString("type")) && event.opt("level") instanceof Number
-                && (event.getDouble("level") == 0 || event.getDouble("level") == 1)) {
-            JSONArray thresholds = event.optJSONArray("thresholds");
-            if (thresholds != null) for (int i = 0; i < thresholds.length(); i++)
-                if (thresholds.opt(i) instanceof Number && thresholds.getDouble(i) == 2) return "ELIGIBLE";
-        }
+        String network = frozenReport.optString("network");
+        if ("wifi".equals(network) || "ethernet".equals(network)) return "ELIGIBLE";
         return "SERVER_NETWORK_POLICY_REJECTED";
     }
     /** 对应report-photo的现有查询/校验字段；设备身份与Bearer凭据由既有上传入口另行添加。 */

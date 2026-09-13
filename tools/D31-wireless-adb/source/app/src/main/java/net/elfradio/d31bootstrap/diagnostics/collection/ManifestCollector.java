@@ -6,6 +6,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -18,7 +19,7 @@ import static net.elfradio.d31bootstrap.diagnostics.collection.CollectionSupport
 
 /** 按需采集单个明确范围；只证明本轮有界观察，不证明原子快照或全系统一致。 */
 public final class ManifestCollector {
-    public static final String VERSION = "d31-collection-1";
+    public static final String VERSION = "d31-collection-4";
     private final CollectionAccess access;
     private final CollectionAccess.Clock clock;
 
@@ -90,11 +91,12 @@ public final class ManifestCollector {
         final CollectionLimits limits;
         final Budget budget;
         final String source;
+        final String scope;
         int outputChars;
         boolean stopped;
 
         Session(JSONObject base, String scope, String source, CollectionLimits limits) {
-            this.source = source; this.limits = limits;
+            this.source = source; this.scope = scope; this.limits = limits;
             budget = new Budget(clock, limits.durationMs, limits.maxReadBytes);
             outputChars = base.toString().length() + 8192 + limits.maxDepth * 512;
         }
@@ -126,6 +128,11 @@ public final class ManifestCollector {
             entry.put("presence", observed("PRESENT", source));
             String[] unknown = {"sha256", "link", "selinux", "xattrs", "activeSource", "mountSource", "activation"};
             for (String name : unknown) fields.put(name, missing("NOT_CHECKED", "EVIDENCE_NOT_COLLECTED", source));
+            if (file.equals(SystemSupportConfiguration.PATH))
+                fields.put(SystemSupportConfiguration.FIELD, missing("NOT_CHECKED", "REGULAR_SCRIPT_NOT_CONFIRMED", source));
+            String switchField = ConfigurationSwitches.field(file);
+            if (switchField != null)
+                fields.put(switchField, missing("NOT_CHECKED", "REGULAR_SCRIPT_NOT_CONFIRMED", source));
             fields.put("type", before.type.equals("unsupported") ? missing("NOT_CHECKED", "UNSUPPORTED_FILE_TYPE", source) : observed(before.type, source))
                     .put("mode", observed(String.format(Locale.US, "%04o", before.mode), source))
                     .put("uid", observed(before.uid, source)).put("gid", observed(before.gid, source));
@@ -136,10 +143,18 @@ public final class ManifestCollector {
                     fields.put("link", missing("NOT_APPLICABLE", "REGULAR_FILE", source));
                     if (before.size > limits.maxFileBytes) throw new CollectionAccess.Failure("FILE_BYTE_LIMIT");
                     if (before.size > (limits.maxReadBytes - budget.readBytes) / 2) throw new CollectionAccess.Failure("BYTE_LIMIT");
-                    String first = hash(file, before), second = hash(file, before);
+                    ByteArrayOutputStream configuration = switchField != null
+                            && before.size <= SystemSupportConfiguration.MAX_BYTES ? new ByteArrayOutputStream() : null;
+                    String first = hash(file, before, configuration), second = hash(file, before, null);
                     if (!first.equals(second) || !before.same(access.lstat(file))) throw new CollectionAccess.Failure("UNSTABLE_FILE");
                     budget.remainingMs();
                     fields.put("sha256", observed(first, source));
+                    if (file.equals(SystemSupportConfiguration.PATH))
+                        fields.put(SystemSupportConfiguration.FIELD, SystemSupportConfiguration.evidence(
+                                configuration == null ? null : configuration.toByteArray(), source));
+                    if (switchField != null)
+                        fields.put(switchField, switchEvidence(file, before,
+                                configuration == null ? null : configuration.toByteArray()));
                 } else if (before.type.equals("symlink")) {
                     fields.put("sha256", missing("NOT_APPLICABLE", "SYMLINK_NOT_FOLLOWED", source));
                     budget.remainingMs();
@@ -179,6 +194,9 @@ public final class ManifestCollector {
                 if (before.type.equals("file")) fields.put("sha256", missing(state, code, source));
                 else if (before.type.equals("symlink")) fields.put("link", missing(state, code, source));
                 else fields.put("semantic.enumeration", missing(state, code, source));
+                if (file.equals(SystemSupportConfiguration.PATH))
+                    fields.put(SystemSupportConfiguration.FIELD, missing(state, code, source));
+                if (switchField != null) fields.put(switchField, missing(state, code, source));
                 if (state.equals("UNSTABLE")) {
                     for (String name : new String[]{"type", "mode", "uid", "gid"}) fields.put(name, missing("UNSTABLE", code, source));
                 }
@@ -187,6 +205,63 @@ public final class ManifestCollector {
         }
 
         void add(JSONObject entry) { entries.put(entry); outputChars += entry.toString().length() + 1; }
+
+        JSONObject switchEvidence(String script, CollectionAccess.Stat expected, byte[] bytes) throws JSONException {
+            String marker = ConfigurationSwitches.marker(script, bytes);
+            if (marker == null) return ConfigurationSwitches.evidence(script, bytes, "NOT_CHECKED", source);
+            if (!(scope.equals("/") || marker.equals(scope) || marker.startsWith(scope + "/")))
+                return missing("NOT_CHECKED", "SWITCH_MARKER_OUTSIDE_SCOPE", source);
+            try {
+                budget.remainingMs();
+                String parent = marker.substring(0, marker.lastIndexOf('/'));
+                CollectionAccess.Stat directory = access.lstat(parent);
+                if (directory == null || !"directory".equals(directory.type))
+                    throw new CollectionAccess.Failure("DIRECTORY_REQUIRED");
+                String consumer = ConfigurationSwitches.consumer(script), consumerHash = null;
+                CollectionAccess.Stat consumerStat = null;
+                if (consumer != null) {
+                    if (!(scope.equals("/") || consumer.equals(scope) || consumer.startsWith(scope + "/")))
+                        return missing("NOT_CHECKED", "SWITCH_CONSUMER_OUTSIDE_SCOPE", source);
+                    budget.remainingMs();
+                    consumerStat = access.lstat(consumer);
+                    if (consumerStat == null) throw new CollectionAccess.Failure("ACCESS_CONTRACT");
+                    if (!"file".equals(consumerStat.type))
+                        return missing("NOT_CHECKED", "SWITCH_CONSUMER_NOT_REGULAR", source);
+                    if (consumerStat.size > limits.maxFileBytes) throw new CollectionAccess.Failure("FILE_BYTE_LIMIT");
+                    if (consumerStat.size > (limits.maxReadBytes - budget.readBytes) / 2)
+                        throw new CollectionAccess.Failure("BYTE_LIMIT");
+                    consumerHash = hash(consumer, consumerStat, null);
+                    if (!consumerHash.equals(hash(consumer, consumerStat, null)))
+                        throw new CollectionAccess.Failure("UNSTABLE_SWITCH_CONSUMER");
+                }
+                CollectionAccess.Stat first = markerStat(marker), second = markerStat(marker);
+                if (first == null ? second != null : !first.same(second))
+                    throw new CollectionAccess.Failure("UNSTABLE_SWITCH_MARKER");
+                if (!directory.same(access.lstat(parent)) || !expected.same(access.lstat(script)))
+                    throw new CollectionAccess.Failure("UNSTABLE_SWITCH_INPUT");
+                if (consumerStat != null && !consumerStat.same(access.lstat(consumer)))
+                    throw new CollectionAccess.Failure("UNSTABLE_SWITCH_CONSUMER");
+                budget.remainingMs();
+                return ConfigurationSwitches.evidence(script, bytes, first == null ? "ABSENT" : first.type, source, consumerHash);
+            } catch (IOException failure) {
+                String code = error(failure);
+                issue(code);
+                return missing(code.startsWith("UNSTABLE") ? "UNSTABLE" : isBudget(code) ? "NOT_CHECKED" : "READ_FAILED", code, source);
+            }
+        }
+
+        CollectionAccess.Stat markerStat(String marker) throws IOException {
+            budget.remainingMs();
+            try {
+                CollectionAccess.Stat stat = access.lstat(marker);
+                if (stat == null) throw new CollectionAccess.Failure("ACCESS_CONTRACT");
+                return stat;
+            } catch (CollectionAccess.Failure failure) {
+                // 父目录已真实读取；只有叶节点ENOENT可作为不存在，权限/链接错误仍传播。
+                if ("NOT_FOUND".equals(failure.code)) return null;
+                throw failure;
+            }
+        }
 
         CollectionAccess.Listing list(String file, CollectionAccess.Stat stat, int count) throws IOException {
             CollectionAccess.Listing result = access.list(file, stat, count, budget.maximum - budget.readBytes, budget.remainingMs());
@@ -208,7 +283,7 @@ public final class ManifestCollector {
             return sorted;
         }
 
-        String hash(String file, CollectionAccess.Stat before) throws IOException {
+        String hash(String file, CollectionAccess.Stat before, ByteArrayOutputStream configuration) throws IOException {
             budget.requireBytes(before.size);
             MessageDigest digest = digest();
             byte[] buffer = new byte[8192];
@@ -223,6 +298,7 @@ public final class ManifestCollector {
                     if (read == 0 || read > requested) throw new CollectionAccess.Failure("ACCESS_CONTRACT");
                     budget.readBytes += read; remaining -= read;
                     digest.update(buffer, 0, read);
+                    if (configuration != null) configuration.write(buffer, 0, read);
                     budget.remainingMs();
                 }
                 if (!before.same(handle.stat())) throw new CollectionAccess.Failure("UNSTABLE_FILE");

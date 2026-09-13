@@ -10,9 +10,11 @@ final class RemotePush implements Closeable {
     private MqttClient client;
     private final RemoteState state;
     private final Runnable wake;
+    private final RollingLog log;
     private long retryAt;
     private int failures;
-    RemotePush(RemoteState state, Runnable wake) { this.state = state; this.wake = wake; }
+    RemotePush(RemoteState state, Runnable wake, RollingLog log) { this.state = state; this.wake = wake; this.log = log; }
+    private void event(String name) { log.write(System.currentTimeMillis()+" "+name); }
 
     boolean connected() { return client != null && client.isConnected(); }
 
@@ -21,6 +23,7 @@ final class RemotePush implements Closeable {
         RemoteProtocol.validateConnection(config);
         close();
         try {
+            event("PUSH_CONNECT_BEGIN");
             String topic = config.getString("topic");
             client = new MqttClient("ssl://" + config.getString("host") + ":" + config.getInt("port"),
                     config.getString("client_id"), new MemoryPersistence());
@@ -29,8 +32,9 @@ final class RemotePush implements Closeable {
             final MqttClient source = client;
             client.setCallback(new MqttCallback() {
                 public void deliveryComplete(IMqttDeliveryToken token) { }
-                public void connectionLost(Throwable error) { wake.run(); }
+                public void connectionLost(Throwable error) { event("PUSH_CONNECTION_LOST"); wake.run(); }
                 public void messageArrived(String received, MqttMessage message) throws Exception {
+                    event("PUSH_MESSAGE_RECEIVED");
                     byte[] bytes = message.getPayload();
                     if (received.equals(topic) && bytes.length <= 4096) {
                         JSONObject notice = null;
@@ -40,6 +44,7 @@ final class RemotePush implements Closeable {
                     }
                     source.messageArrivedComplete(message.getId(), message.getQos());
                     wake.run();
+                    event("PUSH_WAKE_REQUESTED");
                 }
             });
             MqttConnectOptions options = new MqttConnectOptions();
@@ -56,8 +61,9 @@ final class RemotePush implements Closeable {
             IMqttToken subscribed = client.subscribeWithResponse(topic, 1);
             if (subscribed.getGrantedQos().length != 1 || subscribed.getGrantedQos()[0] == 128)
                 throw new java.io.IOException("推送订阅被拒绝");
-            failures = 0; retryAt = 0; return true;
+            event("PUSH_SUBSCRIBED"); failures = 0; retryAt = 0; return true;
         } catch (Exception error) {
+            event("PUSH_CONNECT_FAILED "+error.getClass().getSimpleName());
             close(); retryAt = android.os.SystemClock.elapsedRealtime() + Math.min(300000L, 5000L << Math.min(failures++, 6));
             throw error;
         }

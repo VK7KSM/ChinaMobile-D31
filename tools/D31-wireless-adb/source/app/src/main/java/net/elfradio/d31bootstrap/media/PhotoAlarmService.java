@@ -25,6 +25,11 @@ public final class PhotoAlarmService extends Service {
     private int lastStart;
     private String verifiedHash="";
     private PhotoAlarmJournal journal;
+    private AutomaticPhotoRunner automatic;
+    private AutomaticPhotoCameraAvailability automaticCamera;
+    private IBinder automaticOwner;
+    private IBinder.DeathRecipient automaticDeath;
+    private long automaticTouched;
     private final AtomicBoolean retiring=new AtomicBoolean();
     private final Runnable tick=new Runnable(){public void run(){
         if(destroyed)return;
@@ -34,7 +39,11 @@ public final class PhotoAlarmService extends Service {
                 try{worker.execute(()->{try{retireFinished();}catch(Exception pending){}finally{retiring.set(false);}});}
                 catch(RejectedExecutionException pending){retiring.set(false);}
             }
-            if(pending.isEmpty()&&active==null){stopSelf(lastStart);return;}
+            if(automatic!=null&&SystemClock.elapsedRealtime()-automaticTouched>90000){
+                automatic.cancel();
+                if(!automatic.busy())clearAutomatic();
+            }
+            if(pending.isEmpty()&&active==null&&automatic==null){stopSelf(lastStart);return;}
         }
         main.postDelayed(this,250);
     }};
@@ -67,17 +76,20 @@ public final class PhotoAlarmService extends Service {
             verifiedHash=hash;
         }
         AppOpsManager ops=(AppOpsManager)getSystemService(APP_OPS_SERVICE);
-        boolean camera=checkPermission(Manifest.permission.CAMERA,android.os.Process.myPid(),android.os.Process.myUid())==PackageManager.PERMISSION_GRANTED
-                &&ops!=null&&ops.checkOpNoThrow(AppOpsManager.OPSTR_CAMERA,android.os.Process.myUid(),getPackageName())==AppOpsManager.MODE_ALLOWED;
+        boolean runtimePermission=checkPermission(Manifest.permission.CAMERA,android.os.Process.myPid(),android.os.Process.myUid())==PackageManager.PERMISSION_GRANTED;
+        boolean appOp=runtimePermission&&ops!=null&&ops.checkOpNoThrow(AppOpsManager.OPSTR_CAMERA,android.os.Process.myUid(),getPackageName())==AppOpsManager.MODE_ALLOWED;
+        boolean camera=runtimePermission&&appOp;
         boolean alarm=getSystemService(AUDIO_SERVICE)!=null;
         int cameras=android.hardware.Camera.getNumberOfCameras();
         JSONArray modes=new JSONArray();if(camera&&cameras>0)modes.put("photo");if(alarm)modes.put("alarm");
         return new JSONObject().put("state","prepared").put("apk_hash_match",true).put("app_identity_match",true)
-                .put("managed_media_modes",modes).put("media_cameras",cameras).put("camera_permission",camera).put("captures_started",false);
+                .put("managed_media_modes",modes).put("media_cameras",cameras).put("camera_permission",camera)
+                .put("camera_runtime_permission",runtimePermission).put("camera_app_op_allowed",appOp).put("captures_started",false);
     }
     private JSONObject execute(JSONObject x,IBinder caller)throws Exception {
         String op=x.getString("operation");
         if("prepare".equals(op))return prepare(x.getString("apk_sha256"));
+        if(op.startsWith("auto_"))return automatic(x,caller);
         retireFinished();
         if("start".equals(op)){
             JSONObject rawOffer=x.getJSONObject("offer");String requested=rawOffer.optString("session_id");
@@ -115,6 +127,51 @@ public final class PhotoAlarmService extends Service {
             if("stop".equals(op))active.close();else active.renew();return active.snapshot();
         }
     }
+    private JSONObject automatic(JSONObject x,IBinder caller)throws Exception {
+        if(caller==null||!caller.isBinderAlive())throw new IOException("VISUAL_OWNER_DEAD");
+        JSONObject readiness=prepare(x.getString("apk_sha256")),job=x.getJSONObject("job");
+        synchronized(PhotoAlarmService.class){
+            automaticTouched=SystemClock.elapsedRealtime();
+            if(automaticOwner!=null&&!automaticOwner.equals(caller)) {
+                automatic.cancel();if(automatic.busy())throw new IOException("MEDIA_BUSY");clearAutomatic();
+            }
+            if(automatic==null){
+                automaticCamera=new AutomaticPhotoCameraAvailability(this,main);
+                automatic=new AutomaticPhotoRunner(AutomaticPhotoRunner.applicationFiles(new File(getApplicationInfo().dataDir),getFilesDir()),new AndroidMediaDevice(this,AndroidMediaDevice.CLOCK),
+                        AndroidMediaDevice.CLOCK,critical->new AutomaticPhotoNetwork(this,critical),AndroidMediaDevice::cameraReleased,automaticCamera::check);
+                automaticOwner=caller;automaticDeath=()->{synchronized(PhotoAlarmService.class){if(automatic!=null)automatic.cancel();automaticTouched=0;}};
+                caller.linkToDeath(automaticDeath,0);
+            }
+            String op=x.getString("operation");
+            if("auto_cancel".equals(op)){
+                automatic.cancel();boolean clean=!automatic.busy();automaticTouched=0;if(clean)clearAutomatic();
+                return new JSONObject().put("cleanup_complete",clean);
+            }
+            if("auto_finish".equals(op)){
+                JSONObject result=automatic.finish(job);
+                if(result.optBoolean("cleanup_complete")&&!automatic.busy())clearAutomatic();
+                return result;
+            }
+            if(active!=null&&!active.finished())return new JSONObject().put("state","waiting").put("error","MEDIA_BUSY");
+            JSONObject failure=automaticReadinessFailure(readiness);
+            if(failure!=null)return failure;
+            return automatic.start(job,x.getJSONObject("credentials"));
+        }
+    }
+    static JSONObject automaticReadinessFailure(JSONObject readiness)throws Exception {
+        String error;
+        if(!readiness.optBoolean("camera_runtime_permission"))error="AUTO_PHOTO_CAMERA_PERMISSION_DENIED";
+        else if(!readiness.optBoolean("camera_app_op_allowed"))error="AUTO_PHOTO_CAMERA_APPOP_DENIED";
+        else if(readiness.optInt("media_cameras")<1)error="AUTO_PHOTO_CAMERA_NOT_ENUMERATED";
+        else return null;
+        return new JSONObject().put("state","failed").put("permanent",true).put("error",error);
+    }
+    private void clearAutomatic(){
+        if(automatic!=null)automatic.close();automatic=null;
+        if(automaticCamera!=null){automaticCamera.close();automaticCamera=null;}
+        if(automaticOwner!=null&&automaticDeath!=null)automaticOwner.unlinkToDeath(automaticDeath,0);
+        automaticOwner=null;automaticDeath=null;
+    }
     private void unlink(){if(owner!=null&&death!=null)owner.unlinkToDeath(death,0);owner=null;death=null;}
     private final class Endpoint extends Binder {
         final String id,boot;final long started;final ResultReceiver receiver;final AtomicBoolean used=new AtomicBoolean(),done=new AtomicBoolean();
@@ -144,5 +201,5 @@ public final class PhotoAlarmService extends Service {
     }
     public IBinder onBind(Intent intent){return null;}
     public void onDestroy(){destroyed=true;main.removeCallbacks(tick);for(Endpoint endpoint:pending.values())endpoint.finish(PhotoAlarmContract.error("VISUAL_SERVICE_STOPPED"));
-        synchronized(PhotoAlarmService.class){if(active!=null)active.close();unlink();}worker.shutdownNow();super.onDestroy();}
+        synchronized(PhotoAlarmService.class){if(active!=null)active.close();unlink();clearAutomatic();}worker.shutdownNow();super.onDestroy();}
 }

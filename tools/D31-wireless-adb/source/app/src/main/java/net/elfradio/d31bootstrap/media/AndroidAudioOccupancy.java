@@ -7,6 +7,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Future;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -17,6 +18,11 @@ public final class AndroidAudioOccupancy implements AudioGuard, AutoCloseable {
     public static final long MAX_SAMPLE_MS = 1500;
     enum State { IDLE, BUSY, UNKNOWN }
     interface Source { JSONObject read() throws Exception; }
+    /** 仅连接本地RTC提供：同一真实播放器、持续静音写回调及本连接焦点，禁止使用Web字段。 */
+    public interface LocalOutput {
+        long generation();
+        void requireMutedOutput() throws Exception;
+    }
     interface Clock { long elapsed(); }
     private final Source source;
     private final Clock clock;
@@ -25,6 +31,7 @@ public final class AndroidAudioOccupancy implements AudioGuard, AutoCloseable {
     private final Thread mainThread;
     private volatile Observation latest;
     private volatile boolean started, closed;
+    private Future<?> requestedRefresh;
 
     /** 构造不访问Binder、Provider或文件；服务实际启用时显式调用start。 */
     public AndroidAudioOccupancy(final Context context) {
@@ -83,7 +90,22 @@ public final class AndroidAudioOccupancy implements AudioGuard, AutoCloseable {
             if (closed) return;
             long began = clock.elapsed();
             Observation next;
-            try { next = evaluate(source.read(), began, clock.elapsed()); }
+            try {
+                JSONObject raw=source.read();long ended=clock.elapsed();
+                if(raw==null||ended<began||ended-began>MAX_SAMPLE_MS)
+                    throw new IOException("MEDIA_AUDIO_SOURCE_DEADLINE");
+                long originalBegan=began,originalFinished=ended;
+                if(raw.has("sample_started_elapsed_ms")||raw.has("sample_finished_elapsed_ms")){
+                    originalBegan=sampleTime(raw,"sample_started_elapsed_ms");
+                    originalFinished=sampleTime(raw,"sample_finished_elapsed_ms");
+                    if(originalBegan<0||originalFinished<originalBegan||originalFinished>ended)
+                        throw new IOException("MEDIA_AUDIO_SOURCE_TIME_INVALID");
+                }
+                // 投影再次进入既有采样器时保留原读取时刻，不能按复制时刻续期。
+                Observation observed=evaluate(raw,originalBegan,originalFinished);
+                next=new Observation(observed.cellular,observed.sip,observed.other,observed.began,observed.finished,
+                        observed.reason,raw.toString());
+            }
             catch (Exception failure) { next = Observation.unknown(began, clock.elapsed(), "SOURCE_READ_FAILED"); }
             catch (LinkageError failure) { next = Observation.unknown(began, clock.elapsed(), "SOURCE_API_UNAVAILABLE"); }
             if (!closed) latest = next;
@@ -110,6 +132,65 @@ public final class AndroidAudioOccupancy implements AudioGuard, AutoCloseable {
         if (value.overall() != State.IDLE) throw new IOException("MEDIA_AUDIO_" + value.overall().name() + ":" + value.reason);
     }
 
+    public void requireNoCalls() throws IOException {
+        Observation value=current();
+        if(value.cellular==State.BUSY||value.sip==State.BUSY)
+            throw new IOException("MEDIA_PERSISTENT_EXTERNAL_CALL_ACTIVE");
+        if(value.cellular!=State.IDLE||value.sip!=State.IDLE)
+            throw new IOException("MEDIA_PERSISTENT_CALL_STATE_UNKNOWN");
+    }
+    /** 停采或物理释放边界只补一份轻量原件；与周期读取共用既有线程。 */
+    public void refreshSince(long beganElapsedMs,long timeoutMs) throws Exception {
+        if(beganElapsedMs<0||timeoutMs<1||timeoutMs>MAX_SAMPLE_MS)
+            throw new IllegalArgumentException("MEDIA_AUDIO_REFRESH_BUDGET");
+        if(Thread.currentThread()==mainThread)throw new IllegalStateException("禁止在Android主线程等待占用采样");
+        Future<?> pending;
+        synchronized(this){
+            if(closed||!started)throw new IOException("MEDIA_AUDIO_OBSERVER_NOT_RUNNING");
+            Observation value=current();if(value.raw!=null&&value.began>=beganElapsedMs)return;
+            if(requestedRefresh==null)requestedRefresh=worker.submit(()->{
+                try{refresh();}finally{synchronized(AndroidAudioOccupancy.this){requestedRefresh=null;}}
+            });
+            pending=requestedRefresh;
+        }
+        // 超时不另起替代读取；同一在途任务继续占唯一槽位，直至实际返回或close。
+        try{pending.get(timeoutMs,TimeUnit.MILLISECONDS);}
+        catch(java.util.concurrent.TimeoutException timeout){throw new IOException("MEDIA_AUDIO_REFRESH_TIMEOUT",timeout);}
+        catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw interrupted;}
+        Observation value=current();
+        if(value.raw==null||value.began<beganElapsedMs)throw new IOException("MEDIA_AUDIO_FRESH_SAMPLE_PENDING");
+    }
+    /** 仅物理释放后的恢复回读使用；静音待命不是释放。 */
+    public void requireIdleSince(long beganElapsedMs) throws IOException {
+        Observation value=current();
+        if(beganElapsedMs<0||value.began<beganElapsedMs)
+            throw new IOException("MEDIA_AUDIO_FRESH_IDLE_PENDING");
+        if(value.overall()!=State.IDLE)throw new IOException("MEDIA_AUDIO_"+value.overall().name()+":"+value.reason);
+    }
+    public JSONObject projectMutedOutput(LocalOutput local) throws Exception {
+        if(local==null)throw new IOException("MEDIA_OUTPUT_LOCAL_PROOF_MISSING");
+        long generation=local.generation();local.requireMutedOutput();
+        Observation value=current();
+        if(value.raw==null)throw new IOException("MEDIA_AUDIO_SAMPLE_UNAVAILABLE");
+        JSONObject result=new JSONObject(value.raw),audio=result.getJSONObject("audio");
+        JSONObject own=audio.getJSONArray("streams").getJSONObject(3);
+        if(!Integer.valueOf(2).equals(audio.opt("focus_gain"))||!Integer.valueOf(3).equals(own.opt("stream"))
+                ||!(own.opt("active") instanceof Boolean)||!Boolean.FALSE.equals(own.opt("remote_active")))
+            throw new IOException("MEDIA_OUTPUT_STREAM_STATE_MISMATCH");
+        own.put("active",false);audio.put("focus_gain",0);
+        result.put("sample_started_elapsed_ms",value.began).put("sample_finished_elapsed_ms",value.finished);
+        local.requireMutedOutput();
+        if(generation!=local.generation())throw new IOException("MEDIA_OUTPUT_LOCAL_PROOF_REVOKED");
+        long now=clock.elapsed();
+        if(closed||now<value.began||now-value.began>MAX_AGE_MS)
+            throw new IOException("MEDIA_AUDIO_SAMPLE_STALE");
+        return result;
+    }
+    private static long sampleTime(JSONObject raw,String key) throws IOException {
+        Object value=raw.opt(key);
+        if(!(value instanceof Integer)&&!(value instanceof Long))throw new IOException("MEDIA_AUDIO_SOURCE_TIME_INVALID");
+        return ((Number)value).longValue();
+    }
     private Observation current() {
         if (closed) return Observation.unknown(-1, -1, "CLOSED");
         if (!started) return Observation.unknown(-1, -1, "NOT_STARTED");
@@ -183,8 +264,13 @@ public final class AndroidAudioOccupancy implements AudioGuard, AutoCloseable {
         final State cellular, sip, other;
         final long began, finished;
         final String reason;
+        final String raw;
         Observation(State cellular, State sip, State other, long began, long finished, String reason) {
+            this(cellular,sip,other,began,finished,reason,null);
+        }
+        Observation(State cellular, State sip, State other, long began, long finished, String reason,String raw) {
             this.cellular = cellular; this.sip = sip; this.other = other; this.began = began; this.finished = finished; this.reason = reason;
+            this.raw=raw;
         }
         State overall() {
             if (cellular == State.BUSY || sip == State.BUSY || other == State.BUSY) return State.BUSY;

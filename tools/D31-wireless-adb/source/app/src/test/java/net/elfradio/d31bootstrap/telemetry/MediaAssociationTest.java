@@ -18,12 +18,15 @@ public class MediaAssociationTest {
         assertEquals("REPORT_NOT_ACKNOWLEDGED", MediaAssociation.automaticPhotoEligibility(report("wifi"), null));
         assertEquals("REPORT_NOT_ACKNOWLEDGED", MediaAssociation.automaticPhotoEligibility(report("wifi"), ack().put("report_id", "other")));
         assertEquals("REPORT_NOT_ACKNOWLEDGED", MediaAssociation.automaticPhotoEligibility(report("wifi"), ack().put("ok", false)));
-        assertEquals("SERVER_NETWORK_POLICY_REJECTED", MediaAssociation.automaticPhotoEligibility(report("ethernet"), ack()));
+        assertEquals("ELIGIBLE", MediaAssociation.automaticPhotoEligibility(report("ethernet"), ack()));
+        assertEquals("REPORT_NOT_ACKNOWLEDGED", MediaAssociation.automaticPhotoEligibility(report("ethernet"), ack().put("report_id", "other")));
+        for (String network : new String[]{"cellular", "unknown", "", "vpn"})
+            assertEquals("SERVER_NETWORK_POLICY_REJECTED", MediaAssociation.automaticPhotoEligibility(report(network), ack()));
     }
-    @Test public void cellularExceptionRequiresExactCriticalBatteryEvent() throws Exception {
+    @Test public void criticalBatteryDoesNotPermitCellularPhotos() throws Exception {
         JSONObject event = new JSONObject().put("type", "low_battery").put("level", 1).put("thresholds", new JSONArray().put(2));
         JSONObject report = report("cellular").put("report_event", event);
-        assertEquals("ELIGIBLE", MediaAssociation.automaticPhotoEligibility(report, ack()));
+        assertEquals("SERVER_NETWORK_POLICY_REJECTED", MediaAssociation.automaticPhotoEligibility(report, ack()));
         event.put("level", 2);
         assertEquals("SERVER_NETWORK_POLICY_REJECTED", MediaAssociation.automaticPhotoEligibility(report, ack()));
         event.put("level", 1).put("thresholds", new JSONArray().put(5));

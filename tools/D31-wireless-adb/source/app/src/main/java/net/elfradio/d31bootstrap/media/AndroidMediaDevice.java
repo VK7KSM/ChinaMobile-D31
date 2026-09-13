@@ -26,6 +26,7 @@ public final class AndroidMediaDevice implements MediaCapture.Device {
     private final Context context;
     private final MediaCapture.Clock clock;
     public AndroidMediaDevice(Context context,MediaCapture.Clock clock){this.context=context;this.clock=clock;}
+    static boolean cameraReleased(){return !cameraOccupied.get();}
     private void permission(String permission) throws IOException {
         if(context==null||context.checkPermission(permission,android.os.Process.myPid(),android.os.Process.myUid())!=PackageManager.PERMISSION_GRANTED)throw new IOException("MEDIA_PERMISSION_MISSING");
     }

@@ -1,6 +1,9 @@
 package net.elfradio.d31bootstrap.media;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -8,7 +11,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.elfradio.d31bootstrap.media.AudioInputOwnership.Invalid;
 
-/** 118实证的普通MIC/16k/mono输入表；其它路由、非活动格式及未知列严格拒绝。 */
+/** 118活动MIC与154完整非活动输入形状；未知列、未交叉确认的状态严格拒绝。 */
 final class AudioInputOwnershipRecords {
     static final class Client {
         final int pid, session;
@@ -18,7 +21,16 @@ final class AudioInputOwnershipRecords {
     static final class Input {
         final int handle;
         final List<Client> clients;
-        Input(int handle, List<Client> clients) { this.handle = handle; this.clients = clients; }
+        final boolean inactive;
+        Input(int handle, List<Client> clients, boolean inactive) {
+            this.handle = handle; this.clients = clients; this.inactive = inactive;
+        }
+    }
+    static final class PolicyInput {
+        final int references, openReferences;
+        PolicyInput(int references, int openReferences) {
+            this.references = references; this.openReferences = openReferences;
+        }
     }
 
     static Input input(List<String> source) throws Invalid {
@@ -27,14 +39,15 @@ final class AudioInputOwnershipRecords {
             throw new Invalid("INPUT_THREAD_FORMAT_UNVERIFIED");
         }
         int handle = number(value(lines, "I/O handle:"));
+        boolean inactive = value(lines, "Standby:").equals("yes");
         // 独立核对线程配置和轨道列；不从S内部状态值或session引用推断active。
-        requireValue(lines, "Standby:", "no");
+        requireValue(lines, "Standby:", inactive ? "yes" : "no");
         requireValue(lines, "Sample rate:", "16000 Hz");
         requireValue(lines, "Channel count:", "1");
         requireValue(lines, "Channel mask:", "0x00000010 (front)");
         requireValue(lines, "Format:", "0x1 (pcm16)");
         requireValue(lines, "Input device:", "0x80000004 (BUILTIN_MIC)");
-        requireValue(lines, "Audio source:", "1 (mic)");
+        requireValue(lines, "Audio source:", inactive ? "0 (default)" : "1 (mic)");
         requireValue(lines, "Fast capture thread:", "no");
         requireValue(lines, "Fast track available:", "no");
         int table = -1, total = -1, active = -1;
@@ -43,10 +56,12 @@ final class AudioInputOwnershipRecords {
             Matcher match = counts.matcher(lines.get(i));
             if (match.matches()) {
                 if (table != -1) throw new Invalid("TRACK_TABLE_DUPLICATE");
-                table = i; total = number(match.group(1)); active = number(match.group(2));
+                table = i; total = number(match.group(1));
+                active = inactive && match.group(2).equals("0") ? 0 : number(match.group(2));
             }
         }
-        if (table < 0 || total > 64 || active != total || table + total + 2 != lines.size()) {
+        if (table < 0 || total > 64 || (inactive ? total != 1 || active != 0 : active != total)
+                || table + total + 2 != lines.size()) {
             throw new Invalid("TRACK_COUNT_OR_FORMAT_UNVERIFIED");
         }
         String[] fields = {"mInput name:", "Thread name:", "I/O handle:", "TID:", "Standby:",
@@ -58,7 +73,22 @@ final class AudioInputOwnershipRecords {
             String line = lines.get(i), key = null;
             for (String field : fields) if (line.startsWith(field)) key = field;
             if (line.equals("FastCapture not initialized")) key = line;
+            if (inactive && line.equals("No active record clients")) key = line;
             if (key == null || !fieldNames.add(key)) throw new Invalid("INPUT_PREAMBLE_UNVERIFIED");
+        }
+        if (inactive) {
+            // 只接受154原件的完整未启动形状；不能靠standby或一行inactive推断空闲。
+            if (!fieldNames.containsAll(Arrays.asList(fields)) || !fieldNames.contains("No active record clients")
+                    || !fieldNames.contains("FastCapture not initialized")) throw new Invalid("INACTIVE_INPUT_PREAMBLE_INCOMPLETE");
+            requireValue(lines, "mInput name:", "primary");
+            requireValue(lines, "Thread name:", "AudioIn_" + Integer.toHexString(handle));
+            number(value(lines, "TID:"));
+            requireValue(lines, "HAL frame count:", "320");
+            requireValue(lines, "HAL format:", "0x1 (pcm16)");
+            requireValue(lines, "HAL buffer size:", "640 bytes");
+            requireValue(lines, "Frame size:", "2 bytes");
+            requireValue(lines, "Pending config events:", "none");
+            requireValue(lines, "Output device:", "0x2 (SPEAKER)");
         }
         if (!lines.get(table + 1).replaceAll("[ \\t]+", " ").equals(
                 "Active Client Fmt Chn mask Session S Server fCount SRate")) {
@@ -68,7 +98,7 @@ final class AudioInputOwnershipRecords {
         Set<String> seen = new HashSet<String>();
         for (int i = table + 2; i < lines.size(); i++) {
             String[] row = lines.get(i).split("[ \\t]+");
-            if (row.length != 9 || !row[0].equals("yes")) throw new Invalid("TRACK_ACTIVE_FORMAT_UNVERIFIED");
+            if (row.length != 9 || !row[0].equals(inactive ? "no" : "yes")) throw new Invalid("TRACK_ACTIVE_FORMAT_UNVERIFIED");
             if (!row[2].equals("1") || !row[3].equals("00000010") || !row[8].equals("16000")
                     || !row[5].matches("[0-9]{1,2}") || !row[6].matches("[0-9a-fA-F]{8}")) {
                 throw new Invalid("TRACK_CONFIGURATION_UNVERIFIED");
@@ -76,29 +106,40 @@ final class AudioInputOwnershipRecords {
             number(row[7]);
             Client client = new Client(number(row[1]), number(row[4]));
             if (!seen.add(client.key())) throw new Invalid("TRACK_CLIENT_DUPLICATE");
-            clients.add(client);
+            if (inactive) {
+                if (!row[5].equals("0") || !row[6].equals("00000000") || !row[7].equals("2048"))
+                    throw new Invalid("INACTIVE_TRACK_STATE_UNVERIFIED");
+            } else clients.add(client);
         }
-        return new Input(handle, clients);
+        return new Input(handle, clients, inactive);
     }
 
     static Set<Integer> policy(String[] source, int from, int to) throws Invalid {
+        return policyInputs(source, from, to).keySet();
+    }
+
+    static Map<Integer, PolicyInput> policyInputs(String[] source, int from, int to) throws Invalid {
         List<String> raw = new ArrayList<String>();
         for (int i = from; i < to; i++) raw.add(source[i]);
         List<String> lines = compact(raw);
-        Set<Integer> handles = new HashSet<Integer>();
+        Map<Integer, PolicyInput> handles = new LinkedHashMap<Integer, PolicyInput>();
         Set<Integer> ids = new HashSet<Integer>();
         if (lines.size() % 8 != 0 || lines.size() > 16 * 8) throw new Invalid("POLICY_INPUT_FORMAT_UNVERIFIED");
         for (int i = 0; i < lines.size(); i += 8) {
             Matcher header = Pattern.compile("- Input ([0-9]+) dump:").matcher(lines.get(i));
-            if (!header.matches() || !handles.add(number(header.group(1)))) throw new Invalid("POLICY_INPUT_HEADER_INVALID");
+            if (!header.matches()) throw new Invalid("POLICY_INPUT_HEADER_INVALID");
+            int handle = number(header.group(1));
+            if (handles.containsKey(handle)) throw new Invalid("POLICY_INPUT_HEADER_INVALID");
             List<String> block = lines.subList(i + 1, i + 8);
             if (!ids.add(number(value(block, "ID:")))) throw new Invalid("POLICY_INPUT_ID_DUPLICATE");
             requireValue(block, "Sampling rate:", "16000");
             requireValue(block, "Format:", "1");
             requireValue(block, "Channels:", "00000010");
             requireValue(block, "Devices ", "80000004");
-            number(value(block, "Ref Count "));
-            number(value(block, "Open Ref Count "));
+            String refs = value(block, "Ref Count ");
+            int references = refs.equals("0") ? 0 : number(refs);
+            int openReferences = number(value(block, "Open Ref Count "));
+            handles.put(handle, new PolicyInput(references, openReferences));
         }
         return handles;
     }

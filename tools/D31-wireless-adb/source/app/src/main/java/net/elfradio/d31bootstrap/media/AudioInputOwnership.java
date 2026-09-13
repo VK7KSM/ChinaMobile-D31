@@ -76,21 +76,32 @@ public final class AudioInputOwnership {
         try {
             String[] f = lines(flinger.text);
             String[] p = lines(policy.text);
-            Map<Integer, List<AudioInputOwnershipRecords.Client>> inputs = validateFlinger(f);
-            Set<Integer> policyInputs = validatePolicy(p);
-            if (!inputs.keySet().equals(policyInputs)) throw new Invalid("SOURCE_INPUTS_DISAGREE");
+            Map<Integer, AudioInputOwnershipRecords.Input> inputs = validateFlinger(f);
+            Map<Integer, AudioInputOwnershipRecords.PolicyInput> policyInputs = validatePolicy(p);
+            if (!inputs.keySet().equals(policyInputs.keySet())) throw new Invalid("SOURCE_INPUTS_DISAGREE");
             Set<String> references = AudioInputOwnershipRecords.references(f,
                     unique(f, "session   pid count") + 1, unique(f, "Hardware status: 0"));
             int count = 0;
             boolean other = false;
-            for (List<AudioInputOwnershipRecords.Client> clients : inputs.values()) {
-                for (AudioInputOwnershipRecords.Client client : clients) {
+            boolean inactive = false;
+            for (AudioInputOwnershipRecords.Input input : inputs.values()) {
+                AudioInputOwnershipRecords.PolicyInput observed = policyInputs.get(input.handle);
+                if (input.inactive) {
+                    if (inputs.size() != 1 || !references.isEmpty() || observed.references != 0 || observed.openReferences != 1)
+                        throw new Invalid("INACTIVE_INPUT_CROSSCHECK_UNCONFIRMED");
+                    int patches = unique(p, "Audio Patches:"), end = unique(p, "Voe volume dump:");
+                    for (int i = patches + 1; i < end; i++) if (p[i].contains("AUDIO_DEVICE_IN_"))
+                        throw new Invalid("INACTIVE_INPUT_PATCH_PRESENT");
+                    inactive = true;
+                } else if (observed.references == 0) throw new Invalid("ACTIVE_INPUT_POLICY_REFERENCE_MISSING");
+                for (AudioInputOwnershipRecords.Client client : input.clients) {
                     if (!references.contains(client.key())) throw new Invalid("ACTIVE_CLIENT_REFERENCE_MISSING");
                     count++;
                     if (client.pid != ownPid || client.session != ownSession) other = true;
                 }
             }
-            if (count == 0) return new Result(State.NO_ACTIVE_INPUT, "EMPTY_INPUT_SECTIONS_OBSERVED");
+            if (count == 0) return new Result(State.NO_ACTIVE_INPUT,
+                    inactive ? "INACTIVE_INPUT_CONFIRMED_NOT_RELEASED" : "EMPTY_INPUT_SECTIONS_OBSERVED");
             return new Result(other ? State.OTHER_ACTIVE : State.SELF_ONLY,
                     other ? "OTHER_ACTIVE_CLIENT_OBSERVED" : "MATCHED_ACTIVE_CLIENT_OBSERVED", count);
         } catch (Invalid invalid) {
@@ -127,7 +138,7 @@ public final class AudioInputOwnership {
         return result;
     }
 
-    private static Map<Integer, List<AudioInputOwnershipRecords.Client>> validateFlinger(String[] lines) throws Invalid {
+    private static Map<Integer, AudioInputOwnershipRecords.Input> validateFlinger(String[] lines) throws Invalid {
         int suspend = unique(lines, "mAFSuspend: 0");
         int mute = unique(lines, "mMicMute: 0");
         int clients = unique(lines, "Clients:");
@@ -142,7 +153,7 @@ public final class AudioInputOwnership {
                 && refs < refHeader && refHeader < hardware && hardware < standby
                 && standby < usb && usb < tail)) throw new Invalid("FLINGER_SECTION_ORDER");
         int outputs = 0;
-        Map<Integer, List<AudioInputOwnershipRecords.Client>> inputs = new HashMap<Integer, List<AudioInputOwnershipRecords.Client>>();
+        Map<Integer, AudioInputOwnershipRecords.Input> inputs = new HashMap<Integer, AudioInputOwnershipRecords.Input>();
         boolean closed = true;
         for (String raw : lines) if (raw.indexOf('\0') >= 0) throw new Invalid("FLINGER_CONTROL_CHARACTER");
         for (int i = 0; i < lines.length; i++) {
@@ -157,7 +168,7 @@ public final class AudioInputOwnership {
                 while (end < usb && !lines[end].trim().equals("0 Effect Chains")) block.add(lines[end++]);
                 if (end >= usb) throw new Invalid("INPUT_THREAD_INCOMPLETE");
                 AudioInputOwnershipRecords.Input input = AudioInputOwnershipRecords.input(block);
-                if (inputs.size() >= 16 || inputs.put(input.handle, input.clients) != null) {
+                if (inputs.size() >= 16 || inputs.put(input.handle, input) != null) {
                     throw new Invalid("INPUT_THREAD_DUPLICATE_OR_LIMIT");
                 }
                 i = end;
@@ -190,7 +201,7 @@ public final class AudioInputOwnership {
         return inputs;
     }
 
-    private static Set<Integer> validatePolicy(String[] lines) throws Invalid {
+    private static Map<Integer, AudioInputOwnershipRecords.PolicyInput> validatePolicy(String[] lines) throws Invalid {
         int manager = uniquePrefix(lines, "AudioPolicyManager Dump:");
         int inputs = unique(lines, "Inputs dump:");
         int streams = unique(lines, "Streams dump:");
@@ -199,7 +210,7 @@ public final class AudioInputOwnership {
         int voe = unique(lines, "Voe volume dump:");
         if (!(manager < inputs && inputs < streams && streams < effects && effects < patches
                 && patches < voe)) throw new Invalid("POLICY_SECTION_ORDER");
-        Set<Integer> handles = AudioInputOwnershipRecords.policy(lines, inputs + 1, streams);
+        Map<Integer, AudioInputOwnershipRecords.PolicyInput> handles = AudioInputOwnershipRecords.policyInputs(lines, inputs + 1, streams);
         int last = lines.length - 1;
         while (last >= 0 && lines[last].trim().length() == 0) last--;
         if (last <= voe || !lines[last].trim().matches(

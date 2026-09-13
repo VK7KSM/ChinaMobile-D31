@@ -9,11 +9,16 @@ final class RemoteMediaReport {
     static void merge(JSONObject report, JSONObject microphone, JSONObject visual) throws JSONException {
         JSONArray modes = new JSONArray();
         if (contains(microphone, "microphone")) modes.put("microphone");
+        if (contains(microphone, "ptt")) modes.put("ptt");
+        if (contains(microphone, "call")) modes.put("call");
         if (contains(visual, "photo")) modes.put("photo");
         if (contains(visual, "alarm")) modes.put("alarm");
-        if (contains(microphone, "video") && visual != null && visual.optInt("media_cameras", 0) > 0) modes.put("video");
+        if (contains(microphone, "video") && contains(visual, "photo") && visual.optInt("media_cameras", 0) > 0) modes.put("video");
         report.put("managed_media", modes.length() > 0).put("managed_media_modes", modes)
                 .put("media_cameras", visual == null ? 0 : Math.max(0, visual.optInt("media_cameras", 0)));
+        report.put("managed_media_prepare_v1",microphone!=null
+                &&Boolean.TRUE.equals(microphone.opt("managed_media_prepare_v1"))
+                &&contains(microphone,"microphone")&&contains(microphone,"ptt")&&contains(microphone,"call"));
     }
 
     private static boolean contains(JSONObject state, String mode) {

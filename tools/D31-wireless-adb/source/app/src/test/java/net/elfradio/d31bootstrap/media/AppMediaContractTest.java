@@ -54,7 +54,21 @@ public class AppMediaContractTest {
     @Test public void malformedAndOtherWebModesAreRejected()throws Exception{
         for(final String op:new String[]{"record_audio","play_alarm","wipe_data"})MediaCaptureTest.rejects("OPERATION",new MediaCaptureTest.Operation(){public void run()throws Exception{AppMediaContract.command(new JSONObject().put("operation",op).toString());}});
         MediaCaptureTest.rejects("APK_HASH",new MediaCaptureTest.Operation(){public void run()throws Exception{AppMediaContract.command("{\"operation\":\"prepare\"}");}});
-        MediaCaptureTest.rejects("MODE",new MediaCaptureTest.Operation(){public void run()throws Exception{AppMediaContract.command(new JSONObject().put("operation","start").put("apk_sha256",HASH).put("offer",new JSONObject().put("mode","call")).toString());}});
+        MediaCaptureTest.rejects("MODE",new MediaCaptureTest.Operation(){public void run()throws Exception{AppMediaContract.command(new JSONObject().put("operation","start").put("apk_sha256",HASH).put("offer",new JSONObject().put("mode","managed_media_prepare_v1")).toString());}});
+    }
+    @Test public void localPttUsesExistingStartAndLeaseWindow()throws Exception{
+        JSONObject start=new JSONObject().put("operation","start").put("apk_sha256",HASH)
+                .put("offer",RtcOfferTest.offer().put("mode","ptt"));
+        assertEquals("ptt",AppMediaContract.command(start.toString()).getJSONObject("offer").getString("mode"));
+        assertEquals(6000,AppMediaContract.executionWindow(start));
+    }
+    @Test public void oldCallUsesStartWithoutAddingPrepareOrActivationCommands()throws Exception{
+        JSONObject start=new JSONObject().put("operation","start").put("apk_sha256",HASH)
+                .put("offer",RtcOfferTest.offer().put("mode","call"));
+        assertEquals("call",AppMediaContract.command(start.toString()).getJSONObject("offer").getString("mode"));
+        assertEquals(6000,AppMediaContract.executionWindow(start));
+        for(String operation:new String[]{"activate","deactivate","connect","disconnect","managed_media_prepare_v1"})
+            MediaCaptureTest.rejects("OPERATION",()->AppMediaContract.command(new JSONObject(start.toString()).put("operation",operation).toString()));
     }
     @Test public void lateReplySpoofedUidAndNonceAreRejected()throws Exception{
         final String body=new JSONObject().put("request_id",ID).put("boot_id",BOOT).put("started_elapsed_ms",100).toString();
