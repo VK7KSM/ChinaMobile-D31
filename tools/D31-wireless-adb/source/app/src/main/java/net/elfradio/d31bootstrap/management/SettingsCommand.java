@@ -9,7 +9,21 @@ import java.util.Collections;
 import java.util.List;
 
 /** 复用系统settings的外部Provider引用；不经shell拼接，不用API26 waitFor超时重载。 */
-final class SettingsCommand {
+public final class SettingsCommand {
+    public static String readProductSecure(String key) throws Exception {
+        if (!"sms_default_application".equals(key) && !"enabled_notification_listeners".equals(key))
+            throw new IllegalArgumentException("不允许读取该产品设置");
+        return productValue(invoke("get", "secure", key));
+    }
+
+    static String productValue(String raw) throws IOException {
+        if (raw == null || raw.length() > 4096) throw new IOException("设置输出无效");
+        if (raw.equals("null")) return null;
+        // stderr已合流；拒绝异常、警告和多行输出，不把它们当成未设置。
+        if (!raw.matches("[A-Za-z0-9_.$/:]*")) throw new IOException("设置输出不是单一产品值");
+        return raw;
+    }
+
     static String invoke(String... args) throws Exception {
         List<String> command = new ArrayList<>(Arrays.asList("/system/bin/settings", "--user", "0"));
         Collections.addAll(command, args);

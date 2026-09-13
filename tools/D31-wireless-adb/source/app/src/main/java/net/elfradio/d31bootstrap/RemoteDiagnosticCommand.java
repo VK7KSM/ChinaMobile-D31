@@ -64,7 +64,7 @@ public final class RemoteDiagnosticCommand {
     static JSONObject collect(File job, JSONObject request) throws Exception {
         validate(request);
         String operation = request.getString("operation");
-        if (operation.equals("runtime")) return RemoteRuntimeInventory.collect(new RemoteRuntimeInventory.AndroidAccess(), System.currentTimeMillis());
+        if (operation.equals("runtime")) return RemoteRuntimeInventory.collectAndroid();
         CollectionAccess.Clock clock = AndroidCollectionAccess.systemClock();
         AndroidCollectionAccess access = new AndroidCollectionAccess("/system/bin/busybox", clock);
         CollectionLimits limits = new CollectionLimits(512, 32L * 1024 * 1024, 8L * 1024 * 1024,
