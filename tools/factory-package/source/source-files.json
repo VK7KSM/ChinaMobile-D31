@@ -1,0 +1,386 @@
+[
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": ".gitattributes",
+    "字节数": 233,
+    "SHA256": "227380C07641A87D83599B8559B2360FBA28C85C5CB07CFAC4302C7C5EF2D2A2"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "approved-package-v1.4.4.json",
+    "字节数": 1129,
+    "SHA256": "E3B2F6A55320AEB7A6D81B8BB9B6ACF7C4342E18BD60B1CF823A58A09E4F49A7"
+  },
+  {
+    "来源": "research/d31/dist/factory-flash-v1.4.5/approved-package-v1.4.5.json",
+    "路径": "approved-package-v1.4.5.json",
+    "字节数": 1130,
+    "SHA256": "D3EC0960435F16F68D5B03F0ADB4B411E855DCF531B48FD4A4992C8702E1A61A"
+  },
+  {
+    "来源": "research/d31/dist/factory-flash-v1.4.5/approved-package-v1.4.5.json",
+    "路径": "approved-package.json",
+    "字节数": 1130,
+    "SHA256": "D3EC0960435F16F68D5B03F0ADB4B411E855DCF531B48FD4A4992C8702E1A61A"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/audit_deliverable.py",
+    "路径": "audit_deliverable.py",
+    "字节数": 12090,
+    "SHA256": "70440FF8F42ED9A4991934289FBCF19326FD0CDE65DBDC72CD14FD97781C91E8"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/build_factory_package.ps1",
+    "路径": "build_factory_package.ps1",
+    "字节数": 6980,
+    "SHA256": "96E35C6038E81834FB3BE6C49549C02C62CF68D71EA143B683A9D3BFD1FF7CE5"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/build_factory_package.py",
+    "路径": "build_factory_package.py",
+    "字节数": 9613,
+    "SHA256": "EE911190F6993B87C430EA0FCB37CC6C847284594E1C8A8F192FFF54C9912906"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/build_v145.py",
+    "路径": "build_v145.py",
+    "字节数": 20384,
+    "SHA256": "D49F83EB05AC8CAC91234E86D0722331312D3B3546B9A1E60C2FE326AC703488"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/flash_d31_recovery.ps1",
+    "路径": "flash_d31_recovery.ps1",
+    "字节数": 44168,
+    "SHA256": "6E8D28C90084CFC5637F45FAE4641256075B00BCF24A58E4BC811400776A53BA"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "installed-files-v1.4.4.json",
+    "字节数": 9779,
+    "SHA256": "03EBEB49EE2A636BA12222AB54BB86D61A0E1F024C6DC5DE9A4389B314382ADC"
+  },
+  {
+    "来源": "research/d31/dist/factory-flash-v1.4.5/installed-files-v1.4.5.json",
+    "路径": "installed-files-v1.4.5.json",
+    "字节数": 9979,
+    "SHA256": "566DF4C608147834D93B1531362DBF1EC6C254BE667C19687653851FC490E19D"
+  },
+  {
+    "来源": "research/d31/dist/factory-flash-v1.4.5/installed-files-v1.4.5.json",
+    "路径": "installed-files.json",
+    "字节数": 9979,
+    "SHA256": "566DF4C608147834D93B1531362DBF1EC6C254BE667C19687653851FC490E19D"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "manifest-v1.4.4.json",
+    "字节数": 9077,
+    "SHA256": "D5818278812826F9DD4897A51FE2A6BD008EABB98F21912CCD1345D1F0795316"
+  },
+  {
+    "来源": "research/d31/dist/factory-flash-v1.4.5/manifest-v1.4.5.json",
+    "路径": "manifest-v1.4.5.json",
+    "字节数": 9520,
+    "SHA256": "7E6110A52E98B00765E39113EDC362A281B53EFB00B226FBA96B0CFEB091273D"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "master_target_state.json",
+    "字节数": 3727,
+    "SHA256": "EF390E2D7E156F992060299C6F5EC99052F7FE77C16AF87828B33D3632C96E40"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "messages/InjectionWorkerFactory.kt",
+    "字节数": 4524,
+    "SHA256": "B7AB5558BE65C4930BC26AA796C7505E2A86E8A1F30C3E4B45E482EBE98A8EFF"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "native/tls_align.S",
+    "字节数": 242,
+    "SHA256": "67AE9A9F277010FC8B434EA8D4A3DCC0A4C1E3E853CB5BEE20089DBD92D76D23"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/native/update_binary.c",
+    "路径": "native/update_binary.c",
+    "字节数": 29066,
+    "SHA256": "62132B82B063CD04954BB013C78F73D29F09BC4548BBB6967BA02CE334B2B635"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "native/updater-script",
+    "字节数": 52,
+    "SHA256": "C737856FCFC44487151615184A9742F45CA90643FE08372E7581AD9D5D0E1DEB"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/prepare_v143_build.py",
+    "路径": "prepare_v143_build.py",
+    "字节数": 1794,
+    "SHA256": "9344CE9DC416AA3D67EF22C2568E11FDE14A277CE8318C8DFC3E65D87D8305D5"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "sources-v1.4.1.json",
+    "字节数": 6134,
+    "SHA256": "911BAC111163398FDABB5D23CB6A31ED4942CC30BDBF45EE48E7AB9C2AB484D3"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "sources-v1.4.2.json",
+    "字节数": 6136,
+    "SHA256": "4072A6A8399979B5F6A5D5E857D6575D0344CC0F2D021C2D6A97383A5D315609"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "sources-v1.4.3.json",
+    "字节数": 6136,
+    "SHA256": "41A0465603D4701E192093B50F0BFC592BA3F0CDF7FE90A22FE70B9D82C23860"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "sources-v1.4.4.json",
+    "字节数": 6995,
+    "SHA256": "18D8A594903F4D4CAC7300924C10897C68F654E7CE1B537394B5440D869075B7"
+  },
+  {
+    "来源": "research/d31/dist/factory-flash-v1.4.5/sources-v1.4.5.json",
+    "路径": "sources-v1.4.5.json",
+    "字节数": 6914,
+    "SHA256": "38FAC223283CCCEFBB92BBBE635AA870D27C4FB1BC5A04B00B7AFCC4BAEDC6CC"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/stage_v143.py",
+    "路径": "stage_v143.py",
+    "字节数": 3697,
+    "SHA256": "FB88A3E0253F877C85A1A43CB0EB12C503F8192DDE4F9E3587FE9B372CB44057"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "startup-handover/FactoryDefaultsTest.java",
+    "字节数": 1871,
+    "SHA256": "5820A06E24F68C1FFEE27D6D8EB921E5087948FCE028CD022810906771C23797"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "startup-handover/FactoryInit.java",
+    "字节数": 13557,
+    "SHA256": "73CB8FC4D374B1227ACE2D5C92C493096038A0D867EF077023C40EE13A2404B4"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "startup-handover/HandoverPolicy.java",
+    "字节数": 1450,
+    "SHA256": "0D16EFCE038DEC0F4F388AAEB3BFC112DFE8C73D591BF6ADB5AFC6DA54DAE304"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "startup-handover/HandoverPolicyTest.java",
+    "字节数": 4424,
+    "SHA256": "9D903BA25BEAEBEA78A05058E112F3C82F2201501D8426435F45A647E3185E9C"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "startup-handover/HandoverRuntime.java",
+    "字节数": 15211,
+    "SHA256": "E8619EB4B9AFB9586EBEC273650CB6208993C8A010F06EE65E475B0C39B08D06"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "startup-handover/StartupHandover.java",
+    "字节数": 1119,
+    "SHA256": "AE3578D6E3843D11373B107195298802BD3C0AB205BAE44AD0ADFEE6503CA8CB"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "startup-handover/build.ps1",
+    "字节数": 1933,
+    "SHA256": "55E0D60030B3D35B6B67B13DF925F56B350CA3F32C451DAA7743494D2269476D"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "startup-handover/start.sh",
+    "字节数": 1895,
+    "SHA256": "DC7D25CF472317A74D62A49771FE45326434E1BB5DBBB51E745B798092ED1481"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "templates/config-tab",
+    "字节数": 1643,
+    "SHA256": "2D3892FDEFAF94DC94DFBFA3358079DA5E40E5B0AC209BEE9F90B6CB5E5F24BB"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "templates/getnumber-disabled/AndroidManifest.xml",
+    "字节数": 811,
+    "SHA256": "FCEF7EC494EAEB70C85F8D842159336B7473FCAB2C3DA2FD78FB225D36D5273C"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "templates/init-package-restrictions.xml",
+    "字节数": 1824,
+    "SHA256": "D573D17073F1085545DC7DB9A499523140B98A38766ADADDF3AED9F50FA1E865"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "templates/init-runtime-permissions.xml",
+    "字节数": 2178,
+    "SHA256": "7F74C2CDB8F95D93396FCB1FA153CAF225B3236C35C1D2E6A51D460F08181249"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/test_factory_init.py",
+    "路径": "test_factory_init.py",
+    "字节数": 5951,
+    "SHA256": "141382C9701580D8817F3A00F5AC03ABD568F8C0A0D9A6CD0815FCF54AC92885"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/test_handover_wait.py",
+    "路径": "test_handover_wait.py",
+    "字节数": 2395,
+    "SHA256": "1C9A43C48988D1BA7339FB32605E9D9AA5978267431A481A1FE6EAA9995DC970"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/test_manifest_contract.py",
+    "路径": "test_manifest_contract.py",
+    "字节数": 2955,
+    "SHA256": "6DBAC765B55D384C66758B7D4439268509AEFF58BA7BE0169E34F9428957201F"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/test_release_contract.py",
+    "路径": "test_release_contract.py",
+    "字节数": 6056,
+    "SHA256": "AC2CFE020C58153AE9C51A5FBE598ADA8C05E7AE40BCE4DC12FB2905269D4DBD"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/test_rescue_guard.py",
+    "路径": "test_rescue_guard.py",
+    "字节数": 4808,
+    "SHA256": "B9FC6E975455F2F79715855184F8A6E6DEFBCEF41FFEAA91BAC490F660C041AD"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/test_source_members.py",
+    "路径": "test_source_members.py",
+    "字节数": 2221,
+    "SHA256": "9AAE712E15F06FECD122C570DFACC94386305648776BB096618D9ECB8FC3E20D"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/test_v145.py",
+    "路径": "test_v145.py",
+    "字节数": 3798,
+    "SHA256": "67BFFEE380C5A356BFD50CCE1A5ED9B9FB3FD3DAF1488F7081922C9147DFE44C"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "v144-build/audit_system_tree.sh",
+    "字节数": 720,
+    "SHA256": "63349DA17FB22DE76595ED08316DF7CA890A400F30C1F7D274D6C0C2F773319F"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "v144-build/build_handover.ps1",
+    "字节数": 1384,
+    "SHA256": "CD98BA3D9DF921CB9FA6E59A40D9E1A9EFC219B8DAF755F3EF3C4307A7B5B08F"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "v144-build/compare_system_tree.py",
+    "字节数": 2878,
+    "SHA256": "BB899F25A97394B6AF1009F770C7E09AB52D919A3323D8BA227C6BE8D7C0BEBB"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "v144-build/derive_system_image.py",
+    "字节数": 4912,
+    "SHA256": "331D7C2FDEC2E4EF88C5FF0DDFAB4E6D61008EEE04732170CDAABD35866169A9"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "v144-build/finalize_package.py",
+    "字节数": 3966,
+    "SHA256": "08D6D10F84F4FD47159CE5E9B4772BCC8C6DE07BF6024FF6291C7554B2A54239"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "v144-build/prepare_sources.py",
+    "字节数": 6182,
+    "SHA256": "638D19AF39B67D33BB01CCFDFDF8B4FFD192832FA6799BE5C0E0699411E7A2EB"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "v144-build/prepare_system_overlay.py",
+    "字节数": 3129,
+    "SHA256": "969A7EB01E929B5AA2F72DD3D90C40F36E59821A959758AA278A80A9752F99C1"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "v144-build/source-origins.json",
+    "字节数": 6966,
+    "SHA256": "42829BC01609B0064CE157CD455D4AD9C9B9FA31B7BE1A24B5EA944B962F5DD5"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "v144-build/test_factory_init_v144.py",
+    "字节数": 5163,
+    "SHA256": "F546CC0EF542062F3AD31773CCECFEA8B8A4EA2588AAA87A3742CC221A3C008C"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "v144-build/test_release_v144.py",
+    "字节数": 4232,
+    "SHA256": "5DABDF61D1CA61D38C353E580A8075516DE2D9691B312D5BC07E9A28101411CC"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/handover-rebuild/FactoryInit.java",
+    "路径": "v145-build/handover/FactoryInit.java",
+    "字节数": 14295,
+    "SHA256": "9A343174B735AF5016FD64FA15D9C1523AFC882E0B67FF63A64FA482C56E7C7A"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/handover-rebuild/HandoverPolicy.java",
+    "路径": "v145-build/handover/HandoverPolicy.java",
+    "字节数": 1450,
+    "SHA256": "0D16EFCE038DEC0F4F388AAEB3BFC112DFE8C73D591BF6ADB5AFC6DA54DAE304"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/handover-rebuild/HandoverRuntime.java",
+    "路径": "v145-build/handover/HandoverRuntime.java",
+    "字节数": 15211,
+    "SHA256": "E8619EB4B9AFB9586EBEC273650CB6208993C8A010F06EE65E475B0C39B08D06"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/handover-rebuild/StartupHandover.java",
+    "路径": "v145-build/handover/StartupHandover.java",
+    "字节数": 1119,
+    "SHA256": "AE3578D6E3843D11373B107195298802BD3C0AB205BAE44AD0ADFEE6503CA8CB"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/handover-rebuild/tests/FactoryLocationInitTest.java",
+    "路径": "v145-build/handover/tests/FactoryLocationInitTest.java",
+    "字节数": 5232,
+    "SHA256": "CB4BE59D75D6680F68EACAC9D66C2E8C3D74897199F493FFF5310A9D30F6A84B"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/handover-rebuild/tests/HandoverRuntime.java",
+    "路径": "v145-build/handover/tests/HandoverRuntime.java",
+    "字节数": 1706,
+    "SHA256": "58E6A67E39E76CD26C7E72DB8BB2D322EE2016C6F176C319D4454CD9D8908C6D"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/verify_d31_system_image.sh",
+    "路径": "verify_d31_system_image.sh",
+    "字节数": 5102,
+    "SHA256": "C0CC285FEC88CC24B26B3ED6532C0A07FA917CA707711FD4E65330AC0EFAA547"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/verify_factory_package.py",
+    "路径": "verify_factory_package.py",
+    "字节数": 21221,
+    "SHA256": "F4C77BFC5676940D96B64178C72BA5F7B7FFD7F95D2E4B9C637E5220CD753D36"
+  },
+  {
+    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/verify_oat.py",
+    "路径": "verify_oat.py",
+    "字节数": 2612,
+    "SHA256": "2B46FEAE571515EF4DC5CD343BB41A55A6FF037E54EA5956F9018156953F6C49"
+  }
+]

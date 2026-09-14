@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory=$true)][string]$Executable,
     [Parameter(Mandatory=$true)][string]$MetadataPath,
-    [Parameter(Mandatory=$true)][string]$OutputDirectory
+    [Parameter(Mandatory=$true)][string]$OutputDirectory,
+    [ValidateSet('1.6.7','1.6.8')][string]$ExpectedToolVersion='1.6.7'
 )
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../tools/BasicProbe.Common.psm1') -Force
@@ -15,7 +16,7 @@ $runner = Join-Path $root 'BasicProbeExeTests.exe'
 $csc = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
 & $csc /nologo /reference:System.Windows.Forms.dll /reference:System.Drawing.dll "/out:$runner" (Join-Path $PSScriptRoot 'BasicProbeExeTests.cs')
 if ($LASTEXITCODE -ne 0) { throw 'BasicProbe:integrated-test-compile' }
-& $runner $exe $root $basic.sha256 ([string]$basic.versionCode) ([IO.Path]::GetFileName((Get-ProbeRelativePath $basic)))
+& $runner $exe $root $basic.sha256 ([string]$basic.versionCode) ([IO.Path]::GetFileName((Get-ProbeRelativePath $basic))) $ExpectedToolVersion
 if ($LASTEXITCODE -ne 0) { throw 'BasicProbe:integrated-test-failed' }
 $target = Join-Path $root ([IO.Path]::GetFileName((Get-ProbeRelativePath $basic)))
 $report = Join-Path $root 'exe-export.txt'

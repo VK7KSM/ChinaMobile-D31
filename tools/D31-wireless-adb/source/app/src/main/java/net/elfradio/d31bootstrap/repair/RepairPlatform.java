@@ -40,6 +40,11 @@ public interface RepairPlatform {
     void replace(String path, File content, FileState expected) throws Exception;
     /** 可重复的只读生效检查；不得发命令、重载服务或把差异报告直接当根因或成功。 */
     boolean verify(RepairPlan plan) throws Exception;
+    /** 空编号保持旧文件核验合同；非空编号在首次准入时持久绑定。 */
+    default String consumerId() { return ""; }
+    default RepairConsumer.Result verifyConsumer(RepairPlan plan) throws Exception {
+        return RepairConsumer.Result.notChecked();
+    }
     /** 原像内容之外的恢复核验；有元数据的平台必须确认元数据同样恢复。 */
     default boolean verifyRestored(RepairPlan.Change change) throws Exception { return true; }
 }

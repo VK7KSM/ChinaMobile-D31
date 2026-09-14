@@ -4,6 +4,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 /** D31 root静态系统支持文件平台；没有shell、网络、重载或自建维护锁。 */
 public final class AndroidRepairPlatform implements RepairPlatform {
@@ -12,6 +13,8 @@ public final class AndroidRepairPlatform implements RepairPlatform {
     public static Map<String, File> productionPaths() {
         Map<String, File> paths = new LinkedHashMap<>();
         paths.put("system-support/start.sh", new File("/data/local/d31-system-support/start.sh"));
+        paths.put("startup-handover/start.sh", new File("/data/local/d31-startup-handover/start.sh"));
+        paths.put("startup-handover/handover.jar", new File("/data/local/d31-startup-handover/handover.jar"));
         return Collections.unmodifiableMap(paths);
     }
 
@@ -21,6 +24,8 @@ public final class AndroidRepairPlatform implements RepairPlatform {
     private final String digest, approvedDigest;
     private final Map<String, File> targets;
     private final RepairFileIo io;
+    private final RepairConsumer.Verifier consumer;
+    private final String consumerId;
     private Thread owner;
 
     public AndroidRepairPlatform(File journalRoot, File payloadRoot, RepairPlan plan,
@@ -28,17 +33,34 @@ public final class AndroidRepairPlatform implements RepairPlatform {
         this(journalRoot, payloadRoot, plan, leases, approvedDigest, productionPaths(), new AndroidRepairFileIo());
     }
 
+    public AndroidRepairPlatform(File journalRoot, File payloadRoot, RepairPlan plan,
+                                 LeaseProvider leases, String approvedDigest, RepairConsumer.Verifier consumer) throws Exception {
+        this(journalRoot, payloadRoot, plan, leases, approvedDigest, productionPaths(), new AndroidRepairFileIo(), consumer);
+    }
+
     // 仅同包JUnit注入宿主文件调用；生产入口没有fixture开关或路径映射参数。
     AndroidRepairPlatform(File journalRoot, File payloadRoot, RepairPlan plan, LeaseProvider leases,
                           String approvedDigest, Map<String, File> paths, RepairFileIo io) throws Exception {
+        this(journalRoot, payloadRoot, plan, leases, approvedDigest, paths, io, null);
+    }
+
+    AndroidRepairPlatform(File journalRoot, File payloadRoot, RepairPlan plan, LeaseProvider leases,
+                          String approvedDigest, Map<String, File> paths, RepairFileIo io,
+                          RepairConsumer.Verifier consumer) throws Exception {
         if (plan == null || leases == null || io == null) throw new IllegalArgumentException("修复平台缺少绑定参数");
         this.journalRoot = absolute(journalRoot); this.payloadRoot = absolute(payloadRoot);
         this.plan = plan; this.leases = leases; this.digest = plan.sha256();
         this.approvedDigest = RepairPlan.hash(approvedDigest); this.io = io;
+        this.consumer = consumer;
+        this.consumerId = consumer == null ? "" : RepairPlan.token(consumer.id());
         this.job = new File(this.journalRoot, plan.taskId);
         targets = Collections.unmodifiableMap(new LinkedHashMap<>(paths));
         for (RepairPlan.Change change : plan.changes) target(change.path);
         for (RepairPlan.Dependency dependency : plan.dependencies) target(dependency.path);
+        for (RepairPlan.Change change : plan.changes) {
+            if (!"system-support/start.sh".equals(change.path) && consumer == null)
+                throw new IllegalArgumentException("扩展产品文件必须接入实际消费者核验");
+        }
         for (File file : targets.values()) {
             if (inside(this.journalRoot, file) || inside(this.payloadRoot, file)
                     || inside(file.getParentFile(), this.journalRoot) || inside(file.getParentFile(), this.payloadRoot))
@@ -140,6 +162,40 @@ public final class AndroidRepairPlatform implements RepairPlatform {
     @Override public boolean verifyRestored(RepairPlan.Change change) throws Exception {
         held(); RepairFileIo.Snapshot actual = io.read(target(change.path)), original = original(index(change));
         return actual.content(change.originalSha256, change.originalBytes) && actual.metadata.same(original.metadata);
+    }
+
+    @Override public String consumerId() { return consumerId; }
+
+    @Override public RepairConsumer.Result verifyConsumer(RepairPlan proposed) throws Exception {
+        held();
+        if (!digest.equals(proposed.sha256())) throw new SecurityException("消费者方案绑定不符");
+        if (consumer == null) return RepairConsumer.Result.notChecked();
+        final Map<String, FileState> expected = new LinkedHashMap<>();
+        for (RepairPlan.Change c : plan.changes) expected.put(c.path, FileState.regular(c.targetSha256, c.targetBytes));
+        for (RepairPlan.Dependency d : plan.dependencies) expected.put(d.path, FileState.regular(d.sha256, d.bytes));
+        final Set<String> consumed = new HashSet<>();
+        final JSONArray observations = new JSONArray();
+        final boolean[] active = {true};
+        boolean passed;
+        try {
+            passed = consumer.verify(plan, (logical, maxBytes) -> {
+                held();
+                if (!active[0] || !expected.containsKey(logical) || maxBytes < 1 || maxBytes > 8 * 1024 * 1024)
+                    throw new SecurityException("消费者读取超出本方案边界");
+                File file = target(logical);
+                RepairFileIo.Snapshot before = io.read(file);
+                FileState want = expected.get(logical);
+                if (!before.content(want.sha256, want.bytes)) throw new IOException("消费者原文件与方案不符");
+                byte[] bytes = RepairFiles.read(file, maxBytes);
+                if (!before.same(io.read(file)) || bytes.length != before.bytes
+                        || !RepairFiles.sha256(bytes).equals(before.hash)) throw new IOException("消费者读取期间文件变化");
+                if (consumed.add(logical)) observations.put(new JSONObject().put("path", logical)
+                        .put("sha256", before.hash).put("bytes", before.bytes));
+                return bytes;
+            });
+        } finally { active[0] = false; }
+        for (RepairPlan.Change c : plan.changes) passed &= consumed.contains(c.path);
+        return RepairConsumer.Result.observed(passed, observations);
     }
 
     private RepairFileIo.Snapshot original(int index) throws Exception {

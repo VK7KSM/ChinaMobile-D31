@@ -117,10 +117,46 @@ public class RemoteMediaSessionsTest {
         s.accept(offer().put("mode","prepare").put("_credentials",new JSONObject().put("token","untrusted")),credentials);
         credentials.put("token","changed");
         assertEquals("local-only-token",wire.startedOffer.getJSONObject("_credentials").getString("token"));
-        assertFalse(s.snapshot().toString().contains("local-only-token"));wire.reply("idle");s.setVideoAvailable(false);assertEquals(1,wire.stops);s.close();
+        assertFalse(s.snapshot().toString().contains("local-only-token"));wire.reply("idle");s.setVideoAvailable(false);assertEquals(0,wire.stops);s.close();
         Wire second=new Wire();s=make(second,new Time());s.setAvailable(true);s.setPttAvailable(true);s.setVideoAvailable(true);s.setPrepareAvailable(true);
         s.accept(offer().put("mode","prepare").put("_credentials",new JSONObject().put("token","untrusted")));
         assertFalse(second.startedOffer.has("_credentials"));s.close();
+    }
+    @Test public void cameraUnavailableKeepsAudioPrepareWithoutEagerBridgeCreation()throws Exception{
+        Wire wire=new Wire();Time time=new Time();int[] created={0};
+        RemoteMediaSessions s=new RemoteMediaSessions(()->{created[0]++;return wire;},HASH,URI.create("https://v.elfradio.net"),time);
+        s.setAvailable(true);s.setPttAvailable(true);s.setPrepareAvailable(true);s.setVideoAvailable(false);
+        assertTrue(s.snapshot().getBoolean("managed_media_prepare_v1"));s.tick();assertEquals(0,created[0]);
+        assertEquals("[\"microphone\",\"ptt\",\"call\"]",s.modes().toString());
+        s.accept(offer().put("mode","video"));assertEquals(0,wire.starts);
+        s.accept(offer().put("mode","prepare"));assertEquals(1,created[0]);assertEquals(1,wire.starts);
+        wire.callback.completed(new JSONObject().put("session_id",wire.id).put("state","idle").put("transport_ready",true));
+        for(String operation:new String[]{"","ptt","call","microphone","alarm"}){
+            wire.callback.completed(new JSONObject().put("session_id",wire.id).put("state",operation.isEmpty()?"idle":"active")
+                    .put("transport_ready",true).put("active_mode",operation));
+            s.setVideoAvailable(false);assertEquals(0,wire.stops);
+        }
+        s.stop();assertEquals(1,wire.stops);wire.reply("closed");s.close();
+    }
+    @Test public void cameraWithdrawalStillStopsPreparedCameraOperationsIncludingLateReply()throws Exception{
+        for(String operation:new String[]{"photo","video"})for(boolean late:new boolean[]{false,true}){
+            Wire wire=new Wire();Time time=new Time();RemoteMediaSessions s=make(wire,time);
+            s.setAvailable(true);s.setPttAvailable(true);s.setPrepareAvailable(true);s.setVideoAvailable(true);
+            s.accept(offer().put("mode","prepare"));
+            if(late){wire.reply("idle");time.now+=3000;s.tick();s.setVideoAvailable(false);assertEquals(0,wire.stops);}
+            wire.callback.completed(new JSONObject().put("session_id",wire.id).put("state","active")
+                    .put("transport_ready",true).put("active_mode",operation));
+            if(!late)s.setVideoAvailable(false);
+            assertEquals(1,wire.stops);wire.reply("closed");s.close();
+        }
+    }
+    @Test public void cameraOptionalPrepareStillRequiresAudioAndExplicitReadiness()throws Exception{
+        for(int flags=0;flags<8;flags++){
+            Wire wire=new Wire();RemoteMediaSessions s=make(wire,new Time());
+            s.setAvailable((flags&1)!=0);s.setPttAvailable((flags&2)!=0);s.setPrepareAvailable((flags&4)!=0);
+            assertEquals(flags==7,s.snapshot().getBoolean("managed_media_prepare_v1"));
+            s.accept(offer().put("mode","prepare"));assertEquals(flags==7?1:0,wire.starts);s.close();
+        }
     }
     @Test public void unsupportedExpiredAndForeignOffersNeverStart()throws Exception {
         Wire wire=new Wire();Time t=new Time();RemoteMediaSessions s=make(wire,t);s.setAvailable(true);

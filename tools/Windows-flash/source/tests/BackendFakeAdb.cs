@@ -24,18 +24,19 @@ class BackendFakeAdb
         var files = json.Deserialize<Dictionary<string, object>[]>(File.ReadAllText(Path.Combine(root, "installed-files.json")));
         bool postSystem = metadata.ContainsKey("elfRemote") && (state.ContainsKey("rebooted") || mode.StartsWith("system-"));
         var system = metadata.ContainsKey("elfRemote") ? (Dictionary<string,object>)metadata["elfRemote"] : null;
+        int systemVersion = system == null ? 0 : Convert.ToInt32(system["versionCode"]);
         string result;
         if (command.Contains(" connect ")) result = "connected to " + args[args.Length - 1];
         else if (postSystem && command.Contains("D31_SYSTEM_RUNTIME_PRESENT_V1")) result = mode == "system-missing-health" ? "" : "D31_SYSTEM_RUNTIME_PRESENT_V1";
         else if (postSystem && command.Contains("runtime/updates/supervisor.json")) {
-            result = json.Serialize(new {uid=0,pid=mode == "system-supervisor-pid" ? 999 : 202,time_ms=1789286400000L,version_code=170,maintenance_protocol=1});
+            result = json.Serialize(new {uid=0,pid=mode == "system-supervisor-pid" ? 999 : 202,time_ms=1789286400000L,version_code=systemVersion,maintenance_protocol=1});
         }
         else if (postSystem && command.Contains("runtime/state/health.json")) {
             result = json.Serialize(new {uid=mode == "system-health-uid" ? 2000 : 0,pid=101,time_ms=mode == "system-stale-health" ? 1789286300000L : 1789286400000L,
-                version_code=mode == "system-health-version" ? 169 : 170,maintenance_protocol=1,apk_sha256=system["sha256"],local_ready=mode != "system-not-ready",instance="offline-instance"});
+                version_code=mode == "system-health-version" ? systemVersion - 1 : systemVersion,maintenance_protocol=1,apk_sha256=system["sha256"],local_ready=mode != "system-not-ready",instance="offline-instance"});
         }
         else if (postSystem && command.Contains("runtime/active.json")) {
-            result=json.Serialize(new {path=mode == "system-active-data" ? "/data/local/tmp/remote.apk" : system["systemApk"],sha256=system["sha256"],versionCode=170});
+            result=json.Serialize(new {path=mode == "system-active-data" ? "/data/local/tmp/remote.apk" : system["systemApk"],sha256=system["sha256"],versionCode=systemVersion});
         }
         else if (postSystem && command.Contains("runtime/state/remote.pid")) result="101";
         else if (postSystem && command.Contains("cat /proc/sys/kernel/random/boot_id") && !command.Contains("/d31-startup-handover/runs/")) {
@@ -75,7 +76,7 @@ class BackendFakeAdb
                 "package:android\npackage:net.elfradio.d31bootstrap" : "package:android\npackage:com.android.settings";
         }
         else if (command.Contains("dumpsys package net.elfradio.d31bootstrap")) {
-            result = postSystem ? "  versionCode="+(mode == "system-pm-version" ? "169" : "170")+" targetSdk=23\n  versionName="+system["versionName"] : mode == "legacy-pm-unknown" ? "" : "  versionCode=" +
+            result = postSystem ? "  versionCode="+(mode == "system-pm-version" ? systemVersion - 1 : systemVersion)+" targetSdk=23\n  versionName="+system["versionName"] : mode == "legacy-pm-unknown" ? "" : "  versionCode=" +
                 (mode == "full170-pm-no-health" ? "170" : mode == "legacy-version-mismatch" ? "94" : "95") + " targetSdk=23";
         }
         else if (command.Contains("runtime/state/health.json")) {

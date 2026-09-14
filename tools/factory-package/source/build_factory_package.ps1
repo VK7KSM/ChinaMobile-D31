@@ -1,7 +1,7 @@
 param(
     [string]$SourceDirectory = "C:\Dev\H13_D22\research\d31\analysis\2026-09-13-factory-v1.4.4",
     [string]$OutputDirectory = "C:\Dev\H13_D22\research\d31\dist\factory-flash-v1.4.4",
-    [ValidateSet('1.4.4')][string]$Version = '1.4.4',
+    [ValidateSet('1.4.4', '1.4.5')][string]$Version = '1.4.4',
     [string]$SourcesManifest = "C:\Dev\H13_D22\research\d31\factory_package\sources-v1.4.4.json"
 )
 
@@ -64,7 +64,9 @@ if (Test-Path -LiteralPath $OutputDirectory) {
 New-Item -ItemType Directory -Path $OutputDirectory | Out-Null
 $nativeBinary = Join-Path $OutputDirectory "update-binary"
 
-& $clang -static -Oz -fno-ident '-Wl,--build-id=none' -Wall -Wextra -Werror -o $nativeBinary $source $tlsSource -lz
+$versionFlags = @()
+if ($Version -eq '1.4.5') { $versionFlags += '-DD31_PACKAGE_145' }
+& $clang @versionFlags -static -Oz -fno-ident '-Wl,--build-id=none' -Wall -Wextra -Werror -o $nativeBinary $source $tlsSource -lz
 if ($LASTEXITCODE -ne 0) {
     throw "D31原生update-binary编译失败：$LASTEXITCODE"
 }

@@ -79,6 +79,7 @@ public final class RepairTransactions {
     }
 
     private JSONObject pending(RepairJournal.Loaded job, long now) throws Exception {
+        job.state.put("consumer_id", platform.consumerId());
         try { admission(job); checkTargets(job, -1); checkSpace(job.plan); }
         catch (Exception error) { return fail(job, "PRECHECK_FAILED", error, now); }
         return transition(job, "BACKUP", 0, "PRECHECK_PASSED", now);
@@ -155,6 +156,20 @@ public final class RepairTransactions {
         try {
             admission(job); checkTargets(job, job.plan.changes.size() - 1);
             if (!platform.verify(job.plan)) throw new IOException("方案生效核验失败");
+            RepairConsumer.Result result;
+            try {
+                result = platform.verifyConsumer(job.plan);
+                job.state.put("consumer_verification", result.json(platform.consumerId()));
+            } catch (Exception error) {
+                propagateInterruption(error);
+                job.state.put("consumer_verification", new JSONObject().put("consumer_id", platform.consumerId())
+                        .put("status", "READ_FAILED").put("scope", "READ_ONLY_FILE_CONSUMPTION")
+                        .put("running_service_effect", "NOT_CHECKED"));
+                return fail(job, "CONSUMER_VERIFY_FAILED", null, now);
+            }
+            if (!platform.consumerId().isEmpty() && !result.passed) return fail(job, "CONSUMER_VERIFY_FAILED", null, now);
+            admission(job);
+            if (!platform.verify(job.plan)) throw new IOException("消费者核验后文件元数据变化");
             checkTargets(job, job.plan.changes.size() - 1);
         } catch (Exception error) { return fail(job, "VERIFY_FAILED", error, now); }
         return transition(job, "SUCCEEDED", job.state.getInt("index"), "CONTENT_AND_EFFECT_VERIFIED", now);
@@ -222,6 +237,8 @@ public final class RepairTransactions {
     private void admission(RepairJournal.Loaded job) throws Exception {
         checkInterrupted();
         RepairPlan plan = job.plan;
+        if (!job.state.optString("consumer_id", "").equals(platform.consumerId()))
+            throw new SecurityException("续作消费者合同变化");
         if (!platform.approved(job.digest)) throw new SecurityException("方案摘要未获明确批准");
         if (!plan.deviceClass.equals(platform.deviceClass()) || !plan.buildFingerprint.equals(platform.buildFingerprint()))
             throw new SecurityException("设备类别或构建不匹配");

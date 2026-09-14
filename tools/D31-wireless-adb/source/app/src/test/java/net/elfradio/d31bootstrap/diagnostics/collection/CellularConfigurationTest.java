@@ -33,10 +33,11 @@ public class CellularConfigurationTest {
         return new ManifestCollector(access,clock).collect(identity(),scope,limits(40,bytes,4)).manifest().toJson();
     }
     static JSONObject semantic(JSONObject manifest) throws Exception { return field(manifest,SCRIPT,FIELD); }
-    @Test public void bothExactJarsUseTheSameIsFileCondition() throws Exception {
-        String[] hashes={"f56cb9586d08046848e02c321cb00916f595ee039f2b0e8e3e92028474c2da92","3e12fe7cdf595483d66b72a9a3ab371a17ee58b2c801155c0b24f4f5481d85ec"};
+    @Test public void threeExactJarsUseTheSameIsFileCondition() throws Exception {
+        String[] hashes={"f56cb9586d08046848e02c321cb00916f595ee039f2b0e8e3e92028474c2da92","3e12fe7cdf595483d66b72a9a3ab371a17ee58b2c801155c0b24f4f5481d85ec",
+                "1dc959ec6e6513d48b8894042c347b749057690dd2674eea69ff639b84794978"};
         int i=0;
-        for (String variant:new String[]{"firmware","deployed"}) {
+        for (String variant:new String[]{"firmware","deployed","v144"}) {
             byte[] jar=resource("startup-handover-"+variant+".jar");
             assertEquals(hashes[i++],CollectionSupport.hex(CollectionSupport.digest().digest(jar)));
             for (String kind:new String[]{"file","directory","block","ABSENT","symlink"}) {
@@ -45,6 +46,16 @@ public class CellularConfigurationTest {
                 if (kind.equals("symlink")) { assertEquals("NOT_CHECKED",e.getString("state")); assertFalse(e.has("value")); }
                 else { assertEquals("OBSERVED",e.getString("state")); assertEquals(kind.equals("file"),e.getBoolean("value")); }
             }
+        }
+    }
+    @Test public void v144TamperAndUnknownLauncherStayUnknown() throws Exception {
+        for (String target:new String[]{JAR,SCRIPT}) {
+            Clock clock=new Clock(); Access access=fixture(clock,"v144","ABSENT");
+            access.nodes.get(target).bytes[100]^=1;
+            JSONObject e=semantic(collect(access,clock,ROOT,200000));
+            assertEquals("NOT_CHECKED",e.getString("state")); assertFalse(e.has("value"));
+            assertEquals(target.equals(JAR)?"SWITCH_CONSUMER_JAR_NOT_RECOGNIZED":"SWITCH_CONSUMER_TEMPLATE_NOT_RECOGNIZED",
+                    e.getString("reason"));
         }
     }
     @Test public void unknownJarCannotTurnMissingMarkerIntoFalse() throws Exception {

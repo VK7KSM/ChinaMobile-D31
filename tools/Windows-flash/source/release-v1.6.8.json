@@ -1,0 +1,19 @@
+{
+  "toolVersion": "1.6.8",
+  "firmwareVersion": "1.4.5",
+  "fileName": "D31-Flash-Tool-v1.6.8.exe",
+  "bytes": 16135680,
+  "sha256": "24B49DEC6E8FBD6A0F72A40A944225ADBA7B03D7BF28FA6452EAA113999A02C3",
+  "basicVersionCode": 193,
+  "fullVersionCode": 194,
+  "runtimeFiles": 13,
+  "firmwareBytes": 1725713383,
+  "firmwareSha256": "E74EFFC90A36EA9C7149532A7FFA7D556A448462324410BE7AA689DAF583CFC1",
+  "approvalSha256": "D3EC0960435F16F68D5B03F0ADB4B411E855DCF531B48FD4A4992C8702E1A61A",
+  "installedFilesSha256": "566DF4C608147834D93B1531362DBF1EC6C254BE667C19687653851FC490E19D",
+  "backendCases": 56,
+  "systemCases": 36,
+  "remainingTestsPassed": true,
+  "independentAudit": "主线已确认正式EXE独立审核通过；本公开源整理不重复执行",
+  "scope": "离线构建与制品验证，不代表清data实刷或公网分发验收"
+}

@@ -12,8 +12,12 @@ import org.json.JSONObject;
 /** 按需启动的云端ADB会话；凭据仅在内存中存在，不传给shell。 */
 final class AdbSessions implements Closeable {
     private final RollingLog log;
+    private final javax.net.SocketFactory sockets;
     private Session current;
-    AdbSessions(File root){log=new RollingLog(new File(root,"adb-log"),32768,2);}
+    AdbSessions(File root){this(root,javax.net.SocketFactory.getDefault());}
+    AdbSessions(File root,javax.net.SocketFactory sockets){
+        log=new RollingLog(new File(root,"adb-log"),32768,2);this.sockets=sockets;
+    }
     static URI validate(JSONObject request,long now)throws Exception {
         String id=request.getString("session_id"),token=request.getString("token");
         if(!id.matches("[a-f0-9-]{36}")||!token.matches("[a-f0-9]{64}"))throw new IOException("ADB会话参数无效");
@@ -38,6 +42,7 @@ final class AdbSessions implements Closeable {
         final String id;final WebSocketClient websocket;
         volatile AdbShell shell;volatile boolean ended;
         volatile Socket relaySocket;
+        volatile Socket adbSocket;
         Object power;android.os.IBinder wakeToken;
         final java.util.Timer deadline=new java.util.Timer("elfremote-adb-deadline",true);
         Session(String id,URI uri,String token)throws Exception{
@@ -77,18 +82,23 @@ final class AdbSessions implements Closeable {
                 log.write(System.currentTimeMillis()+" ADB_CONNECT_BEGIN");
                 holdAwake();deadline.schedule(new java.util.TimerTask(){public void run(){finish(null,"本次终端已到时");}},1800000);
                 // Android 6必须由带host的分层工厂设置SNI，裸SSLSocket再connect会丢失域名。
-                Socket tcp=new Socket();relaySocket=tcp;
+                Socket tcp=sockets.createSocket();relaySocket=tcp;
                 if(ended)throw new IOException("ADB请求已取消");
                 tcp.connect(new InetSocketAddress(websocket.getURI().getHost(),443),10000);
+                log.write(System.currentTimeMillis()+" ADB_RELAY_TCP_CONNECTED");
                 Socket tls=RemoteTls.factory().createSocket(tcp,websocket.getURI().getHost(),443,true);
                 relaySocket=tls;
                 if(ended)throw new IOException("ADB请求已取消");
                 websocket.setSocket(tls);
                 if(!websocket.connectBlocking(10,TimeUnit.SECONDS)||ended)throw new IOException("无法连接ADB中继");
-                int port=RemoteAdbMaintenance.ensureListening(id);
-                Socket connection=new Socket();
+                log.write(System.currentTimeMillis()+" ADB_RELAY_WEBSOCKET_CONNECTED");
+                int port=RemoteAdbMaintenance.ensureListening(id,log);
+                log.write(System.currentTimeMillis()+" ADB_LOCAL_LISTENER_READY");
+                Socket connection=sockets.createSocket();adbSocket=connection;
+                if(ended){connection.close();return;}
                 try{connection.connect(new InetSocketAddress("127.0.0.1",port),3000);}
                 catch(IOException failure){connection.close();throw failure;}
+                log.write(System.currentTimeMillis()+" ADB_LOCAL_TCP_CONNECTED");
                 shell=new AdbShell(connection,new AdbShell.Listener(){
                     public void output(int channel,byte[] bytes){
                         // 每条云消息有界；UTF-8的跨块拼接由浏览器解码器负责。
@@ -126,6 +136,8 @@ final class AdbSessions implements Closeable {
             if(ended)return;ended=true;
             deadline.cancel();
             if(shell!=null)shell.close();
+            // 握手期间shell尚未赋值，取消仍须立即释放本机连接。
+            try{if(adbSocket!=null)adbSocket.close();}catch(IOException ignored){}
             try{if(power!=null&&wakeToken!=null)Class.forName("android.os.IPowerManager").getMethod("releaseWakeLock",android.os.IBinder.class,int.class).invoke(power,wakeToken,0);}catch(Exception ignored){}
             boolean open=websocket.isOpen();
             try{if(open)websocket.send(new JSONObject().put("type","closed").put("exit",exit==null?JSONObject.NULL:exit).put("message",reason).toString());}catch(Exception ignored){}

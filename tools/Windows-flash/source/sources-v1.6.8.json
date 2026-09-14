@@ -1,0 +1,386 @@
+{
+  "toolVersion": "1.6.8",
+  "firmwareVersion": "1.4.5",
+  "exeSha256": "24B49DEC6E8FBD6A0F72A40A944225ADBA7B03D7BF28FA6452EAA113999A02C3",
+  "count": 54,
+  "files": [
+    {
+      "path": "tools/Windows-flash/source/assets/elfradio-icon-256.png",
+      "source": "research/d31_flash_tool/assets/elfradio-icon-256.png",
+      "bytes": 52046,
+      "sha256": "F21A54E4929F5880B6286A7CA80433FBCAA70C8B2F331BBE827CA4CC1E99E885",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/assets/elfradio-logo.png",
+      "source": "research/d31_flash_tool/assets/elfradio-logo.png",
+      "bytes": 17861,
+      "sha256": "A0DCC747C13F29D5C6E6465EAE28C8114282A4F8DD214D961CF40D654FC63640",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/assets/elfradio.ico",
+      "source": "research/d31_flash_tool/assets/elfradio.ico",
+      "bytes": 52068,
+      "sha256": "AF3C4823E12F840868976B4717CE80E03BE6E79AF755510DC5A5E04A860311E1",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/scripts/create_d31_rescue.ps1",
+      "source": "research/d31_flash_tool/scripts/create_d31_rescue.ps1",
+      "bytes": 15392,
+      "sha256": "E3699FF9FBDC139FC619F288D046D42A828F2E75BAF7754812F1D3D8D539B44B",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/src/FirmwareManager.cs",
+      "source": "research/d31_flash_tool/src/FirmwareManager.cs",
+      "bytes": 17335,
+      "sha256": "BD68874087CDFFB7213EA93BA9F002EAAA9605585B6ECFD75ECA4C563E405D7A",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/src/MainForm.cs",
+      "source": "research/d31_flash_tool/src/MainForm.cs",
+      "bytes": 46014,
+      "sha256": "FE84DD263059E8ACC427D19B2C58A9EFBB33BB22E1EDBA1449620CD63E8A5CCC",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/src/MaintenanceGuard.cs",
+      "source": "research/d31_flash_tool/src/MaintenanceGuard.cs",
+      "bytes": 1664,
+      "sha256": "8C354C347CA78F8ABB0C79DA907230D16AE357F820B4479B9B20AC38328DE33C",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/src/Program.cs",
+      "source": "research/d31_flash_tool/src/Program.cs",
+      "bytes": 22200,
+      "sha256": "9DFFDDB7136E338E4F3178A8973838A85277067B4F4E5662434688166F642322",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/src/RescueClient.cs",
+      "source": "research/d31_flash_tool/src/RescueClient.cs",
+      "bytes": 16566,
+      "sha256": "277BCB3401313886E81BFD71E1430F5DD0FB4EE25701EEF5FC5971705E48C0DC",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/src/RescueForm.cs",
+      "source": "research/d31_flash_tool/src/RescueForm.cs",
+      "bytes": 9154,
+      "sha256": "B677D8E7F6112CFE27199F6E8E10294605688F4B516BF2BF01A38D16EBC56B2D",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/src/RuntimeAssets.cs",
+      "source": "research/d31_flash_tool/src/RuntimeAssets.cs",
+      "bytes": 7267,
+      "sha256": "913F3D67CDE02A1A8490006E44F851EDF02B12895BBD353ADBC3E9EB8A8F1536",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/AdbPortTests.cs",
+      "source": "research/d31_flash_tool/tests/AdbPortTests.cs",
+      "bytes": 11552,
+      "sha256": "CF1981B36F4AF3B94FDA40AE2A9097CC4D96E0E5DE1EA61DC5249044F60E413A",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/AuditRecoveryAdmission.ps1",
+      "source": "research/d31_flash_tool/tests/AuditRecoveryAdmission.ps1",
+      "bytes": 1939,
+      "sha256": "B4390971330F2720E94ADF90F44F33F1247F561E90CFD19F2E0683206B16043E",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/BackendFakeAdb.cs",
+      "source": "research/d31_flash_tool/tests/BackendFakeAdb.cs",
+      "bytes": 15193,
+      "sha256": "8EF6E3B75A240EC5672C24DB78FD6E760A94E67D5FFDFBEBECDDC3A1171427FB",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/BasicProbeExeTests.cs",
+      "source": "research/d31_flash_tool/tests/BasicProbeExeTests.cs",
+      "bytes": 7793,
+      "sha256": "67925ED3353AE2F22563D5741385FE9BFB1FEE7CA79BF64567C0770373F835FD",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/BasicProbeIntegratedTests.ps1",
+      "source": "research/d31_flash_tool/tests/BasicProbeIntegratedTests.ps1",
+      "bytes": 2501,
+      "sha256": "9995B8DCFFFF84193411D39EBBF495F0DDF07570F78B28BFEE043A21637778A5",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/BasicProbeMaintenanceFixture.sh",
+      "source": "research/d31_flash_tool/tests/BasicProbeMaintenanceFixture.sh",
+      "bytes": 352,
+      "sha256": "D6EA8463367DE0EF4AD1231A2D8D411A9500DD0F63BE22F03380928C186A3121",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/BasicProbeMaintenanceTests.cs",
+      "source": "research/d31_flash_tool/tests/BasicProbeMaintenanceTests.cs",
+      "bytes": 5559,
+      "sha256": "57D203E36E8C87B89B06B9DDD21E1633522E9C6082AEAD4138041551427B75F0",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/BasicProbeRuntimeHarness.cs",
+      "source": "research/d31_flash_tool/tests/BasicProbeRuntimeHarness.cs",
+      "bytes": 479,
+      "sha256": "160ED39663BF17CE703FADC5AF876E613581D5E0B9751E3FF5715853FF24D032",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/BasicProbeTests.ps1",
+      "source": "research/d31_flash_tool/tests/BasicProbeTests.ps1",
+      "bytes": 26756,
+      "sha256": "E1E3AC3C5B5CE0791A188D285CECA0ED959D9E69E120992586EE12B2BD19D8B0",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/DownloadRegression.cs",
+      "source": "research/d31_flash_tool/tests/DownloadRegression.cs",
+      "bytes": 4021,
+      "sha256": "8512287EFB080B9CA97F29EBE6BE8A3B3A0EDC38C6CA8C8AF56583B18C321893",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/ReleasedArtifactAudit.cs",
+      "source": "research/d31_flash_tool/tests/ReleasedArtifactAudit.cs",
+      "bytes": 3208,
+      "sha256": "04A5F5AE37E65516BAE935B7202B1C6A843A8AD758508A0C5F4DF2B7CE52A31C",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/RescueLayoutTests.cs",
+      "source": "research/d31_flash_tool/tests/RescueLayoutTests.cs",
+      "bytes": 2104,
+      "sha256": "124045168FA5982643B5EE76299FCDE21090909B41CBF6CDBB892B7C62758C90",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/RescueTests.cs",
+      "source": "research/d31_flash_tool/tests/RescueTests.cs",
+      "bytes": 3417,
+      "sha256": "26DAC61C06F40EB4211D54C492B9C8644D254A2244810EC344F21AFF739C1C39",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/Test-D31RescueOffline.ps1",
+      "source": "research/d31_flash_tool/tests/Test-D31RescueOffline.ps1",
+      "bytes": 6424,
+      "sha256": "5CDCEA649689DB69DB75FDC73BF3EDDEED7E85119E9F6ED0FD0001E981B031BB",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestBackend.ps1",
+      "source": "research/d31_flash_tool/tests/TestBackend.ps1",
+      "bytes": 8809,
+      "sha256": "7AF19C833CE26FF8C381A66F1EFFA707D967201C1FBBC05F4FBCE4E2458D879B",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestBackendFixture.ps1",
+      "source": "research/d31_flash_tool/tests/TestBackendFixture.ps1",
+      "bytes": 1707,
+      "sha256": "1C294ABC4A29AF1674E8D7BED3EBF906EF0007A6C0C4E0E5F8B907634D6F6ADC",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestCandidateReport.ps1",
+      "source": "research/d31_flash_tool/tests/TestCandidateReport.ps1",
+      "bytes": 9735,
+      "sha256": "FAA393283DD12FF5ACA86ACC29A6DF90E04EF64428C59A8EBAB3BA28B10E1EB6",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestFirmwareBuild.ps1",
+      "source": "research/d31_flash_tool/tests/TestFirmwareBuild.ps1",
+      "bytes": 3971,
+      "sha256": "EF91858B530EF30A6BE0B425785FB0DF01DF160585C82C1E52ECA0BBE19E8EAA",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestFirmwareNative.ps1",
+      "source": "research/d31_flash_tool/tests/TestFirmwareNative.ps1",
+      "bytes": 1833,
+      "sha256": "539ECC897B40881C57181811D9C885F1A5B5CA95169CE342583F4A81919DC656",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestFlashMaintenance.ps1",
+      "source": "research/d31_flash_tool/tests/TestFlashMaintenance.ps1",
+      "bytes": 3891,
+      "sha256": "585B8F362965E59AB79C5BDECF80E58533D9B1BD8C8B15D3975077934FF1E7CC",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestMaintenanceShell.ps1",
+      "source": "research/d31_flash_tool/tests/TestMaintenanceShell.ps1",
+      "bytes": 3255,
+      "sha256": "1611C55972B625794A0B133408A6CD94EAA2BFBF4ADE108828CE575DC3251EF9",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestPostBoot.ps1",
+      "source": "research/d31_flash_tool/tests/TestPostBoot.ps1",
+      "bytes": 3223,
+      "sha256": "95DCD36094603B74F82B56775AA15F20C580EE0037528C665F50AADBB7BEB0C8",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestSystemFirmware.ps1",
+      "source": "research/d31_flash_tool/tests/TestSystemFirmware.ps1",
+      "bytes": 8624,
+      "sha256": "DA3A28470632C65D52D9B0D23B61BB9D0C76F029DEB9B3D7D867D571D6164879",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/adb_port_fixture.sh",
+      "source": "research/d31_flash_tool/tests/adb_port_fixture.sh",
+      "bytes": 1413,
+      "sha256": "8544268CC59E414BB1788B7E32C92457063EC35EFC040FAF4C3A06A64FCB72C1",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/check_rescue_readonly.ps1",
+      "source": "research/d31_flash_tool/tests/check_rescue_readonly.ps1",
+      "bytes": 484,
+      "sha256": "733B48E3DE82467B3290B9DF097B4AB3555BA36C32FC42B782EB74F879F691A3",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/check_uptool_readonly.ps1",
+      "source": "research/d31_flash_tool/tests/check_uptool_readonly.ps1",
+      "bytes": 764,
+      "sha256": "E274048A62341D1FD17867DE22CCD4C351D6C2A3C352F7436791B314A6EBBC8D",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/serve_download_fixture.py",
+      "source": "research/d31_flash_tool/tests/serve_download_fixture.py",
+      "bytes": 2206,
+      "sha256": "B7BB52F474E21B30A0706B29561322F98D65649DA8D9FF486A66EF5E7A09F0E6",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/verify_rescue_roundtrip.ps1",
+      "source": "research/d31_flash_tool/tests/verify_rescue_roundtrip.ps1",
+      "bytes": 2668,
+      "sha256": "E51E0B88783F9510AF93E2F7595ED63E2AF4A16D6C216D002F31FCDAA9076B8D",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tools/BasicProbe.Common.psm1",
+      "source": "research/d31_flash_tool/tools/BasicProbe.Common.psm1",
+      "bytes": 9324,
+      "sha256": "49E45DF22ABF9E43105EBB9FF3C2B6909E9EFFB35FE6418CC12A41D1579C5D8F",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tools/BasicProbe.Migration.psm1",
+      "source": "research/d31_flash_tool/tools/BasicProbe.Migration.psm1",
+      "bytes": 14392,
+      "sha256": "E654FF4A542C97EEB5AB847B00C011AFBBFE1654E3D6B4D2AFBF3E2755400A6D",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tools/Export-BasicProbeResource.ps1",
+      "source": "research/d31_flash_tool/tools/Export-BasicProbeResource.ps1",
+      "bytes": 1250,
+      "sha256": "342640AE93A8E65718EFE6BE45CB6591DDC42130CF17D41F3AC378B80F715218",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tools/FirmwareContract.psm1",
+      "source": "research/d31_flash_tool/tools/FirmwareContract.psm1",
+      "bytes": 3513,
+      "sha256": "E9BCCEC58B60D5F8CEB9AC45C6A866249A65583BBB02B091AFA9949C02B3D0C8",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tools/Get-BasicProbeMigrationPlan.ps1",
+      "source": "research/d31_flash_tool/tools/Get-BasicProbeMigrationPlan.ps1",
+      "bytes": 1748,
+      "sha256": "6E9DFBC55120228845FAEF22A54256B788DC4C06A463434797D089B6066F77B3",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tools/Prepare-BasicProbeResources.ps1",
+      "source": "research/d31_flash_tool/tools/Prepare-BasicProbeResources.ps1",
+      "bytes": 2332,
+      "sha256": "4EFDFDF2EABCEDC2AA34091BD29722D22754D168042DE95F5DFF99BCBA84D79C",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/build.ps1",
+      "source": "research/d31_flash_tool/build.ps1",
+      "bytes": 778,
+      "sha256": "236D1948E4FD96F2A39081F96678A97298D5DC2F09E7BBAFF143C28F310C34CC",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/build-v1.6.8.ps1",
+      "source": "research/d31_flash_tool/build-v1.6.8.ps1",
+      "bytes": 22531,
+      "sha256": "61E1195BCAFC39EF37B78695B49E0429508E424329499A38018EA87D0B324A37",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/tests/TestFirmware168Contract.ps1",
+      "source": "research/d31_flash_tool/tests/TestFirmware168Contract.ps1",
+      "bytes": 3028,
+      "sha256": "3E58926A4DA9DA2FA8DCFCF9F983F711789D3BA19259432125EF265C48CA1BEC",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/build-original-workspace.ps1",
+      "source": "research/d31_flash_tool/build-v1.6.8.ps1",
+      "bytes": 22531,
+      "sha256": "61E1195BCAFC39EF37B78695B49E0429508E424329499A38018EA87D0B324A37",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/src/BuildConstants.g.cs",
+      "source": "research/d31_flash_tool/obj-v1.6.8/BuildConstants.g.cs",
+      "bytes": 3414,
+      "sha256": "F02DC90E0014E4AFDFF408F052B26FCDAB5B85BAAD85DB0F0F4EF89F5AD6B59F",
+      "finalBuildBinding": "当前源与最终交付时生产目录一致；生成常量与最终构建结果一致"
+    },
+    {
+      "path": "tools/Windows-flash/source/inputs/approved-package-v1.4.5.json",
+      "source": "research/d31_flash_tool/obj-v1.6.8/runtime/approved-package.json",
+      "bytes": 1130,
+      "sha256": "D3EC0960435F16F68D5B03F0ADB4B411E855DCF531B48FD4A4992C8702E1A61A",
+      "finalBuildBinding": "实际构建输入或验收续作入口"
+    },
+    {
+      "path": "tools/Windows-flash/source/inputs/installed-files-v1.4.5.json",
+      "source": "research/d31_flash_tool/obj-v1.6.8/runtime/installed-files.json",
+      "bytes": 9979,
+      "sha256": "566DF4C608147834D93B1531362DBF1EC6C254BE667C19687653851FC490E19D",
+      "finalBuildBinding": "实际构建输入或验收续作入口"
+    },
+    {
+      "path": "tools/Windows-flash/source/v168-build/Build-Final.ps1",
+      "source": "research/d31_flash_tool/staging/v1.6.8-preparation-20260914/Build-Final.ps1",
+      "bytes": 1025,
+      "sha256": "6B90A01FE6D695B0C157EAA5F922814AA7B9C613A26F5F936A9F99D9C057574E",
+      "finalBuildBinding": "实际构建输入或验收续作入口"
+    },
+    {
+      "path": "tools/Windows-flash/source/v168-build/Complete-Final.ps1",
+      "source": "research/d31_flash_tool/staging/v1.6.8-preparation-20260914/Complete-Final.ps1",
+      "bytes": 3865,
+      "sha256": "DE5C2C9FBA8231AF4375886C638C7F5BEBDD290950E5890184DCC28A88106C75",
+      "finalBuildBinding": "实际构建输入或验收续作入口"
+    }
+  ]
+}

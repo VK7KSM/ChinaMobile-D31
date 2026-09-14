@@ -68,9 +68,22 @@ public final class ManifestCollector {
                 .put("maxEntries", limits.maxEntries).put("maxDepth", limits.maxDepth)
                 .put("maxReadBytes", limits.maxReadBytes).put("maxFileBytes", limits.maxFileBytes)
                 .put("durationMs", limits.durationMs).put("scopeSemantics", "SINGLE_INDEPENDENT_RANGE")
-                .put("metadataNotCollected", new JSONArray(Arrays.asList("selinux", "xattrs", "activeSource", "mountSource", "activation")))
+                .put("metadataNotCollected", metadataGaps(session.entries))
                 .put("atomicSnapshot", false).put("aggregationStatus", "NOT_IMPLEMENTED").put("systemConsistency", "NOT_ASSESSED");
         return new Result(DiagnosticManifest.parse(base), index);
+    }
+
+    private static JSONArray metadataGaps(JSONArray entries) throws JSONException {
+        JSONArray gaps = new JSONArray();
+        for (String name : Arrays.asList("selinux", "xattrs", "activeSource", "mountSource", "activation")) {
+            boolean all = entries.length() > 0;
+            for (int i = 0; i < entries.length(); i++) {
+                JSONObject e = entries.getJSONObject(i).getJSONObject("fields").optJSONObject(name);
+                all &= e != null && e.optString("state").equals("OBSERVED");
+            }
+            if (!all) gaps.put(name);
+        }
+        return gaps;
     }
 
     /** 仅验证分批范围不重叠，不生成聚合完成结论。 */
@@ -139,6 +152,8 @@ public final class ManifestCollector {
             int oldLength = entry.toString().length();
             add(entry);
             try {
+                budget.remainingMs();
+                ExtendedMetadata firstMetadata = metadata(file, before);
                 if (before.type.equals("file")) {
                     fields.put("link", missing("NOT_APPLICABLE", "REGULAR_FILE", source));
                     if (before.size > limits.maxFileBytes) throw new CollectionAccess.Failure("FILE_BYTE_LIMIT");
@@ -187,6 +202,16 @@ public final class ManifestCollector {
                 } else {
                     throw new CollectionAccess.Failure("UNSUPPORTED_FILE_TYPE");
                 }
+                ExtendedMetadata lastMetadata = metadata(file, before);
+                if (!before.same(access.lstat(file))) throw new CollectionAccess.Failure("UNSTABLE_METADATA");
+                budget.remainingMs();
+                for (String name : Arrays.asList("selinux", "xattrs")) {
+                    JSONObject evidence = firstMetadata.sameField(lastMetadata, name) ? lastMetadata.field(name, source)
+                            : missing("UNSTABLE", "UNSTABLE_METADATA", source);
+                    fields.put(name, evidence);
+                    if (evidence.getString("state").equals("READ_FAILED")) issue("METADATA_READ_FAILED");
+                    if (evidence.getString("state").equals("UNSTABLE")) issue("UNSTABLE_METADATA");
+                }
             } catch (IOException failure) {
                 String code = error(failure);
                 issue(code);
@@ -198,10 +223,17 @@ public final class ManifestCollector {
                     fields.put(SystemSupportConfiguration.FIELD, missing(state, code, source));
                 if (switchField != null) fields.put(switchField, missing(state, code, source));
                 if (state.equals("UNSTABLE")) {
-                    for (String name : new String[]{"type", "mode", "uid", "gid"}) fields.put(name, missing("UNSTABLE", code, source));
+                    for (String name : new String[]{"type", "mode", "uid", "gid", "selinux", "xattrs"}) fields.put(name, missing("UNSTABLE", code, source));
                 }
             }
             outputChars += Math.max(0, entry.toString().length() - oldLength);
+        }
+
+        ExtendedMetadata metadata(String path, CollectionAccess.Stat stat) throws IOException {
+            long remaining = limits.maxReadBytes - budget.readBytes;
+            ExtendedMetadata result = access.readMetadata(path, stat, remaining, budget.remainingMs());
+            if (result == null || result.bytesRead < 0 || result.bytesRead > remaining) throw new CollectionAccess.Failure("METADATA_CONTRACT");
+            budget.readBytes += result.bytesRead; budget.remainingMs(); return result;
         }
 
         void add(JSONObject entry) { entries.put(entry); outputChars += entry.toString().length() + 1; }

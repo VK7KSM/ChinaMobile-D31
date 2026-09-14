@@ -14,6 +14,7 @@ final class RemoteWorkLoop {
     }
     private static final class Slot {
         long next, retry;
+        Long lastCompleted;
         int failures, http;
         boolean requested;
         String error = "";
@@ -47,7 +48,9 @@ final class RemoteWorkLoop {
             slot.requested = false;
             try {
                 long delay = actions.run(stage);
-                slot.next = clock.now() + Math.max(1000, delay);
+                long completed = clock.now();
+                slot.next = completed + Math.max(1000, delay);
+                slot.lastCompleted = completed;
                 slot.retry = 0; slot.failures = 0; slot.http = 0; slot.error = "";
             } catch (Exception error) {
                 slot.failures = Math.min(16, slot.failures + 1);
@@ -72,6 +75,8 @@ final class RemoteWorkLoop {
             Slot slot = slots.get(stage);
             result.put(stage.name().toLowerCase(java.util.Locale.US), new JSONObject()
                     .put("failures", slot.failures).put("http_status", slot.http).put("error", slot.error)
+                    .put("next_in_ms", Math.max(0, Math.max(slot.retry, slot.requested ? now : slot.next) - now))
+                    .put("last_completed_elapsed_ms", slot.lastCompleted == null ? JSONObject.NULL : slot.lastCompleted)
                     .put("retry_in_ms", Math.max(0, slot.retry - now)).put("requested", slot.requested));
         }
         return result;

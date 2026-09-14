@@ -14,6 +14,7 @@ public final class RemoteDaemon {
     private final File root;
     private final String instance;
     private final RemoteState state;
+    private final RollingLog controlLog;
     private final AtomicBoolean wake = new AtomicBoolean(true);
     private final AtomicBoolean syncWake = new AtomicBoolean();
     private final RemotePush push;
@@ -34,6 +35,8 @@ public final class RemoteDaemon {
     private final RemoteTelemetry telemetry = new RemoteTelemetry();
     private volatile RemoteMediaSessions media;
     private volatile RemoteVisualMedia visual;
+    private volatile RemoteAutomaticPhotos automaticPhotos;
+    private long automaticPhotoInitRetry;
     private String mediaStatus = "";
     private String locationStatus = "";
     private RemoteFaultRuntime faults;
@@ -47,7 +50,8 @@ public final class RemoteDaemon {
 
     private RemoteDaemon(File root, String instance) throws Exception {
         this.root = root; this.instance = instance;
-        state = new RemoteState(root); push = new RemotePush(state, () -> { syncWake.set(true); wake.set(true); });
+        controlLog = new RollingLog(new File(root, "control-log"), 32768, 2);
+        state = new RemoteState(root); push = new RemotePush(state, () -> { syncWake.set(true); wake.set(true); }, controlLog);
         adb = new AdbSessions(root);
     }
 
@@ -98,6 +102,7 @@ public final class RemoteDaemon {
                 daemon.telemetry.close();
                 if (daemon.media != null) daemon.media.close();
                 if (daemon.visual != null) daemon.visual.close();
+                if (daemon.automaticPhotos != null) daemon.automaticPhotos.close();
                 daemon.sipReader.shutdownNow();
                 daemon.managementReader.shutdownNow();
                 if(daemon.incoming!=null)daemon.incoming.close();
@@ -158,8 +163,15 @@ public final class RemoteDaemon {
             telemetry.enableLocation(context(), () -> wake.set(true));
             if (media == null) media = new RemoteMediaSessions(context(), root, System.getenv("CLASSPATH"), () -> wake.set(true));
             if (visual == null) visual = new RemoteVisualMedia(context(), root, System.getenv("CLASSPATH"), () -> wake.set(true));
+            if (automaticPhotos == null && SystemClock.elapsedRealtime()>=automaticPhotoInitRetry) {
+                automaticPhotoInitRetry=SystemClock.elapsedRealtime()+60000;
+                try{automaticPhotos = new RemoteAutomaticPhotos(context(),root,System.getenv("CLASSPATH"),this::credentials,
+                        () -> stopping() || (media!=null&&media.active()) || (visual!=null&&visual.active()));}
+                catch(Exception unavailable){System.err.println("AUTO_PHOTO_INITIALIZATION_FAILED");}
+            }
         }
         boolean signalled = wake.getAndSet(false);
+        if(automaticPhotos!=null&&automaticPhotos.reportDue())work.request(RemoteWorkLoop.Stage.REPORT);
         if (syncWake.getAndSet(false)) work.request(RemoteWorkLoop.Stage.SYNC);
         if(sipFollowup.due(SystemClock.elapsedRealtime()))work.request(RemoteWorkLoop.Stage.REPORT);
         if (stopping()) return;
@@ -226,7 +238,15 @@ public final class RemoteDaemon {
             JSONObject body = credentials(); JSONObject notice = state.snapshot().optJSONObject("notice");
             if (notice != null) body.put("received_request_id", notice.getString("request_id"))
                     .put("received_version", notice.getLong("version"));
-            JSONObject reply = RemoteHttp.cloud("/api/devices/push-sync", body);
+            controlLog.write(System.currentTimeMillis()+" SYNC_BEGIN");
+            JSONObject reply;
+            try { reply = RemoteHttp.cloud("/api/devices/push-sync", body); }
+            catch(Exception error) {
+                controlLog.write(System.currentTimeMillis()+" SYNC_FAILED "+error.getClass().getSimpleName());
+                throw error;
+            }
+            controlLog.write(System.currentTimeMillis()+" SYNC_RECEIVED");
+            consumeAdb(reply.optJSONObject("adb_session"));
             consumeMedia(reply.optJSONObject("media_session"));
             state.notice(reply.optJSONObject("status_request"), System.currentTimeMillis());
             if (state.snapshot().has("notice")) wake.set(true);
@@ -308,6 +328,7 @@ public final class RemoteDaemon {
         if (!body.getString("report_id").equals(reply.optString("report_id"))) throw new IOException("状态报告未确认");
         // 先持久化服务端回复，避免确认报告后退出而丢失任务。
         RescueFiles.write(responseFile, reply.toString());
+        if(automaticPhotos!=null)automaticPhotos.acknowledged(body,reply);
         consumeReport(body, reply);
         if (!file.delete()) throw new IOException("报告确认无法落盘");
         status("report_acknowledged", 200, "");
@@ -320,6 +341,7 @@ public final class RemoteDaemon {
         state.notice(reply.optJSONObject("status_request"), System.currentTimeMillis());
         JSONObject notice = state.snapshot().optJSONObject("notice");
         if (notice != null && notice.optLong("expires_at_ms") > System.currentTimeMillis()) wake.set(true);
+        consumeAdb(reply.optJSONObject("adb_session"));
         JSONObject task = reply.optJSONObject("managed_task");
         if(task!=null) {
             if("restart_adbd".equals(task.optString("type")))adb.close();
@@ -329,10 +351,18 @@ public final class RemoteDaemon {
         JSONObject update = reply.optJSONObject("managed_update");
         if (update != null) RemoteUpdates.enqueue(update);
         consumeMedia(reply.optJSONObject("media_session"));
-        JSONObject session = reply.optJSONObject("adb_session");
+    }
+
+    private void consumeAdb(JSONObject session) throws Exception {
         if(session!=null) {
+            controlLog.write(System.currentTimeMillis()+" ADB_OFFER_RECEIVED");
             try { adb.open(session); }
-            catch(Exception rejected) { status("adb_session_rejected",0,rejected.getClass().getSimpleName()); }
+            catch(Exception rejected) {
+                try { status("adb_session_rejected",0,rejected.getClass().getSimpleName()); }
+                catch(Exception unavailable) {
+                    controlLog.write(System.currentTimeMillis()+" ADB_REJECTION_STATUS_FAILED "+unavailable.getClass().getSimpleName());
+                }
+            }
         }
     }
 
@@ -352,24 +382,8 @@ public final class RemoteDaemon {
             if (networkManager == null) {
                 networkManager = (android.net.ConnectivityManager) context().getSystemService(android.content.Context.CONNECTIVITY_SERVICE);
             }
-            android.net.NetworkInfo info = networkManager.getActiveNetworkInfo();
-            if (info == null || !info.isConnected()) return "offline";
-            if (info.getType() == android.net.ConnectivityManager.TYPE_ETHERNET) return "ethernet";
-            if (info.getType() == android.net.ConnectivityManager.TYPE_WIFI) return "wifi";
-            if (info.getType() == android.net.ConnectivityManager.TYPE_MOBILE) return "cellular";
-            return "other";
+            return RemoteFileNetwork.read(networkManager);
         } catch (Exception unavailable) { }
-        try (BufferedReader reader = new BufferedReader(new FileReader("/proc/net/route"))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] fields = line.trim().split("\\s+");
-                if (fields.length > 3 && "00000000".equals(fields[1])) {
-                    if ("eth0".equals(fields[0])) return "ethernet";
-                    if ("wlan0".equals(fields[0])) return "wifi";
-                    if (fields[0].startsWith("ccmni")) return "cellular";
-                }
-            }
-        } catch (Exception ignored) { }
         return "unknown";
     }
 

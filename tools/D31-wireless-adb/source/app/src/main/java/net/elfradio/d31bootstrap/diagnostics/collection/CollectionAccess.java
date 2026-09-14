@@ -13,6 +13,11 @@ public interface CollectionAccess {
     Handle openRegular(String absolutePath, Stat expected) throws IOException;
     Listing list(String absolutePath, Stat expected, int maximumNames, long maximumBytes, long timeoutMs) throws IOException;
 
+    /** 旧访问实现不具备扩展元数据能力；未知不能冒充空属性集。 */
+    default ExtendedMetadata readMetadata(String absolutePath, Stat expected, long maximumBytes, long timeoutMs) throws IOException {
+        return ExtendedMetadata.unavailable("ACCESS_NOT_IMPLEMENTED");
+    }
+
     interface Clock {
         long wallTimeMillis();
         long elapsedRealtimeMillis();

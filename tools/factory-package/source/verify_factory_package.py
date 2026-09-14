@@ -91,7 +91,7 @@ def verify_app_page(raw: bytes, version: str = "1.4.3") -> list[dict[str, str]]:
     for item in items:
         app = item.get("info", {}).get("app", {})
         actual.append((app.get("name"), app.get("packageName")))
-    expected_page = [("elfRemote" if version == "1.4.4" and package == "net.elfradio.d31bootstrap" else label, package)
+    expected_page = [("elfRemote" if version in ("1.4.4", "1.4.5") and package == "net.elfradio.d31bootstrap" else label, package)
                      for label, package in EXPECTED_APP_PAGE]
     if actual != expected_page:
         raise SystemExit(f"config-tab应用页顺序或目标不匹配：{actual}")
@@ -255,7 +255,7 @@ def main() -> int:
     parser.add_argument("--aapt", type=Path, required=True)
     parser.add_argument("--apksigner", type=Path, required=True)
     parser.add_argument("--sources", type=Path, default=Path(__file__).parent / "sources-v1.4.3.json")
-    parser.add_argument("--version", choices=("1.4.3", "1.4.4"), default="1.4.3")
+    parser.add_argument("--version", choices=("1.4.3", "1.4.4", "1.4.5"), default="1.4.3")
     args = parser.parse_args()
 
     package = args.package.resolve()
@@ -383,7 +383,7 @@ def main() -> int:
                 "1.0.4",
             ),
         }
-        if args.version == "1.4.4":
+        if args.version in ("1.4.4", "1.4.5"):
             del project_apks["管理程序"]
             project_apks["短信程序"] = ("D31-Messages.apk", "net.elfradio.d31phone.debug", "11", "0.5.2-dev-debug")
             project_apks["独立系统支持"] = ("D31-System-Support-1.1.0.apk", "net.elfradio.d31system", "6", "1.1.0")
@@ -430,13 +430,14 @@ def main() -> int:
             args.version,
         ]
         system_output = run_checked(system_command, "独立挂载核验system镜像")
-        if args.version == "1.4.4":
+        if args.version in ("1.4.4", "1.4.5"):
             extracted_remote = temporary_path / "D31ElfRemote.apk"
             run_checked(["wsl.exe", "-d", "docker-desktop", "--", "debugfs", "-R",
                          "dump /priv-app/D31ElfRemote/D31ElfRemote.apk " + docker_desktop_path(extracted_remote),
                          docker_desktop_path(extracted_system)], "回读系统elfRemote")
+            code, name = ("194", "1.34.18-candidate") if args.version == "1.4.5" else ("170", "1.34.6-candidate")
             project_apk_results["系统elfRemote"] = verify_project_apk(
-                extracted_remote, args.aapt, args.apksigner, "系统elfRemote", "net.elfradio.d31bootstrap", "170", "1.34.6-candidate")
+                extracted_remote, args.aapt, args.apksigner, "系统elfRemote", "net.elfradio.d31bootstrap", code, name)
 
         manifest = json.loads(archive.read("payload/manifest.json"))
         verify_manifest_files(manifest, checked, args.version)

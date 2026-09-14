@@ -1,10 +1,11 @@
 ﻿function Read-ApprovedFirmwareContract {
-    param([string]$ApprovedPackagePath, [string]$InstalledFilesPath, [switch]$Release)
+    param([string]$ApprovedPackagePath, [string]$InstalledFilesPath, [switch]$Release,
+        [ValidateSet('1.4.4','1.4.5')][string]$ExpectedReleaseVersion='1.4.4')
     $approved = Get-Content -Raw -LiteralPath $ApprovedPackagePath -Encoding UTF8 | ConvertFrom-Json
     if ($approved.version -notmatch '^\d+\.\d+\.\d+$' -or $approved.fileName -cne ("D31_SVP3390_Factory_Flash_v"+$approved.version+"_testkey.zip") -or
         [string]$approved.bytes -notmatch '^[1-9][0-9]{0,11}$' -or $approved.sha256 -notmatch '^[a-fA-F0-9]{64}$' -or
         $approved.bootSha256 -notmatch '^[a-fA-F0-9]{64}$') { throw '固件批准合同无效' }
-    if ($Release -and $approved.version -cne '1.4.4') { throw '正式1.6.7只接受已批准1.4.4，不能使用旧固件代替' }
+    if ($Release -and $approved.version -cne $ExpectedReleaseVersion) { throw "正式构建只接受已批准$ExpectedReleaseVersion，不能使用其它固件代替" }
     $github = 'https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v'+$approved.version+'/'+$approved.fileName
     $cdn = 'https://cdn.elfradio.net/d31/'+$approved.fileName
     if ([version]$approved.version -ge [version]'1.4.4') {

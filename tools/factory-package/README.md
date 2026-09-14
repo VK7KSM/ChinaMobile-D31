@@ -1,6 +1,19 @@
 # 刷机包与启动初始化源码
 
-此目录保存1.4.4安装器、首次初始化、启动交接、载荷来源清单及离线验证代码；原始固件、私人日志、用户数据和签名私钥不在源码目录内。
+此目录保存1.4.5正式构建冻结的安装器、构建入口和载荷来源清单；原始固件、私人日志、用户数据和签名私钥不在源码目录内。
+
+## 1.4.5正式来源
+
+- `source/build_v145.py`及`source/test_v145.py`来自本次正式构建冻结副本，复用已有安装器和离线校验流程。
+- `source/native/update_binary.c`为本次冻结安装器源码；`source/v145-build/handover`为本次实际编译的四个交接类和两份定位初始化测试输入。旧`startup-handover`目录保留供历史追溯，不作为1.4.5交接源码入口。
+- `source/approved-package-v1.4.5.json`、`source/sources-v1.4.5.json`、`source/installed-files-v1.4.5.json`及`source/manifest-v1.4.5.json`来自正式制品目录；通用批准清单和安装清单指向同版内容。
+- `source/source-files.json`按本公开目录实际文件字节登记，不包含清单自身；没有把1.4.4清单直接改名当作新来源。
+
+正式ZIP为1725713383字节，SHA-256为`E74EFFC90A36EA9C7149532A7FFA7D556A448462324410BE7AA689DAF583CFC1`。系统预置完整194，内部应用版本名为`1.34.18-candidate`。签名ZIP、2853路径全树及48项持久安装映射已通过[独立离线审核](../../docs/D31-v1.4.5逐项复核.md)；不代替整机刷机验收。
+
+构建脚本保留原研究工作区的明确来源路径，公开源码目录未附带镜像、工具链或签名材料，不保证脱离登记输入后直接运行即可重建。
+
+## 1.4.4历史说明
 
 - `source/native/update_binary.c`：Recovery原生安装器，写入前核对构建、分区尺寸和boot基线；不写boot或Recovery。
 - `source/startup-handover`：桌面事务交接、回滚、首次权限与功能默认设置、Zello省电白名单及测试。

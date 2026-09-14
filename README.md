@@ -45,7 +45,7 @@
 - 保留最多4个SIP账号、H.264/VP8视频通话、手柄、免提、HDMI、双网口、Wi-Fi、蓝牙和USB Host能力。
 - 预装Firefox 142.0、VLC 3.7.1、Zello 5.30.1、Telegram 12.10.1、Thunderbird 22.0、短信0.5.2开发版和定制文件管理器1.7.4-d31.2。短信保持原包名与签名，合入通知、未读、四线路SIP配置及WorkerFactory后台任务修复。
 - 外置存储由独立D31系统支持1.1.0处理，不依赖临时无线ADB应用。插入U盘或TF卡后动态识别实际挂载路径并显示确认弹窗；文件管理器分别列出外置卷，不写死盘符。新增系统通知中心与桌面红点，保留D31 Zello守护0.2.7。独立8765守护载荷仍为1.11.6，不与新版基础APK混用版本号。
-- 系统预置完整elfRemote 170，基础169仅用于首次引导和Windows维护。完整开发版包含远程管理、文件、通讯录、诊断及六模式媒体；网络事务有取消、失联和跨启动回滚，普通`network_write`仍关闭。功能、限制及全部回填项见[1.4.4逐项复核](docs/D31-v1.4.4逐项复核.md)。
+- 系统预置完整elfRemote 194，基础193仅用于首次引导和Windows维护。完整开发版包含远程管理、文件、通讯录、诊断及六模式媒体；网络事务有取消、失联和跨启动回滚，普通`network_write`仍关闭。本次来源、全树与安装合同及验收边界见[1.4.5逐项复核](docs/D31-v1.4.5逐项复核.md)，[1.4.4历史说明](docs/D31-v1.4.4逐项复核.md)保留。
 - Zello保持后台在线，收到私聊或频道语音时唤醒屏幕并立即切到前台；无操作约5分钟后返回原厂桌面。
 - 原厂桌面的“视频会议”和“语音会议”入口分别替换为Firefox和Telegram；开机补丁会清理挂载前启动的旧会议进程，避免点击后重新进入原厂会议界面。
 - 原厂桌面最右侧橙色入口改为“短信”，直接打开双通道短信客户端；应用页整理为Firefox、VLC、Zello、Telegram、计算器、elfRemote、设置和文件管理器。在D31实体按键上连续按11次`#`键，可以打开应用页配置菜单。无SIP账号且SIM就绪时可选择蜂窝线路，不自动抢占已有SIP线路。
@@ -84,29 +84,21 @@
 
 ### GitHub
 
-- [D31-Flash-Tool-v1.6.7.exe](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.7/D31-Flash-Tool-v1.6.7.exe)：16135168字节，单文件Windows工具，内置基础169、ADB及高速下载组件。两个下载入口绑定固件1.4.4；支持动态ADB端口检测及显式`IP:port`，保留8765、uptool急救、专用ADB服务器5042及电脑备份。
-- [D31_SVP3390_Factory_Flash_v1.4.4_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.4/D31_SVP3390_Factory_Flash_v1.4.4_testkey.zip)：1725684619字节，系统预置完整170及同源`lib/arm`修补，合入系统支持1.1.0、短信11与匹配OAT、桌面通知及干净初始化更新。配套工具修复维护回执错误判定，完整回填和实际验收边界见[1.4.4逐项复核](docs/D31-v1.4.4逐项复核.md)。
-- [D31-wireless-adb-v1.34.6-basic.apk](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.4/D31-wireless-adb-v1.34.6-basic.apk)：基础169，135656字节，首次蓝牙安装使用此包。
-- [D31-elfRemote-v1.34.6-full.apk](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.4/D31-elfRemote-v1.34.6-full.apk)：完整170，4892370字节，用于系统预置与完整功能更新。
-
-两个APK均为开发版，内部版本名分别是`1.34.6-candidate-basic`与`1.34.6-candidate`；公开文件名不带candidate，不修改APK内部版本或重签名。两包同包同签名，不能并排安装，不要用低版本基础包替换已安装的完整包。
+- [D31-Flash-Tool-v1.6.8.exe](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.8/D31-Flash-Tool-v1.6.8.exe)：16135680字节，单文件Windows刷机工具，内置基础193。
+- [D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.5/D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip)：1725713383字节，配套固件刷机包。
 
 ### Cloudflare R2镜像
 
-- [D31-Flash-Tool-v1.6.7.exe](https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.7.exe)
-- [D31_SVP3390_Factory_Flash_v1.4.4_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.4.4_testkey.zip)
-- [D31-wireless-adb-v1.34.6-basic.apk](https://cdn.elfradio.net/d31/D31-wireless-adb-v1.34.6-basic.apk)
-- [D31-elfRemote-v1.34.6-full.apk](https://cdn.elfradio.net/d31/D31-elfRemote-v1.34.6-full.apk)
+- [D31-Flash-Tool-v1.6.8.exe](https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.8.exe)
+- [D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip)
 
 源码：[Windows刷机工具](tools/Windows-flash/README.md)、[固件安装器与启动初始化](tools/factory-package/README.md)、[无线ADB与独立系统支持](tools/D31-wireless-adb/README.md)、[短信客户端](tools/D31-Messages/README.md)。
 
 ### SHA-256
 
 ```text
-5BC51E7156AC3C35875F72F4E670EB0640AB41804C9F0E2F4541051BE92AB7CD  D31-Flash-Tool-v1.6.7.exe
-22427BB1171CA778BFE51F3C9B2E1AD6916EF630DA08FF22B1DA4D41D90C9F58  D31_SVP3390_Factory_Flash_v1.4.4_testkey.zip
-352D3143B4F18857CDAB08FFDABCE8D96F87A12865FC8DB70B0E333A82E07816  D31-wireless-adb-v1.34.6-basic.apk
-3DA0A647B602163098ECB110DEA881DC519A6B3F15C25797806A5205BF861DF8  D31-elfRemote-v1.34.6-full.apk
+24B49DEC6E8FBD6A0F72A40A944225ADBA7B03D7BF28FA6452EAA113999A02C3  D31-Flash-Tool-v1.6.8.exe
+E74EFFC90A36EA9C7149532A7FFA7D556A448462324410BE7AA689DAF583CFC1  D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip
 ```
 
 ## 刷机前提：启用ADB
@@ -118,23 +110,23 @@ D31的两个USB-A口目前只证明是主机口，不能当作USB设备接口连
 3. 摘下听筒或点击屏幕上的“拨号”，输入`*#223#*`并按绿色拨出键，可进入Android原生桌面；输入`*#233#*`并按绿色拨出键，可直接打开Android系统设置。
 4. 如果没有“开发者选项”，进入“关于设备”，连续点击“版本号”7次，然后打开“USB调试”。这里打开的是Android调试总开关，实际ADB数据仍走网络。
 5. 在Android“安全”设置中打开“未知来源”，再打开蓝牙并与Windows电脑配对。
-6. 点击Windows工具的“首次引导/急救APK”，取得内置基础169；也可下载[D31-wireless-adb-v1.34.6-basic.apk](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.4/D31-wireless-adb-v1.34.6-basic.apk)。在Windows中运行`fsquirt`，或者右键点击任务栏蓝牙图标选择“发送文件”，把基础APK发送给D31。
+6. 点击Windows工具的“首次引导/急救APK”，取得内置基础APK。在Windows中运行`fsquirt`，或者右键点击任务栏蓝牙图标选择“发送文件”，把基础APK发送给D31。
 7. 让D31停留在通过`*#223#*`打开的Android原生桌面，从顶部通知栏接受蓝牙文件。传输完成后点击收到的APK，用Android原生安装器安装。
 8. 安装完成后立即点击“打开”，再点击“开启或恢复ADB”。按界面显示的实际地址及端口连接；Windows可以检测端口，也接受显式`IP:port`，不要假定所有版本始终使用5555。应用名称虽然叫“无线ADB”，同一个端口也可以通过有线网络访问。详见[使用说明与源码](tools/D31-wireless-adb/README.md)。
 9. 从路由器后台或D31高级设置中查到D31的有线IPv4地址并记下来。
 
-旧`D31-wireless-adb-v1.11.6-signed.apk`及固件内独立8765载荷继续保留，摘要仍为`2B52229010CFD4E704BE9EB386C4D0157FF73DF055AFBE961B8B848F8029A97F`。已有旧探针且ADB可连时可直接维护，无需为连接而换包。首次蓝牙引导使用基础169，固件系统预置完整170，独立救援载荷仍是1.11.6。外置存储由系统支持组件负责。开发版8765免密码，仅用于可信维护网络；用法及启用条件见[探针文档](tools/D31-wireless-adb/README.md)。
+旧`D31-wireless-adb-v1.11.6-signed.apk`及固件内独立8765载荷继续保留，摘要仍为`2B52229010CFD4E704BE9EB386C4D0157FF73DF055AFBE961B8B848F8029A97F`。已有旧探针且ADB可连时可直接维护，无需为连接而换包。首次蓝牙引导使用基础193，固件系统预置完整194，独立救援载荷仍是1.11.6。外置存储由系统支持组件负责。开发版8765免密码，仅用于可信维护网络；用法及启用条件见[探针文档](tools/D31-wireless-adb/README.md)。
 
 [Windows工具源码](tools/Windows-flash/) · [刷机包与首次初始化源码](tools/factory-package/)
 
 ## 正式刷机流程
 
-请配套使用1.6.7工具和1.4.4固件。已完成的离线镜像、APK、OAT及本机局部验收见[逐项复核](docs/D31-v1.4.4逐项复核.md)；尚未完成另台空白机整包实刷或首次仅写system的独立验收，不能将组件通过当作完整刷机通过。
+请配套使用1.6.8工具和1.4.5固件。最终签名ZIP、2853路径全树及48项持久安装映射已通过独立离线审核，见[逐项复核](docs/D31-v1.4.5逐项复核.md)；尚未完成1.4.5清data首次启动及整机实刷回归，不能将离线制品通过当作完整刷机通过。
 
 ![D31 Windows刷机与备份工具](images/d31-flash-tool-v1.6.0.png)
 
-1. 下载`D31-Flash-Tool-v1.6.7.exe`，不需要解压，运行依赖和基础APK已内置。
-2. 双击`D31-Flash-Tool-v1.6.7.exe`。
+1. 下载`D31-Flash-Tool-v1.6.8.exe`，不需要解压，运行依赖和基础APK已内置。
+2. 双击`D31-Flash-Tool-v1.6.8.exe`。
 3. 填写D31的IP地址并点击“连接ADB”，由工具检测端口；也可填写已知的`IP:port`。IP不是自动发现结果；有多台D31时，填写哪台的IP就连接哪台。连接成功后工具立即识别设备，“检测D31”用于刷新状态，“断开ADB”用于断开当前设备并切换到另一台。
 4. 点击“只读检查”。这一步不要求先下载刷机包，只检查设备、root、构建、网络、分区、Recovery入口、空间和依赖，不修改或重启D31。Wi-Fi地址可以连接、检测和只读检查，但不能用于正式刷机。
 5. 点击“选择刷机包”选择已经下载的官方ZIP，或点击“GitHub高速下载”或“Cloudflare高速下载”。GitHub公开Release下载不需要账号或Token；GitHub最多使用8个连接，Cloudflare最多使用16个连接。并发数只是上限，不是强制连接数；源站不支持或限制多连接时，工具会保留断点并自动改用单连接继续下载。
@@ -147,10 +139,10 @@ D31的两个USB-A口目前只证明是主机口，不能当作USB设备接口连
 
 卡在“中国移动”或“系统正在启动”、桌面不断重启、ADB连不上时，先用刷机工具恢复管理连接，不要反复拔电或直接恢复出厂。**恢复ADB不等于自动修好系统**，但连上后才能继续检查日志、定位故障和修复。
 
-### 使用刷机工具1.6.7恢复ADB
+### 使用刷机工具1.6.8恢复ADB
 
 1. 保持D31通电，将电脑和D31接入同一个有线局域网。这一步不需要互联网，也不需要先下载刷机包。
-2. 运行`D31-Flash-Tool-v1.6.7.exe`，填写故障D31的**有线IPv4地址**，点击“断开ADB”右侧的“设备急救”。即使ADB尚未连接，也可以打开这个窗口。
+2. 运行`D31-Flash-Tool-v1.6.8.exe`，填写故障D31的**有线IPv4地址**，点击“断开ADB”右侧的“设备急救”。即使ADB尚未连接，也可以打开这个窗口。
 3. 核对急救窗口顶部的IP。局域网有多台D31时，不要填错设备。
 
 ![D31设备急救入口与操作窗口](images/d31-rescue-workflow-v1.6.0.png)
@@ -188,7 +180,7 @@ uptool要求电脑与D31处于同一有线二层网络，不能用普通互联�
 
 ### 使用边界与风险
 
-- 本轮同步更新固件1.4.4和Windows工具1.6.7。安装器保留清空data、写入system和独立logo图片分区的既定范围，不写boot或Recovery；保留独立8765守护和音量加恢复入口。另台空白机整包实刷及首次仅写system的独立测试尚未完成，具体检查见[逐项复核](docs/D31-v1.4.4逐项复核.md)。
+- 本轮同步更新固件1.4.5和Windows工具1.6.8。安装器保留清空data、写入system和独立logo图片分区的既定范围，不写boot或Recovery；保留独立8765守护和音量加恢复入口。1.4.5清data首次启动及整机实刷回归尚未完成，具体检查见[逐项复核](docs/D31-v1.4.5逐项复核.md)。
 - 8765和原厂uptool均不能保证处理引导器或内核无法启动的故障。详细验收范围见[Windows设备急救说明](docs/D31-Windows工具急救.md)。
 - 开发版8765及本机原厂uptool允许无密码root命令执行，只应在可信维护网络使用，不要将5555或8765开放到公网。uptool使用原始以太网帧，普通TCP/UDP端口过滤不能证明已阻断它。[完整风险与防护说明](docs/D31-uptool指令与安全说明.md)。
 

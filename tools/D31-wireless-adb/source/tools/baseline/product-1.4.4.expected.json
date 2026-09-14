@@ -1,0 +1,1130 @@
+{
+  "schemaVersion": 1,
+  "catalog": "d31-product-runtime-1",
+  "kind": "EXPLICIT_PRODUCT_EXPECTATIONS",
+  "userId": 0,
+  "total": 38,
+  "catalogSourceSha256": "13916fa4b412e9a5c26acf8e55c78dc579ce502c09c5b10d4a63884e62a73ed1",
+  "reference": "D31-factory-1.4.4",
+  "sources": {
+    "factory": {
+      "path": "research/d31/staging/b15-configuration-v144-20260913/inputs/handover/FactoryInit.java",
+      "sha256": "73cb8fc4d374b1227ace2d5c92c493096038a0d867ef077023c40ee13a2404b4",
+      "requiredSha256": "73cb8fc4d374b1227ace2d5c92c493096038a0d867ef077023c40ee13a2404b4",
+      "state": "MATCHED"
+    },
+    "packages": {
+      "path": "research/d31/analysis/2026-09-13-factory-v1.4.4/system_payload/init-package-restrictions.xml",
+      "sha256": "d573d17073f1085545dc7db9a499523140b98a38766adaddf3aed9f50fa1e865",
+      "requiredSha256": "d573d17073f1085545dc7db9a499523140b98a38766adaddf3aed9f50fa1e865",
+      "state": "MATCHED"
+    },
+    "permissions": {
+      "path": "research/d31/analysis/2026-09-13-factory-v1.4.4/system_payload/init-runtime-permissions.xml",
+      "sha256": "7f74c2cdb8f95d93396fcb1fa153caf225b3236c35c1d2e6a51d460f08181249",
+      "requiredSha256": "7f74c2cdb8f95d93396fcb1fa153caf225b3236c35c1d2e6a51d460f08181249",
+      "state": "MATCHED"
+    },
+    "installer": {
+      "path": "research/d31/staging/b15-configuration-v144-20260913/inputs/update_binary.c",
+      "sha256": "7301f3b2766d0e8f4bdc97008bb00fb7f5c7a8395ced2dc7d54e36a8c7eeb428",
+      "requiredSha256": "7301f3b2766d0e8f4bdc97008bb00fb7f5c7a8395ced2dc7d54e36a8c7eeb428",
+      "state": "MATCHED"
+    }
+  },
+  "facts": [
+    {
+      "id": "package:net.elfradio.d31bootstrap",
+      "fields": {
+        "installed": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 27
+            },
+            {
+              "source": "factory",
+              "line": 123
+            }
+          ]
+        },
+        "versionCode": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "system": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "updatedSystem": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "privileged": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabledSetting": {
+          "state": "KNOWN",
+          "value": 0,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 27
+            },
+            {
+              "source": "factory",
+              "line": 133
+            }
+          ]
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "package:net.elfradio.d31system",
+      "fields": {
+        "installed": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 38
+            },
+            {
+              "source": "factory",
+              "line": 123
+            }
+          ]
+        },
+        "versionCode": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "system": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "updatedSystem": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "privileged": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabledSetting": {
+          "state": "KNOWN",
+          "value": 0,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 38
+            },
+            {
+              "source": "factory",
+              "line": 133
+            }
+          ]
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "package:net.elfradio.d31phone.debug",
+      "fields": {
+        "installed": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 40
+            },
+            {
+              "source": "factory",
+              "line": 123
+            }
+          ]
+        },
+        "versionCode": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "system": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "updatedSystem": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "privileged": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabledSetting": {
+          "state": "KNOWN",
+          "value": 0,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 40
+            },
+            {
+              "source": "factory",
+              "line": 133
+            }
+          ]
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "package:net.elfradio.d31zelloguard",
+      "fields": {
+        "installed": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 41
+            },
+            {
+              "source": "factory",
+              "line": 123
+            }
+          ]
+        },
+        "versionCode": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "system": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "updatedSystem": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "privileged": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabledSetting": {
+          "state": "KNOWN",
+          "value": 0,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 41
+            },
+            {
+              "source": "factory",
+              "line": 133
+            }
+          ]
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "package:com.starnet.nexui",
+      "fields": {
+        "installed": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "INSTALLER_APK_PATH_IS_NOT_BOUND_PACKAGE_METADATA"
+        },
+        "versionCode": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "system": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "updatedSystem": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "privileged": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabledSetting": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "package:com.starnet.getnumber",
+      "fields": {
+        "installed": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 3
+            },
+            {
+              "source": "factory",
+              "line": 123
+            }
+          ]
+        },
+        "versionCode": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "system": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "updatedSystem": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "privileged": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabledSetting": {
+          "state": "KNOWN",
+          "value": 0,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 3
+            },
+            {
+              "source": "factory",
+              "line": 133
+            }
+          ]
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "package:com.loudtalks",
+      "fields": {
+        "installed": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 42
+            },
+            {
+              "source": "factory",
+              "line": 123
+            }
+          ]
+        },
+        "versionCode": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "system": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "updatedSystem": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "privileged": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabledSetting": {
+          "state": "KNOWN",
+          "value": 0,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 42
+            },
+            {
+              "source": "factory",
+              "line": 133
+            }
+          ]
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "component:net.elfradio.d31system/net.elfradio.d31system.SystemReceiver",
+      "fields": {
+        "installed": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabledSetting": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "manifestEnabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "component:net.elfradio.d31system/net.elfradio.d31system.MessageNotificationListener",
+      "fields": {
+        "installed": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabledSetting": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "manifestEnabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "component:net.elfradio.d31zelloguard/net.elfradio.d31zelloguard.GuardAccessibilityService",
+      "fields": {
+        "installed": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabledSetting": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "manifestEnabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "component:net.elfradio.d31zelloguard/net.elfradio.d31zelloguard.GuardNotificationListener",
+      "fields": {
+        "installed": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabledSetting": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "manifestEnabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "component:com.starnet.getnumber/com.starnet.getnumber.BootReceiver",
+      "fields": {
+        "installed": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "KNOWN",
+          "value": false,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 5
+            },
+            {
+              "source": "factory",
+              "line": 145
+            }
+          ]
+        },
+        "enabledSetting": {
+          "state": "KNOWN",
+          "value": 2,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 5
+            },
+            {
+              "source": "factory",
+              "line": 145
+            }
+          ]
+        },
+        "manifestEnabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "component:com.starnet.getnumber/com.starnet.getnumber.GetNumberService",
+      "fields": {
+        "installed": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "KNOWN",
+          "value": false,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 6
+            },
+            {
+              "source": "factory",
+              "line": 145
+            }
+          ]
+        },
+        "enabledSetting": {
+          "state": "KNOWN",
+          "value": 2,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 6
+            },
+            {
+              "source": "factory",
+              "line": 145
+            }
+          ]
+        },
+        "manifestEnabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "component:com.starnet.getnumber/com.starnet.getnumber.SmsListener",
+      "fields": {
+        "installed": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "KNOWN",
+          "value": false,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 7
+            },
+            {
+              "source": "factory",
+              "line": 145
+            }
+          ]
+        },
+        "enabledSetting": {
+          "state": "KNOWN",
+          "value": 2,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 7
+            },
+            {
+              "source": "factory",
+              "line": 145
+            }
+          ]
+        },
+        "manifestEnabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "component:com.starnet.getnumber/com.starnet.getnumber.MainActivity",
+      "fields": {
+        "installed": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "KNOWN",
+          "value": false,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 8
+            },
+            {
+              "source": "factory",
+              "line": 145
+            }
+          ]
+        },
+        "enabledSetting": {
+          "state": "KNOWN",
+          "value": 2,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 8
+            },
+            {
+              "source": "factory",
+              "line": 145
+            }
+          ]
+        },
+        "manifestEnabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "component:net.elfradio.d31bootstrap/net.elfradio.d31bootstrap.BootReceiver",
+      "fields": {
+        "installed": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "KNOWN",
+          "value": false,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 29
+            },
+            {
+              "source": "factory",
+              "line": 145
+            }
+          ]
+        },
+        "enabledSetting": {
+          "state": "KNOWN",
+          "value": 2,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 29
+            },
+            {
+              "source": "factory",
+              "line": 145
+            }
+          ]
+        },
+        "manifestEnabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "component:net.elfradio.d31bootstrap/net.elfradio.d31bootstrap.VendorNetworkReceiver",
+      "fields": {
+        "installed": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "KNOWN",
+          "value": false,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 30
+            },
+            {
+              "source": "factory",
+              "line": 145
+            }
+          ]
+        },
+        "enabledSetting": {
+          "state": "KNOWN",
+          "value": 2,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 30
+            },
+            {
+              "source": "factory",
+              "line": 145
+            }
+          ]
+        },
+        "manifestEnabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "component:net.elfradio.d31bootstrap/net.elfradio.d31bootstrap.RemoteManualReceiver",
+      "fields": {
+        "installed": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        },
+        "enabledSetting": {
+          "state": "KNOWN",
+          "value": 1,
+          "sources": [
+            {
+              "source": "packages",
+              "line": 35
+            },
+            {
+              "source": "factory",
+              "line": 145
+            }
+          ]
+        },
+        "manifestEnabled": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_SOURCE_FOR_FIELD"
+        }
+      },
+      "classification": "PRODUCT_INITIAL_REFERENCE"
+    },
+    {
+      "id": "permission:net.elfradio.d31phone.debug:android.permission.READ_SMS",
+      "fields": {
+        "value": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "permissions",
+              "line": 15
+            },
+            {
+              "source": "factory",
+              "line": 162
+            }
+          ]
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION"
+    },
+    {
+      "id": "permission:net.elfradio.d31phone.debug:android.permission.SEND_SMS",
+      "fields": {
+        "value": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "permissions",
+              "line": 20
+            },
+            {
+              "source": "factory",
+              "line": 162
+            }
+          ]
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION"
+    },
+    {
+      "id": "permission:net.elfradio.d31phone.debug:android.permission.RECEIVE_SMS",
+      "fields": {
+        "value": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "permissions",
+              "line": 17
+            },
+            {
+              "source": "factory",
+              "line": 162
+            }
+          ]
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION"
+    },
+    {
+      "id": "permission:net.elfradio.d31phone.debug:android.permission.READ_CONTACTS",
+      "fields": {
+        "value": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "permissions",
+              "line": 22
+            },
+            {
+              "source": "factory",
+              "line": 162
+            }
+          ]
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION"
+    },
+    {
+      "id": "permission:net.elfradio.d31phone.debug:android.permission.READ_EXTERNAL_STORAGE",
+      "fields": {
+        "value": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "permissions",
+              "line": 18
+            },
+            {
+              "source": "factory",
+              "line": 162
+            }
+          ]
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION"
+    },
+    {
+      "id": "permission:net.elfradio.d31system:android.permission.READ_PHONE_STATE",
+      "fields": {
+        "value": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "permissions",
+              "line": 34
+            },
+            {
+              "source": "factory",
+              "line": 162
+            }
+          ]
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION"
+    },
+    {
+      "id": "permission:com.loudtalks:android.permission.RECORD_AUDIO",
+      "fields": {
+        "value": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "permissions",
+              "line": 30
+            },
+            {
+              "source": "factory",
+              "line": 162
+            }
+          ]
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION"
+    },
+    {
+      "id": "permission:net.elfradio.d31bootstrap:android.permission.READ_LOGS",
+      "fields": {
+        "value": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_RUNTIME_GRANT_SOURCE"
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION"
+    },
+    {
+      "id": "permission:net.elfradio.d31bootstrap:android.permission.DUMP",
+      "fields": {
+        "value": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_RUNTIME_GRANT_SOURCE"
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION"
+    },
+    {
+      "id": "permission:net.elfradio.d31bootstrap:android.permission.WRITE_SECURE_SETTINGS",
+      "fields": {
+        "value": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "NO_BOUND_RUNTIME_GRANT_SOURCE"
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION"
+    },
+    {
+      "id": "permission:net.elfradio.d31bootstrap:android.permission.CAMERA",
+      "fields": {
+        "value": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "permissions",
+              "line": 4
+            },
+            {
+              "source": "factory",
+              "line": 162
+            }
+          ]
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION"
+    },
+    {
+      "id": "permission:net.elfradio.d31bootstrap:android.permission.RECORD_AUDIO",
+      "fields": {
+        "value": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "permissions",
+              "line": 5
+            },
+            {
+              "source": "factory",
+              "line": 162
+            }
+          ]
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION"
+    },
+    {
+      "id": "permission:net.elfradio.d31bootstrap:android.permission.READ_PHONE_STATE",
+      "fields": {
+        "value": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "permissions",
+              "line": 6
+            },
+            {
+              "source": "factory",
+              "line": 162
+            }
+          ]
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION"
+    },
+    {
+      "id": "permission:net.elfradio.d31bootstrap:android.permission.ACCESS_FINE_LOCATION",
+      "fields": {
+        "value": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "permissions",
+              "line": 8
+            },
+            {
+              "source": "factory",
+              "line": 162
+            }
+          ]
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION"
+    },
+    {
+      "id": "permission:net.elfradio.d31bootstrap:android.permission.ACCESS_COARSE_LOCATION",
+      "fields": {
+        "value": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "permissions",
+              "line": 7
+            },
+            {
+              "source": "factory",
+              "line": 162
+            }
+          ]
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION"
+    },
+    {
+      "id": "setting:default_sms_is_quik",
+      "fields": {
+        "value": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "factory",
+              "line": 50
+            },
+            {
+              "source": "factory",
+              "line": 55
+            }
+          ]
+        }
+      },
+      "classification": "USER_SELECTABLE_DEFAULT"
+    },
+    {
+      "id": "listener:net.elfradio.d31system/net.elfradio.d31system.MessageNotificationListener",
+      "fields": {
+        "value": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "factory",
+              "line": 49
+            },
+            {
+              "source": "factory",
+              "line": 54
+            }
+          ]
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION",
+      "note": "预期目标在系统规范化组件名单中；不把运行接口的短名规范化等同FactoryInit精确字串验证。"
+    },
+    {
+      "id": "listener:net.elfradio.d31zelloguard/net.elfradio.d31zelloguard.GuardNotificationListener",
+      "fields": {
+        "value": {
+          "state": "KNOWN",
+          "value": true,
+          "sources": [
+            {
+              "source": "factory",
+              "line": 48
+            },
+            {
+              "source": "factory",
+              "line": 54
+            }
+          ]
+        }
+      },
+      "classification": "USER_REVOCABLE_AUTHORIZATION",
+      "note": "预期目标在系统规范化组件名单中；不把运行接口的短名规范化等同FactoryInit精确字串验证。"
+    },
+    {
+      "id": "battery_exempt:com.loudtalks",
+      "fields": {
+        "value": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "MERGED_POWER_EXEMPTION_IS_NOT_FACTORY_USER_WHITELIST_CONTRACT"
+        }
+      },
+      "classification": "USER_REVOCABLE_POWER_EXCEPTION",
+      "note": "本批接口报告当前合并功能豁免，不是首次初始化user名单验证；未建立独立合并功能预期，保持未知。"
+    },
+    {
+      "id": "battery_exempt:net.elfradio.d31zelloguard",
+      "fields": {
+        "value": {
+          "state": "EXPECTATION_UNKNOWN",
+          "reason": "MERGED_POWER_EXEMPTION_IS_NOT_FACTORY_USER_WHITELIST_CONTRACT"
+        }
+      },
+      "classification": "USER_REVOCABLE_POWER_EXCEPTION",
+      "note": "本批接口报告当前合并功能豁免，不是首次初始化user名单验证；未建立独立合并功能预期，保持未知。"
+    }
+  ],
+  "requiredConsumerSha256": "1dc959ec6e6513d48b8894042c347b749057690dd2674eea69ff639b84794978",
+  "runtimeApplicability": "NOT_VERIFIED",
+  "repairPlanGenerated": false,
+  "notes": [
+    "仅正式初装参考；运行报告没有消费者绑定时，不判初始化执行或固件适用性。",
+    "包enabledSetting=0是DEFAULT，不是禁用；版本和身份未由安装文件路径推断。",
+    "四个组件缺已绑定APK声明/覆盖值来源，保留未知；三个系统权限不凭系统路径或uses-permission猜授予。",
+    "事实名单固定38项；旧30项候选不再作为本批名单。"
+  ]
+}

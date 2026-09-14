@@ -78,6 +78,7 @@ static const PayloadFile payload_files[] = {
     {"payload/system-patches/init-package-restrictions.xml", "/data/local/d31-startup-handover/init-package-restrictions.xml", 0600, 0, 0},
     {"payload/system-patches/init-runtime-permissions.xml", "/data/local/d31-startup-handover/init-runtime-permissions.xml", 0600, 0, 0},
     {"payload/system-patches/factory-init-required", "/data/local/d31-startup-handover/factory-init-required", 0600, 0, 0},
+    {"payload/system-patches/remote-updates-enabled", "/data/local/d31-remote/runtime/updates/enabled", 0600, 0, 0},
     {"payload/system-patches/imscc-firefox-telegram-messages-wrapper-v3.apk", "/data/local/d31-patches/imscc-firefox-telegram-messages-wrapper-v3.apk", 0644, 0, 0},
     {"payload/system-patches/tca8418.kl", "/data/system/devices/keylayout/tca8418.kl", 0644, 1000, 1000},
     {"payload/runtime/Thunderbird-22.0-arm64-interpret-only.odex", "/data/app/net.thunderbird.android-1/oat/arm64/base.odex", 0644, 1000, 39999},
@@ -480,6 +481,13 @@ static int prepare_clean_data(int zip_fd) {
         chown("/data/system", 1000, 1000) != 0 ||
         chown("/data/system/devices", 1000, 1000) != 0 ||
         chown("/data/system/devices/keylayout", 1000, 1000) != 0) return -1;
+    if (mkdir_recursive("/data/local/d31-remote/runtime/updates", 0700) != 0 ||
+        chmod("/data/local/d31-remote", 0700) != 0 ||
+        chown("/data/local/d31-remote", 0, 0) != 0 ||
+        chmod("/data/local/d31-remote/runtime", 0700) != 0 ||
+        chown("/data/local/d31-remote/runtime", 0, 0) != 0 ||
+        chmod("/data/local/d31-remote/runtime/updates", 0700) != 0 ||
+        chown("/data/local/d31-remote/runtime/updates", 0, 0) != 0) return -1;
     for (index = 0; index < sizeof(payload_files) / sizeof(payload_files[0]); ++index) {
         if (extract_payload_file(zip_fd, &payload_files[index]) != 0) return -1;
     }
@@ -586,7 +594,11 @@ int main(int argc, char **argv) {
     if (errno != 0 || end == argv[2] || *end != '\0' || parsed_fd < 0) return 3;
     output_fd = (int)parsed_fd;
 
+#ifdef D31_PACKAGE_145
+    ui_print("D31完整刷机包 v1.4.5");
+#else
     ui_print("D31完整刷机包 v1.4.4");
+#endif
     ui_print("将清除全部用户数据、账号和软件配置");
     ui_print("不会写入boot、Recovery、设备身份、校准或NVRAM分区");
 

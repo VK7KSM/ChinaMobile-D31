@@ -24,6 +24,7 @@ final class PhotoAlarmBackend implements PhotoAlarmSession.Backend {
     private volatile AndroidAudioOccupancy occupancy;
     private volatile boolean cancelled,toneOwned,cameraCleanupPending;
     private volatile Exception cancellationFailure;
+    private MediaFiles.Lease photoLease;
     PhotoAlarmBackend(Context app,Handler handler,JSONObject identity)throws Exception {
         this(app,handler,identity,false,NO_AUDIO);
     }
@@ -46,16 +47,20 @@ final class PhotoAlarmBackend implements PhotoAlarmSession.Backend {
     }
     JSONObject photo(String reportId,String camera,Cancellation cancel,Captured listener)throws Exception {
         cancel.check();if(cancelled)throw new IOException("VISUAL_CANCELLED");
+        if(!sessionOwnsMedia)photoLease=MediaFiles.lease(new File(files,"media"));
+        try{
         MediaCapture capture=new MediaCapture(new File(files,"visual-photo"),new AndroidMediaDevice(app,AndroidMediaDevice.CLOCK),NO_AUDIO,AndroidMediaDevice.CLOCK);
         JSONObject receipt=capture.photo(CaptureRequest.photo(reportId,reportId,camera,System.currentTimeMillis()+20000),cancel);
         if(!"completed".equals(receipt.optString("state"))){
             cameraCleanupPending="MEDIA_CAMERA_RELEASE_PENDING".equals(receipt.optString("error"));
             throw new IOException(receipt.optString("error","VISUAL_CAPTURE_FAILED"));
         }
+        if(photoLease!=null){photoLease.close();photoLease=null;}
         cancel.check();if(listener!=null)listener.captured(receipt);
         cancel.check();JSONObject result=upload.upload(receipt,cancel);
         String actual=receipt.getString("source").endsWith(":front")?"front":"back";
         return result.put("camera",actual).put("cameras",android.hardware.Camera.getNumberOfCameras());
+        }finally{if(photoLease!=null&&AndroidMediaDevice.cameraReleased()){photoLease.close();photoLease=null;}}
     }
     public void alarm(PhotoAlarmOffer offer)throws Exception {
         alarm(offer.id);
@@ -127,6 +132,7 @@ final class PhotoAlarmBackend implements PhotoAlarmSession.Backend {
         AlarmTasks instance=alarms;if(instance!=null)try{instance.close();}catch(Exception e){failure=e;}
         PreparedAlarm prepared=preparedAlarm;if(prepared!=null)try{prepared.close();}catch(Exception e){failure=e;}
         AndroidAudioOccupancy monitor=occupancy;if(monitor!=null)monitor.close();
+        if(photoLease!=null&&AndroidMediaDevice.cameraReleased()){photoLease.close();photoLease=null;}
         if(cameraCleanupPending)throw new IOException("VISUAL_CAMERA_CLEANUP_PENDING");
         if(failure!=null)throw failure;
         if(cancellationFailure!=null)throw cancellationFailure;

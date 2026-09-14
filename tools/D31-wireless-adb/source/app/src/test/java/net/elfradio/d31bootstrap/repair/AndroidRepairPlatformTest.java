@@ -65,7 +65,9 @@ public final class AndroidRepairPlatformTest {
 
     @Test public void productionRegistryIsFixedAndDoesNotExposeRunningGuard() {
         Map<String, File> paths = AndroidRepairPlatform.productionPaths();
-        assertEquals(1, paths.size());
+        assertEquals(3, paths.size());
+        assertEquals("/data/local/d31-startup-handover/start.sh", paths.get("startup-handover/start.sh").getPath().replace('\\', '/'));
+        assertEquals("/data/local/d31-startup-handover/handover.jar", paths.get("startup-handover/handover.jar").getPath().replace('\\', '/'));
         assertEquals("/data/local/d31-system-support/start.sh", paths.get("system-support/start.sh").getPath().replace('\\', '/'));
         assertThrows(UnsupportedOperationException.class, () -> paths.put("guard", new File("guard")));
     }

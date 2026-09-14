@@ -52,6 +52,70 @@ public final class AndroidCollectionAccess implements CollectionAccess {
         return new OwnedHandle(open(absolutePath, expected, false), DESCRIPTORS);
     }
 
+    /** 复用修复平台的API23隐藏getxattr读取方式，不引入其写入或修复入口。 */
+    @Override public ExtendedMetadata readMetadata(String absolutePath, Stat expected, long maximumBytes, long timeoutMs) throws IOException {
+        if (expected == null || !(expected.type.equals("file") || expected.type.equals("directory")))
+            return ExtendedMetadata.unavailable("NOFOLLOW_METADATA_UNAVAILABLE");
+        if (maximumBytes <= 0 || timeoutMs <= 0) throw new Failure("BYTE_LIMIT");
+        final long started = clock.elapsedRealtimeMillis();
+        try (ParcelFileDescriptor pinned = pinAndCloseOriginal(open(absolutePath, expected, expected.type.equals("directory")))) {
+            final String descriptor = "/proc/self/fd/" + pinned.getFd();
+            final Object os;
+            final java.lang.reflect.Method get;
+            java.lang.reflect.Method listing;
+            try {
+                Class<?> type = Class.forName("libcore.io.Os");
+                os = Class.forName("libcore.io.Libcore").getField("os").get(null);
+                get = type.getMethod("getxattr", String.class, String.class, byte[].class);
+                try { listing = type.getMethod("listxattr", String.class); }
+                catch (NoSuchMethodException missing) { listing = null; }
+            } catch (ReflectiveOperationException | SecurityException missing) {
+                return ExtendedMetadata.unavailable("NATIVE_XATTR_UNAVAILABLE");
+            }
+            final java.lang.reflect.Method list = listing;
+            ExtendedMetadata result = ExtendedMetadata.read(new ExtendedMetadata.Reader() {
+                private void time() throws IOException {
+                    long elapsed = clock.elapsedRealtimeMillis() - started;
+                    if (Thread.currentThread().isInterrupted()) throw new Failure("CANCELLED");
+                    if (elapsed < 0 || elapsed >= timeoutMs) throw new Failure("TIME_LIMIT");
+                }
+                private Object invoke(java.lang.reflect.Method method, Object... args) throws IOException {
+                    time();
+                    try { Object value = method.invoke(os, args); time(); return value; }
+                    catch (java.lang.reflect.InvocationTargetException wrapped) {
+                        Throwable cause = wrapped.getCause();
+                        if (cause instanceof ErrnoException) {
+                            int errno = ((ErrnoException) cause).errno;
+                            if (errno == OsConstants.ENODATA) throw new Failure("XATTR_ABSENT");
+                            if (errno == OsConstants.ENOTSUP) throw new Failure("XATTR_UNSUPPORTED");
+                            if (errno == OsConstants.ERANGE) throw new Failure("XATTR_VALUE_LIMIT");
+                        }
+                        throw new Failure("XATTR_READ_FAILED");
+                    } catch (IllegalAccessException | IllegalArgumentException failure) { throw new Failure("NATIVE_XATTR_UNAVAILABLE"); }
+                }
+                public byte[] get(String name, int maximum) throws IOException {
+                    byte[] bytes = new byte[maximum];
+                    try {
+                        Object raw = invoke(get, descriptor, name, bytes);
+                        if (!(raw instanceof Integer)) throw new Failure("XATTR_RESULT_INVALID");
+                        int length = (Integer) raw;
+                        if (length < 0 || length > maximum) throw new Failure("XATTR_VALUE_LIMIT");
+                        return java.util.Arrays.copyOf(bytes, length);
+                    } catch (Failure missing) { if (missing.code.equals("XATTR_ABSENT")) return null; throw missing; }
+                }
+                public List<String> names() throws IOException {
+                    if (list == null) throw new Failure("XATTR_ENUMERATION_UNAVAILABLE");
+                    Object raw = invoke(list, descriptor);
+                    if (!(raw instanceof String[])) throw new Failure("XATTR_LIST_RESULT_INVALID");
+                    return java.util.Arrays.asList((String[]) raw);
+                }
+            }, Math.min(maximumBytes, 4096));
+            if (!expected.same(stat(Os.fstat(pinned.getFileDescriptor()))) || !expected.same(lstat(absolutePath)))
+                throw new Failure("UNSTABLE_METADATA");
+            return result;
+        } catch (ErrnoException failure) { throw failure(failure); }
+    }
+
     interface DescriptorIo {
         Stat stat(FileDescriptor fd) throws IOException;
         int read(FileDescriptor fd, byte[] bytes, int offset, int length) throws IOException;

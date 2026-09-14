@@ -6,15 +6,56 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class RemoteMediaReportTest {
-    @Test public void preparedConnectionRequiresIntegratedSixModeCapability()throws Exception{
+    @Test public void cameraPermissionRefreshWithdrawsVideoAndRestoresItWithoutDroppingAudioPrepare()throws Exception{
+        JSONObject report=new JSONObject();
+        JSONObject rtc=new JSONObject().put("managed_media_modes",new JSONArray("['microphone','ptt','call','video']"))
+                .put("managed_media_prepare_v1",true);
+        JSONObject visual=new JSONObject().put("media_cameras",1).put("camera_permission",true)
+                .put("managed_media_modes",new JSONArray("['photo','alarm']"));
+        RemoteMediaReport.merge(report,rtc,visual);
+        assertEquals("[\"microphone\",\"ptt\",\"call\",\"photo\",\"alarm\",\"video\"]",report.getJSONArray("managed_media_modes").toString());
+        visual.put("camera_permission",false).put("managed_media_modes",new JSONArray("['alarm']"));
+        RemoteMediaReport.merge(report,rtc,visual);
+        assertEquals(1,report.getInt("media_cameras"));
+        assertEquals("[\"microphone\",\"ptt\",\"call\",\"alarm\"]",report.getJSONArray("managed_media_modes").toString());
+        assertTrue(report.getBoolean("managed_media_prepare_v1"));
+        visual.put("camera_permission",true).put("managed_media_modes",new JSONArray("['photo','alarm']"));
+        RemoteMediaReport.merge(report,rtc,visual);
+        assertEquals("[\"microphone\",\"ptt\",\"call\",\"photo\",\"alarm\",\"video\"]",report.getJSONArray("managed_media_modes").toString());
+    }
+    @Test public void enumeratedCameraWithoutPhotoModeDoesNotAdvertiseVideo()throws Exception{
+        JSONObject report=new JSONObject();
+        JSONObject rtc=new JSONObject().put("managed_media_modes",new JSONArray("['video']"));
+        for(String modes:new String[]{"[]","['alarm']","['video']"}){
+            RemoteMediaReport.merge(report,rtc,new JSONObject().put("media_cameras",1)
+                    .put("camera_permission",true).put("managed_media_modes",new JSONArray(modes)));
+            assertFalse(report.getJSONArray("managed_media_modes").toString().contains("video"));
+        }
+        RemoteMediaReport.merge(report,rtc,new JSONObject().put("media_cameras",0)
+                .put("managed_media_modes",new JSONArray("['photo']")));
+        assertEquals("[\"photo\"]",report.getJSONArray("managed_media_modes").toString());
+    }
+    @Test public void preparedConnectionKeepsAudioWhenCameraIsNotEnumerated()throws Exception{
         JSONObject report=new JSONObject();
         JSONObject rtc=new JSONObject().put("managed_media_modes",new JSONArray("['microphone','ptt','call','video']"))
                 .put("managed_media_prepare_v1",true);
         JSONObject visual=new JSONObject().put("managed_media_modes",new JSONArray("['photo','alarm']")).put("media_cameras",1);
         RemoteMediaReport.merge(report,rtc,visual);assertTrue(report.getBoolean("managed_media_prepare_v1"));
-        visual.put("media_cameras",0);RemoteMediaReport.merge(report,rtc,visual);assertFalse(report.getBoolean("managed_media_prepare_v1"));
+        visual.put("media_cameras",0).put("managed_media_modes",new JSONArray("['alarm']"));
+        RemoteMediaReport.merge(report,rtc,visual);assertTrue(report.getBoolean("managed_media_prepare_v1"));
+        assertEquals("[\"microphone\",\"ptt\",\"call\",\"alarm\"]",report.getJSONArray("managed_media_modes").toString());
         visual.put("media_cameras",1);rtc.put("managed_media_prepare_v1","true");
         RemoteMediaReport.merge(report,rtc,visual);assertFalse(report.getBoolean("managed_media_prepare_v1"));
+    }
+    @Test public void prepareStillRequiresBothAudioDirectionsAndExplicitSupport()throws Exception{
+        for(String modes:new String[]{"[]","['ptt']","['microphone']","['microphone','call']"}){
+            JSONObject report=new JSONObject(),rtc=new JSONObject().put("managed_media_modes",new JSONArray(modes))
+                    .put("managed_media_prepare_v1",true);
+            RemoteMediaReport.merge(report,rtc,new JSONObject().put("managed_media_modes",new JSONArray("['alarm']")));
+            assertFalse(report.getBoolean("managed_media_prepare_v1"));
+        }
+        JSONObject report=new JSONObject(),rtc=new JSONObject().put("managed_media_modes",new JSONArray("['microphone','ptt','call']"));
+        RemoteMediaReport.merge(report,rtc,null);assertFalse(report.getBoolean("managed_media_prepare_v1"));
     }
     @Test public void unavailableModesRemainExplicitlyEmpty() throws Exception {
         JSONObject report = new JSONObject().put("managed_media", true);

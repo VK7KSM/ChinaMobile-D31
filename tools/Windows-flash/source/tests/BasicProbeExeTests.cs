@@ -68,7 +68,8 @@ internal static class BasicProbeExeTests
             runtime = assembly.GetType("D31FlashTool.RuntimeAssets", true);
             Type constants = assembly.GetType("D31FlashTool.BuildConstants", true);
             string version = (string)constants.GetField("ToolVersion", BindingFlags.Static | BindingFlags.NonPublic).GetRawConstantValue();
-            Check(version == "1.6.7" || Regex.IsMatch(version, @"^1\.6\.7-rc[1-9][0-9]{0,3}$"), "正式或独立候选版本");
+            string expectedVersion = args.Length > 5 ? args[5] : "1.6.7";
+            Check(version == expectedVersion || Regex.IsMatch(version, "^" + Regex.Escape(expectedVersion) + @"-rc[1-9][0-9]{0,3}$"), "正式或独立候选版本");
             string resource = "D31FlashTool.Runtime.BasicProbe" + args[3];
             int count = 0;
             foreach (string name in assembly.GetManifestResourceNames()) { if (name.StartsWith("D31FlashTool.Runtime.BasicProbe")) { count++; Check(name == resource, "内置基础资源版本来自合同"); } }

@@ -1,27 +1,29 @@
-﻿param([Parameter(Mandatory=$true)][string]$OutputDirectory)
+﻿param([Parameter(Mandatory=$true)][string]$OutputDirectory,
+    [ValidateSet('1.6.7','1.6.8')][string]$ToolVersion='1.6.7',
+    [ValidateSet('1.4.4','1.4.5')][string]$FirmwareVersion='1.4.4')
 $ErrorActionPreference='Stop'
 if(Test-Path -LiteralPath $OutputDirectory){throw '测试输出已存在，拒绝覆盖'}
 New-Item -ItemType Directory -Path $OutputDirectory | Out-Null
 $root=Split-Path $PSScriptRoot -Parent
 $tokens=$null;$errors=$null
-$ast=[System.Management.Automation.Language.Parser]::ParseFile((Join-Path $root 'build-v1.6.7.ps1'),[ref]$tokens,[ref]$errors)
+$ast=[System.Management.Automation.Language.Parser]::ParseFile((Join-Path $root "build-v$ToolVersion.ps1"),[ref]$tokens,[ref]$errors)
 if($errors.Count){throw '构建器语法错误'}
 $versionAssignment=$ast.Find({param($n) $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq '$version'},$true)
-foreach($case in @(@($true,'','1.6.7'),@($false,'rc10','1.6.7-rc10'))) {
+foreach($case in @(@($true,'',$ToolVersion),@($false,'rc10',"$ToolVersion-rc10"))) {
     $Release=$case[0];$CandidateId=$case[1]
     Invoke-Expression $versionAssignment.Extent.Text
     if($version -cne $case[2]){throw '正式或候选版本生成不符'}
 }
-foreach($entry in @('build.ps1','build-v1.6.7.ps1')) {
+foreach($entry in @('build.ps1',"build-v$ToolVersion.ps1")) {
     $command=Get-Command (Join-Path $root $entry)
     if(@($command.ParameterSets | Where-Object Name -eq 'Release').Count -ne 1 -or
         @($command.ParameterSets | Where-Object Name -eq 'Candidate').Count -ne 1){throw '正式和候选参数集未分离'}
 }
 $assignment=$ast.Find({param($n) $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq '$generatedSource'},$true)
 if(-not $assignment){throw '缺少真实生成常量源码'}
-$version='1.6.7-offline-check'
-$approved=[pscustomobject]@{fileName='D31_SVP3390_Factory_Flash_v1.4.4_testkey.zip';sha256=('a'*64);bytes=256}
-$firmwareContract=[pscustomobject]@{GitHubUrl=('https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.4/'+$approved.fileName);CloudflareUrl=('https://cdn.elfradio.net/d31/'+$approved.fileName)}
+$version="$ToolVersion-offline-check"
+$approved=[pscustomobject]@{fileName="D31_SVP3390_Factory_Flash_v${FirmwareVersion}_testkey.zip";sha256=('a'*64);bytes=256}
+$firmwareContract=[pscustomobject]@{GitHubUrl=("https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v$FirmwareVersion/"+$approved.fileName);CloudflareUrl=('https://cdn.elfradio.net/d31/'+$approved.fileName)}
 $rescueRestoreHash='b'*64;$rescueTestHash='c'*64;$aria2Hash='d'*64;$descriptors=''
 Invoke-Expression $assignment.Extent.Text
 $constants=Join-Path $OutputDirectory 'BuildConstants.g.cs'

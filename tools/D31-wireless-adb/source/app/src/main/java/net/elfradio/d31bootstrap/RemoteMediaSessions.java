@@ -42,7 +42,7 @@ public final class RemoteMediaSessions implements AutoCloseable {
             boolean camera=videoAvailable(context);
             boolean output=pttAvailable(context);
             synchronized(RemoteMediaSessions.this){
-                if(!closed){enabled=ready;videoEnabled=camera;pttEnabled=output;prepareEnabled=ready&&output&&camera;if(!ready&&!output)reason="MEDIA_STATIC_CAPABILITY_NOT_READY";changed();}
+                if(!closed){enabled=ready;videoEnabled=camera;pttEnabled=output;prepareEnabled=ready&&output;if(!ready&&!output)reason="MEDIA_STATIC_CAPABILITY_NOT_READY";changed();}
             }
         },"d31-media-readiness");
         readinessThread.setDaemon(true);readinessThread.start();
@@ -102,9 +102,13 @@ public final class RemoteMediaSessions implements AutoCloseable {
                     &&ops!=null&&ops.checkOpNoThrow(android.app.AppOpsManager.OPSTR_CAMERA,app.uid,pkg)==android.app.AppOpsManager.MODE_ALLOWED;
         }catch(Exception|LinkageError unavailable){return false;}
     }
-    synchronized void setVideoAvailable(boolean value){videoEnabled=value;if(!value&&("video".equals(mode)||"prepare".equals(mode)))stop();changed();}
+    synchronized void setVideoAvailable(boolean value){videoEnabled=value;if(cameraOperationUnavailable())stop();changed();}
     synchronized void setPrepareAvailable(boolean value){prepareEnabled=value;if(!value&&"prepare".equals(mode))stop();changed();}
-    private boolean prepareAvailable(){return prepareEnabled&&enabled&&pttEnabled&&videoEnabled&&available();}
+    private boolean prepareAvailable(){return prepareEnabled&&enabled&&pttEnabled&&available();}
+    private boolean cameraOperationUnavailable(){
+        String operation="prepare".equals(mode)?detail.optString("active_mode"):mode;
+        return !videoEnabled&&("video".equals(operation)||"photo".equals(operation));
+    }
     public synchronized boolean available(){return (enabled||pttEnabled)&&!closed&&!releaseUnknown;}
     public synchronized boolean active(){return !id.isEmpty()||inflight||releaseUnknown;}
     private void changed(){
@@ -179,7 +183,7 @@ public final class RemoteMediaSessions implements AutoCloseable {
                     if(Boolean.TRUE.equals(value.opt("transport_ready"))&&!stopping)deadline=Long.MAX_VALUE;
                 }else if("streaming".equals(actual)&&!"streaming".equals(state)&&!stopping)deadline=clock.elapsed()+1800000;
                 state=actual;
-                if(closed||!modeAvailable(mode)||stopping)stop();
+                if(closed||!modeAvailable(mode)||cameraOperationUnavailable()||stopping)stop();
                 }finally{changed();}
             }}
             public void failed(String code){synchronized(RemoteMediaSessions.this){

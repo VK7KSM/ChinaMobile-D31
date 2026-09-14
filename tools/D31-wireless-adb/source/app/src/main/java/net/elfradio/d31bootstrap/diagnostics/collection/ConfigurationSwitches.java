@@ -46,10 +46,11 @@ final class ConfigurationSwitches {
     static JSONObject evidence(String path, byte[] bytes, String kind, String source, String consumerHash) throws JSONException {
         if (marker(path, bytes) == null)
             return missing("NOT_CHECKED", "SWITCH_CONSUMER_TEMPLATE_NOT_RECOGNIZED", source);
-        // 两份冻结源码均已复编到整个JAR字节一致；仅绑定正常--apply消费者，不推断恢复分支。
+        // 旧两份JAR及1.4.4完整DEX均有同源复编证据；仅绑定正常--apply消费者。
         if (STARTUP.equals(path)
                 && !"f56cb9586d08046848e02c321cb00916f595ee039f2b0e8e3e92028474c2da92".equals(consumerHash)
-                && !"3e12fe7cdf595483d66b72a9a3ab371a17ee58b2c801155c0b24f4f5481d85ec".equals(consumerHash))
+                && !"3e12fe7cdf595483d66b72a9a3ab371a17ee58b2c801155c0b24f4f5481d85ec".equals(consumerHash)
+                && !"1dc959ec6e6513d48b8894042c347b749057690dd2674eea69ff639b84794978".equals(consumerHash))
             return missing("NOT_CHECKED", "SWITCH_CONSUMER_JAR_NOT_RECOGNIZED", source);
         if ("ABSENT".equals(kind)) return observed(false, source);
         if ("symlink".equals(kind)) {

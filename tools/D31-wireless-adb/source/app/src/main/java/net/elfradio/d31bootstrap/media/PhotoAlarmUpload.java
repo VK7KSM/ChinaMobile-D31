@@ -13,7 +13,23 @@ public final class PhotoAlarmUpload implements AutoCloseable {
     private String device,token;
     private volatile HttpsURLConnection connection;
     private volatile boolean closed;
+    public interface ConnectionPolicy {
+        HttpsURLConnection open(java.net.URL url)throws Exception;
+        void check()throws Exception;
+    }
+    public static final class Rejected extends IOException {
+        public final int status;
+        Rejected(int status){super("VISUAL_UPLOAD_NOT_ACKNOWLEDGED");this.status=status;}
+    }
+    private final ConnectionPolicy policy;
     public PhotoAlarmUpload(URI origin,JSONObject identity)throws Exception {
+        this(origin,identity,new ConnectionPolicy(){
+            public HttpsURLConnection open(java.net.URL url)throws Exception{return (HttpsURLConnection)url.openConnection();}
+            public void check(){}
+        });
+    }
+    public PhotoAlarmUpload(URI origin,JSONObject identity,ConnectionPolicy policy)throws Exception {
+        this.policy=policy;
         this.origin=origin;device=identity.getString("device_id");token=identity.getString("token");
         if(!device.matches("[A-Za-z0-9_-]{1,96}")||token.isEmpty()||token.length()>4096||token.indexOf('\r')>=0||token.indexOf('\n')>=0)
             throw new IOException("VISUAL_IDENTITY_INVALID");
@@ -26,8 +42,8 @@ public final class PhotoAlarmUpload implements AutoCloseable {
         HttpsURLConnection c=null;
         try {
             check(cancel);
-            c=(HttpsURLConnection)origin.resolve("/api/elfremote/report-photo?device_id="+URLEncoder.encode(device,"UTF-8")
-                    +"&report_id="+params.getString("report_id")+"&captured_at="+params.getLong("captured_at")).toURL().openConnection();
+            c=policy.open(origin.resolve("/api/elfremote/report-photo?device_id="+URLEncoder.encode(device,"UTF-8")
+                    +"&report_id="+params.getString("report_id")+"&captured_at="+params.getLong("captured_at")).toURL());
             synchronized(this){if(closed)throw new IOException("VISUAL_UPLOAD_CANCELLED");connection=c;}
             c.setSSLSocketFactory(RemoteTls.factory());c.setInstanceFollowRedirects(false);
             c.setRequestMethod("POST");c.setDoOutput(true);c.setConnectTimeout(8000);c.setReadTimeout(12000);
@@ -36,7 +52,7 @@ public final class PhotoAlarmUpload implements AutoCloseable {
             try(InputStream in=new FileInputStream(file);OutputStream out=c.getOutputStream()){
                 byte[] bytes=new byte[8192];int n;while((n=in.read(bytes))!=-1){check(cancel);out.write(bytes,0,n);}
             }
-            check(cancel);if(c.getResponseCode()!=200)throw new IOException("VISUAL_UPLOAD_NOT_ACKNOWLEDGED");
+            check(cancel);int status=c.getResponseCode();if(status!=200)throw new Rejected(status);
             JSONObject reply;
             try(InputStream in=c.getInputStream();ByteArrayOutputStream out=new ByteArrayOutputStream()) {
                 byte[] bytes=new byte[1024];int n;while((n=in.read(bytes))!=-1){check(cancel);if(out.size()+n>4096)throw new IOException("VISUAL_UPLOAD_REPLY_SIZE");out.write(bytes,0,n);}
@@ -48,6 +64,6 @@ public final class PhotoAlarmUpload implements AutoCloseable {
             return result;
         }finally{if(c!=null)c.disconnect();connection=null;}
     }
-    private void check(Cancellation cancel)throws Exception {cancel.check();if(closed)throw new IOException("VISUAL_UPLOAD_CANCELLED");}
+    private void check(Cancellation cancel)throws Exception {cancel.check();if(closed)throw new IOException("VISUAL_UPLOAD_CANCELLED");policy.check();}
     public void close(){closed=true;HttpsURLConnection c=connection;if(c!=null)c.disconnect();}
 }

@@ -94,7 +94,7 @@ def main() -> int:
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--sources", type=Path, default=Path(__file__).parent / "sources-v1.4.3.json")
-    parser.add_argument("--version", choices=("1.4.3", "1.4.4"), default="1.4.3")
+    parser.add_argument("--version", choices=("1.4.3", "1.4.4", "1.4.5"), default="1.4.3")
     args = parser.parse_args()
 
     source = args.source.resolve()

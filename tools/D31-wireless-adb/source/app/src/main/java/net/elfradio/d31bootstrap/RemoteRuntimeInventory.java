@@ -87,6 +87,14 @@ public final class RemoteRuntimeInventory {
     }
 
     private static boolean observed(JSONObject value) { return "OBSERVED".equals(value.optString("state")); }
+
+    static JSONObject collectAndroid() throws Exception {
+        JSONObject result = collect(new AndroidAccess(), System.currentTimeMillis());
+        result.put("productConfiguration", RemoteProductConfiguration.collect(
+                new AndroidProductConfiguration(), System.currentTimeMillis()));
+        return result.put("productAccess", RemoteProductAccess.collect(
+                new AndroidProductAccess(), System.currentTimeMillis()));
+    }
     private static String alignment(JSONObject left, JSONObject right) throws Exception {
         if (!observed(left) || !observed(right)) return "UNKNOWN";
         JSONObject a = left.getJSONObject("metadata"), b = right.getJSONObject("metadata");
@@ -139,7 +147,7 @@ public final class RemoteRuntimeInventory {
         if (args.length != 0 || android.system.Os.getuid() != 0 || android.os.Build.VERSION.SDK_INT != 23
                 || !"hct6735_66_m0".equals(android.os.Build.DEVICE)
                 || !"hct6737t_66_m0".equals(android.os.Build.MODEL)) throw new SecurityException("仅限已确认D31只读采集");
-        System.out.println(collect(new AndroidAccess(), System.currentTimeMillis()).toString());
+        System.out.println(collectAndroid().toString());
         System.exit(0);
     }
     private RemoteRuntimeInventory() { }

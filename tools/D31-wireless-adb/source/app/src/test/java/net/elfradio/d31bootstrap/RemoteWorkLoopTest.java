@@ -1,6 +1,7 @@
 package net.elfradio.d31bootstrap;
 
 import org.junit.Test;
+import org.json.JSONObject;
 import java.io.IOException;
 import java.util.EnumMap;
 import static org.junit.Assert.*;
@@ -36,6 +37,79 @@ public class RemoteWorkLoopTest {
             journals++;
             if (failJournal) throw new IOException("state storage unavailable");
         }
+    }
+
+    @Test public void snapshotTracksFifteenMinutesFromSuccessfulCompletion() throws Exception {
+        Fixture f = new Fixture(); f.now = 5000; f.reportDuration = 125;
+        JSONObject initial = f.loop.snapshot().getJSONObject("report");
+        assertTrue(initial.has("last_completed_elapsed_ms"));
+        assertTrue(initial.isNull("last_completed_elapsed_ms"));
+        assertEquals(0, initial.getLong("next_in_ms"));
+        f.loop.tick();
+        JSONObject completed = f.loop.snapshot().getJSONObject("report");
+        assertEquals(5125, completed.getLong("last_completed_elapsed_ms"));
+        assertEquals(900000, completed.getLong("next_in_ms"));
+        assertEquals("work_waiting", RemoteWorkLoop.summary(f.loop.snapshot(), false, true).getString("phase"));
+        f.now = 905124; f.loop.tick();
+        assertEquals(1, f.count(RemoteWorkLoop.Stage.REPORT));
+        assertEquals(1, f.loop.snapshot().getJSONObject("report").getLong("next_in_ms"));
+        f.now = 905125;
+        assertEquals(0, f.loop.snapshot().getJSONObject("report").getLong("next_in_ms"));
+        f.loop.tick();
+        assertEquals(2, f.count(RemoteWorkLoop.Stage.REPORT));
+        assertEquals(905250, f.loop.snapshot().getJSONObject("report").getLong("last_completed_elapsed_ms"));
+        assertEquals(900000, f.loop.snapshot().getJSONObject("report").getLong("next_in_ms"));
+    }
+
+    @Test public void snapshotEarlyRequestIsImmediatelyDueWithoutChangingLastCompletion() throws Exception {
+        Fixture f = new Fixture(); f.loop.tick(); f.now = 1000;
+        assertEquals(899000, f.loop.snapshot().getJSONObject("report").getLong("next_in_ms"));
+        f.loop.request(RemoteWorkLoop.Stage.REPORT);
+        JSONObject pending = f.loop.snapshot().getJSONObject("report");
+        assertEquals(0, pending.getLong("next_in_ms"));
+        assertEquals(0, pending.getLong("last_completed_elapsed_ms"));
+        assertEquals(1, f.count(RemoteWorkLoop.Stage.REPORT));
+        f.loop.tick();
+        assertEquals(2, f.count(RemoteWorkLoop.Stage.REPORT));
+        assertEquals(1000, f.loop.snapshot().getJSONObject("report").getLong("last_completed_elapsed_ms"));
+        assertEquals(900000, f.loop.snapshot().getJSONObject("report").getLong("next_in_ms"));
+    }
+
+    @Test public void snapshotFailureBackoffRetainsSuccessfulCompletionUntilRecovery() throws Exception {
+        Fixture f = new Fixture(); f.now = 100; f.loop.tick();
+        f.now = 1000; f.reportHttp = 500; f.reportDuration = 200;
+        f.loop.request(RemoteWorkLoop.Stage.REPORT); f.loop.tick();
+        JSONObject failed = f.loop.snapshot().getJSONObject("report");
+        assertEquals(100, failed.getLong("last_completed_elapsed_ms"));
+        assertEquals(30000, failed.getLong("next_in_ms"));
+        f.now = 31199; f.loop.request(RemoteWorkLoop.Stage.REPORT); f.loop.tick();
+        assertEquals(2, f.count(RemoteWorkLoop.Stage.REPORT));
+        assertEquals(1, f.loop.snapshot().getJSONObject("report").getLong("next_in_ms"));
+        f.now = 31200; f.loop.tick();
+        assertEquals(60000, f.loop.snapshot().getJSONObject("report").getLong("next_in_ms"));
+        assertEquals(100, f.loop.snapshot().getJSONObject("report").getLong("last_completed_elapsed_ms"));
+        f.now = 91400; f.reportHttp = 0; f.loop.tick();
+        assertEquals(91600, f.loop.snapshot().getJSONObject("report").getLong("last_completed_elapsed_ms"));
+        assertEquals(900000, f.loop.snapshot().getJSONObject("report").getLong("next_in_ms"));
+    }
+
+    @Test public void snapshotFirstFailureStaysNullAndHonorsServerWait() throws Exception {
+        Fixture f = new Fixture(); f.reportHttp = 503; f.retryAfter = 900000; f.loop.tick();
+        f.now = 1000; f.loop.request(RemoteWorkLoop.Stage.REPORT);
+        JSONObject pending = f.loop.snapshot().getJSONObject("report");
+        assertTrue(pending.has("last_completed_elapsed_ms"));
+        assertTrue(pending.isNull("last_completed_elapsed_ms"));
+        assertEquals(899000, pending.getLong("next_in_ms"));
+        f.loop.tick(); assertEquals(1, f.count(RemoteWorkLoop.Stage.REPORT));
+    }
+
+    @Test public void snapshotCompletionSurvivesJournalFailureAndRetainsInRunRequest() throws Exception {
+        Fixture f = new Fixture(); f.now = 1000; f.reportDuration = 75;
+        f.failJournal = true; f.requestDuringReport = true; f.loop.tick();
+        JSONObject pending = f.loop.snapshot().getJSONObject("report");
+        assertEquals(1075, pending.getLong("last_completed_elapsed_ms"));
+        assertEquals(0, pending.getLong("next_in_ms"));
+        assertEquals(1, f.count(RemoteWorkLoop.Stage.REPORT));
     }
 
     @Test public void pushedMediaSyncRunsBeforeSlowReportWithoutDuplicateRequest() {

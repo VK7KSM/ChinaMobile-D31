@@ -14,8 +14,16 @@ final class PhotoAlarmContract {
     static JSONObject command(String raw)throws Exception {
         if(raw==null||raw.length()>16384)throw new IOException("VISUAL_COMMAND_SIZE");
         JSONObject x=new JSONObject(raw);String op=x.optString("operation");
-        if(!"prepare".equals(op)&&!"start".equals(op)&&!"query".equals(op)&&!"stop".equals(op))throw new IOException("VISUAL_COMMAND_INVALID");
-        if(("prepare".equals(op)||"start".equals(op))&&!x.optString("apk_sha256").matches("[a-f0-9]{64}"))throw new IOException("VISUAL_APK_INVALID");
+        boolean automatic="auto_photo".equals(op)||"auto_finish".equals(op)||"auto_cancel".equals(op);
+        if(!automatic&&!"prepare".equals(op)&&!"start".equals(op)&&!"query".equals(op)&&!"stop".equals(op))throw new IOException("VISUAL_COMMAND_INVALID");
+        if((automatic||"prepare".equals(op)||"start".equals(op))&&!x.optString("apk_sha256").matches("[a-f0-9]{64}"))throw new IOException("VISUAL_APK_INVALID");
+        if(automatic){
+            if(x.has("offer"))throw new IOException("AUTO_PHOTO_OFFER_FORBIDDEN");
+            JSONObject job=x.getJSONObject("job");
+            if(!job.optString("device_id").matches("[A-Za-z0-9_-]{1,96}")||!job.optString("report_id").matches("[A-Za-z0-9_-]{1,96}")
+                    ||job.optInt("attempt",-1)<0||job.optInt("attempt",-1)>3||!(job.opt("critical") instanceof Boolean)
+                    ||job.optLong("sampled_at")<=0||job.optLong("expires_at")<=job.optLong("sampled_at"))throw new IOException("AUTO_PHOTO_JOB_INVALID");
+        }
         if(("query".equals(op)||"stop".equals(op))&&!x.optString("session_id").matches("[A-Za-z0-9_-]{0,96}"))throw new IOException("VISUAL_SESSION_INVALID");
         return x;
     }
