@@ -90,8 +90,10 @@ public final class RemoteRuntimeInventory {
 
     static JSONObject collectAndroid() throws Exception {
         JSONObject result = collect(new AndroidAccess(), System.currentTimeMillis());
-        return result.put("productConfiguration", RemoteProductConfiguration.collect(
+        result.put("productConfiguration", RemoteProductConfiguration.collect(
                 new AndroidProductConfiguration(), System.currentTimeMillis()));
+        return result.put("productAccess", RemoteProductAccess.collect(
+                new AndroidProductAccess(), System.currentTimeMillis()));
     }
     private static String alignment(JSONObject left, JSONObject right) throws Exception {
         if (!observed(left) || !observed(right)) return "UNKNOWN";

@@ -21,7 +21,7 @@ public class ProductSettingsReadTest {
     }
 
     @Test public void rejectsOtherKeysBeforeStartingAnyCommand() throws Exception {
-        for (String key : new String[]{null, "android_id", "enabled_accessibility_services", "sms_default_application;id"}) {
+        for (String key : new String[]{null, "android_id", "enabled_input_methods", "sms_default_application;id"}) {
             try { SettingsCommand.readProductSecure(key); fail("不得启动额外查询"); }
             catch (IllegalArgumentException expected) { }
         }

@@ -11,7 +11,8 @@ import java.util.List;
 /** 复用系统settings的外部Provider引用；不经shell拼接，不用API26 waitFor超时重载。 */
 public final class SettingsCommand {
     public static String readProductSecure(String key) throws Exception {
-        if (!"sms_default_application".equals(key) && !"enabled_notification_listeners".equals(key))
+        if (!"sms_default_application".equals(key) && !"enabled_notification_listeners".equals(key)
+                && !"accessibility_enabled".equals(key) && !"enabled_accessibility_services".equals(key))
             throw new IllegalArgumentException("不允许读取该产品设置");
         return productValue(invoke("get", "secure", key));
     }

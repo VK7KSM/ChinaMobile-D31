@@ -18,7 +18,7 @@ final class AndroidProductConfiguration implements RemoteProductConfiguration.Ac
     private static final int COMPONENT_FLAGS = PackageManager.GET_DISABLED_COMPONENTS;
     private static Context systemContext;
 
-    private static synchronized Context context() throws Exception {
+    static synchronized Context context() throws Exception {
         if (systemContext == null) {
             Class<?> type = Class.forName("android.app.ActivityThread");
             Object thread = type.getMethod("currentActivityThread").invoke(null);
