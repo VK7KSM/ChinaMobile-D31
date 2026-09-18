@@ -47,6 +47,7 @@ public final class RemoteDaemon {
     private java.util.concurrent.Future<Boolean> managementReading;
     private long managementStarted;
     private long managementRetry;
+    private long videoConfigCheckAt;
 
     private RemoteDaemon(File root, String instance) throws Exception {
         this.root = root; this.instance = instance;
@@ -86,6 +87,13 @@ public final class RemoteDaemon {
                     try { daemon.tick(); }
                     catch (RemoteHttp.Rejected rejected) {
                         daemon.status("cloud_rejected", rejected.status, rejected.reason);
+                        if (rejected.pairingRequired) {
+                            // 后端已不认识当前设备编号（例如后端迁移）：清空编号后退出，由守护重启核心并凭原令牌重新注册。
+                            daemon.state.put("device_id", "");
+                            new File(root, "pending-report.json").delete();
+                            daemon.status("pairing_required", rejected.status, "identity reset");
+                            break;
+                        }
                         // 身份拒绝停止云请求，保留本地健康和取证，修正身份后由现有入口重启核心。
                         if (rejected.status >= 400 && rejected.status < 500 && rejected.status != 429) cloudStopped = true;
                         if ("run".equals(args[1])) daemon.pauseRetry();
@@ -160,6 +168,19 @@ public final class RemoteDaemon {
             }
         });
         if (bootComplete()) {
+            if (SystemClock.elapsedRealtime() >= videoConfigCheckAt) {
+                // 原厂视频关键帧请求开关兜底；失败5分钟后重试，成功每小时复查。
+                try {
+                    JSONObject video = VendorVideoConfig.ensure();
+                    RescueFiles.write(new File(root, "video-config.json"), video.put("time_ms", System.currentTimeMillis()).toString());
+                    controlLog.write(System.currentTimeMillis() + " VIDEO_CONFIG " + video);
+                    videoConfigCheckAt = SystemClock.elapsedRealtime() + 3600000;
+                } catch (Exception error) {
+                    RescueFiles.write(new File(root, "video-config.json"), new JSONObject()
+                            .put("error", error.getClass().getSimpleName()).put("time_ms", System.currentTimeMillis()).toString());
+                    videoConfigCheckAt = SystemClock.elapsedRealtime() + 300000;
+                }
+            }
             telemetry.enableLocation(context(), () -> wake.set(true));
             if (media == null) media = new RemoteMediaSessions(context(), root, System.getenv("CLASSPATH"), () -> wake.set(true));
             if (visual == null) visual = new RemoteVisualMedia(context(), root, System.getenv("CLASSPATH"), () -> wake.set(true));

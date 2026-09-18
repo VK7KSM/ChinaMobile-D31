@@ -16,14 +16,20 @@ final class RemoteHttp {
         final int status;
         final String reason;
         final long retryAfterMillis;
+        /** 服务端明确要求重新配对（设备编号在后端已不存在），不是凭据错误。 */
+        final boolean pairingRequired;
         Rejected(int status, String reason) {
             this(status, reason, 0);
         }
         Rejected(int status, String reason, long retryAfterMillis) {
+            this(status, reason, retryAfterMillis, false);
+        }
+        Rejected(int status, String reason, long retryAfterMillis, boolean pairingRequired) {
             super("HTTP " + status);
             this.status = status;
             this.reason = reason;
             this.retryAfterMillis = Math.max(0, Math.min(86400000L, retryAfterMillis));
+            this.pairingRequired = pairingRequired;
         }
     }
 
@@ -63,10 +69,14 @@ final class RemoteHttp {
             if (local && status == 404) return null;
             if (status < 200 || status >= 300) {
                 String reason = "";
+                boolean pairingRequired = false;
                 long delay = retryAfterDelay(c.getHeaderField("Retry-After"), System.currentTimeMillis());
-                try { reason = new JSONObject(read(c.getErrorStream())).optString("msg"); }
-                catch (Exception ignored) { }
-                throw new Rejected(status, reason, delay);
+                try {
+                    JSONObject error = new JSONObject(read(c.getErrorStream()));
+                    reason = error.optString("msg");
+                    pairingRequired = status == 404 && error.optBoolean("pairing_required");
+                } catch (Exception ignored) { }
+                throw new Rejected(status, reason, delay, pairingRequired);
             }
             return new JSONObject(read(c.getInputStream()));
         } finally { c.disconnect(); }

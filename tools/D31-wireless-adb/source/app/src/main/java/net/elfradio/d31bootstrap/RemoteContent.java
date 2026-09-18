@@ -29,6 +29,11 @@ final class RemoteContent implements AutoCloseable {
         return (Bundle)providerType.getMethod("call",String.class,String.class,String.class,Bundle.class)
                 .invoke(provider,null,method,null,extras);
     }
+    /** 与content命令的update一致：列名为配置键，值为该键的JSON原文。 */
+    int update(Uri uri,android.content.ContentValues values)throws Exception{
+        return (Integer)providerType.getMethod("update",String.class,Uri.class,android.content.ContentValues.class,String.class,String[].class)
+                .invoke(provider,null,uri,values,null,null);
+    }
     Cursor query(Uri uri,String[] projection)throws Exception{
         return (Cursor)providerType.getMethod("query",String.class,Uri.class,String[].class,String.class,
                 String[].class,String.class,Class.forName("android.os.ICancellationSignal"))
