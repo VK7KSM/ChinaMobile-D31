@@ -45,7 +45,7 @@ public final class AndroidAlarm implements AlarmTasks.Player,AlarmTasks.Schedule
         Session(int durationMs){
             repeating=durationMs==0;
             // 循环片段固定为1.4秒；定时长按请求时长取整，不定时长按单段发声时长取整并在每次恢复播放时重新装填。
-            frames=AlarmWaveform.samples().length;
+            frames=AlarmWaveform.FRAMES;
             loops=AlarmWaveform.loopCount(repeating?REPEAT_BURST_MS:durationMs,AlarmWaveform.loopMs(frames));
         }
         void start()throws Exception {
@@ -70,7 +70,7 @@ public final class AndroidAlarm implements AlarmTasks.Player,AlarmTasks.Schedule
                         AudioFormat.ENCODING_PCM_16BIT,samples.length*2,AudioTrack.MODE_STATIC);
                 if(track.getState()!=AudioTrack.STATE_NO_STATIC_DATA||track.write(samples,0,samples.length)!=samples.length)
                     throw new IOException("ALARM_AUDIO_INITIALIZATION_FAILED");
-                // 有限循环次数是原生层兜底：上层定时器失效时，发声也会在约 loops*loopMs 毫秒后自行结束，不会一直响。
+                // 有限循环次数是原生层兜底：上层定时器失效时，发声也会在约 (loops+1)*loopMs 毫秒后自行结束，不会一直响。
                 if(track.setLoopPoints(0,samples.length,loops)!=AudioTrack.SUCCESS)throw new IOException("ALARM_LOOP_FAILED");
                 if(android.os.Build.VERSION.SDK_INT>=23)for(AudioDeviceInfo device:audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS))
                     if(device.getType()==AudioDeviceInfo.TYPE_BUILTIN_SPEAKER){track.setPreferredDevice(device);break;}
@@ -88,7 +88,8 @@ public final class AndroidAlarm implements AlarmTasks.Player,AlarmTasks.Schedule
                 // 静态轨播完循环预算后会停在缓冲区末尾，只重设循环点仍然无声，因此先把播放头退回起点；
                 // 该重设失败不致命（正常节拍下预算未耗尽），循环次数装填失败才算故障。
                 if(playing){
-                    if(track.setPlaybackHeadPosition(0)!=AudioTrack.SUCCESS)
+                    // 播放头退回起点：优先setPlaybackHeadPosition，被拒时回退到静态轨重播的官方接口。
+                    if(track.setPlaybackHeadPosition(0)!=AudioTrack.SUCCESS&&track.reloadStaticData()!=AudioTrack.SUCCESS)
                         android.util.Log.w("D31Alarm","playback head reset rejected, continuing");
                     if(track.setLoopPoints(0,frames,loops)!=AudioTrack.SUCCESS)throw new IOException("ALARM_LOOP_FAILED");
                 }

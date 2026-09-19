@@ -1124,14 +1124,14 @@
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AlarmWaveform.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/media/AlarmWaveform.java",
-    "字节数": 1550,
-    "SHA256": "C78B032F32CD3D6C195CBA45E3D1EB6A77985F880DD99AED258EEAFEB68E19A4"
+    "字节数": 1867,
+    "SHA256": "BC9B9020D75E9060AD318D5C731C31B5E05DC7A503D9FC4B879D3C8802F9418F"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AndroidAlarm.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/media/AndroidAlarm.java",
-    "字节数": 9217,
-    "SHA256": "829D6CA1B217BDA240608923CC3E3539C901E7BABBD2CD32E8E513ACB1506701"
+    "字节数": 9388,
+    "SHA256": "4342D4AB277CB36573207876F4F5690DC83967725EFE518BA5B28292A999B21E"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AndroidAudioCaptureObservation.java",
@@ -2468,8 +2468,8 @@
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/media/AlarmLoopCountTest.java",
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/media/AlarmLoopCountTest.java",
-    "字节数": 2089,
-    "SHA256": "41F65AE1E08632756B10E5AF011DC6978AB40104D2A88A0837AE3AE3351561F4"
+    "字节数": 2286,
+    "SHA256": "323B25C322E4A70AA2F66D5A6B6B20BB9D01E3DADC9EF71FE4A792A8398F5B87"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/media/AlarmTasksTest.java",
