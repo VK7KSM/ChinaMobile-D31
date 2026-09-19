@@ -156,6 +156,10 @@ android {
     lint {
         disable 'ExpiredTargetSdkVersion'
         checkGeneratedSources true
+        // NewApi 默认不在 lintVital 的致命集里，于是只跑 lintVital 的构建会放行
+        // 「调用了高于 minSdk 的 API」这类缺陷，装到 API 23 的 D31 上才崩。
+        // 2026-09-19 就是这么漏掉 CompletableFuture（API 24）的，提为致命级以便构建直接失败。
+        fatal 'NewApi'
     }
 }
 

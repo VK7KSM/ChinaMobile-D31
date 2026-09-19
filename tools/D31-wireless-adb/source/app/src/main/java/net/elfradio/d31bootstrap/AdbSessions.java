@@ -28,16 +28,25 @@ final class AdbSessions implements Closeable {
             throw new IOException("ADB中继地址不属于当前管理服务器");
         return uri;
     }
-    synchronized JSONObject open(JSONObject request)throws Exception {
+    /** 外层入口同样不能握着锁去调 finish()：那会把 finish 里把 close 移出锁的修复整个抵消。 */
+    JSONObject open(JSONObject request)throws Exception {
         URI uri=validate(request,System.currentTimeMillis());String id=request.getString("session_id");
-        if(current!=null&&current.id.equals(id))return new JSONObject().put("accepted",true);
-
-        if(current!=null)current.finish(null,"已打开新的ADB会话");
-        current=new Session(id,uri,request.getString("token"));
-        Thread thread=new Thread(current::connect,"elfremote-adb-connect");thread.setDaemon(true);thread.start();
+        Session previous;
+        synchronized(this){
+            if(current!=null&&current.id.equals(id))return new JSONObject().put("accepted",true);
+            previous=current;current=null;
+        }
+        if(previous!=null)previous.finish(null,"已打开新的ADB会话");
+        Session opened=new Session(id,uri,request.getString("token"));
+        synchronized(this){current=opened;}
+        Thread thread=new Thread(opened::connect,"elfremote-adb-connect");thread.setDaemon(true);thread.start();
         return new JSONObject().put("accepted",true);
     }
-    public synchronized void close(){if(current!=null)current.finish(null,"维护核心正在更新，ADB已断开");}
+    public void close(){
+        Session active;
+        synchronized(this){active=current;}
+        if(active!=null)active.finish(null,"维护核心正在更新，ADB已断开");
+    }
     private final class Session {
         final String id;final WebSocketClient websocket;
         volatile AdbShell shell;volatile boolean ended;
@@ -132,13 +141,23 @@ final class AdbSessions implements Closeable {
             Class.forName("android.os.IPowerManager").getMethod("acquireWakeLock",android.os.IBinder.class,int.class,String.class,String.class,android.os.WorkSource.class,String.class)
                     .invoke(power,wakeToken,1,"elfRemote:adb-session","net.elfradio.d31bootstrap",null,null);
         }
-        synchronized void finish(Integer exit,String reason){
-            if(ended)return;ended=true;
-            deadline.cancel();
-            if(shell!=null)shell.close();
-            // 握手期间shell尚未赋值，取消仍须立即释放本机连接。
-            try{if(adbSocket!=null)adbSocket.close();}catch(IOException ignored){}
-            try{if(power!=null&&wakeToken!=null)Class.forName("android.os.IPowerManager").getMethod("releaseWakeLock",android.os.IBinder.class,int.class).invoke(power,wakeToken,0);}catch(Exception ignored){}
+        /**
+         * websocket 的 send/close 必须在锁外做。
+         *
+         * 它们要拿 WebSocket 自己的那把锁，而读线程是先拿到那把锁、再从 onClose/onError 回调
+         * 进来拿本会话的锁。两边锁序相反，放进 synchronized 里就会死锁——现象不是报错而是整条
+         * 会话卡住，连带上报线程一起停，进程还活着、last_error 是空的，极难查。
+         * 网关 2026-09-19 就是这么失联近八分钟的。
+         */
+        void finish(Integer exit,String reason){
+            synchronized(this){
+                if(ended)return;ended=true;
+                deadline.cancel();
+                if(shell!=null)shell.close();
+                // 握手期间shell尚未赋值，取消仍须立即释放本机连接。
+                try{if(adbSocket!=null)adbSocket.close();}catch(IOException ignored){}
+                try{if(power!=null&&wakeToken!=null)Class.forName("android.os.IPowerManager").getMethod("releaseWakeLock",android.os.IBinder.class,int.class).invoke(power,wakeToken,0);}catch(Exception ignored){}
+            }
             boolean open=websocket.isOpen();
             try{if(open)websocket.send(new JSONObject().put("type","closed").put("exit",exit==null?JSONObject.NULL:exit).put("message",reason).toString());}catch(Exception ignored){}
             websocket.close();

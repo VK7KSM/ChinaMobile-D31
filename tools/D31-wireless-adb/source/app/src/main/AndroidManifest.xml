@@ -52,6 +52,20 @@
             android:taskAffinity="net.elfradio.d31bootstrap.alarmui"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density|fontScale"
             android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+        <!--
+          二维码窗口只有完整版带（基础版是探针，不打包二维码编码器），所以声明落在完整版这份清单里。
+          独立进程 :sharelink：它会被摆在公共位置长时间亮屏，崩了不能带倒 :visual 的媒体会话。
+          singleInstance 配 onNewIntent，用来让核心顶替或撤下当前这次显示。
+        -->
+        <activity
+            android:name=".ShareLinkActivity"
+            android:process=":sharelink"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity="net.elfradio.d31bootstrap.sharelink"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density|fontScale"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar.Fullscreen" />
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"

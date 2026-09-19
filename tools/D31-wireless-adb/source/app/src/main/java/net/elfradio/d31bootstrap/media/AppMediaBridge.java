@@ -45,6 +45,14 @@ public final class AppMediaBridge implements AutoCloseable {
         try{submit(new JSONObject().put("operation","stop").put("session_id",sessionId),callback);}
         catch(Exception failure){fail(callback,"MEDIA_BRIDGE_REQUEST_INVALID");}
     }
+    /**
+     * 远程桌面的四个操作。命令原样提交，形状由 AppMediaContract 统一校验，
+     * 这里不再拆开重拼，免得两边对字段名的理解各走各的。
+     */
+    public void desktop(JSONObject command,Callback callback){
+        try{submit(new JSONObject(command.toString()),callback);}
+        catch(Exception failure){fail(callback,"MEDIA_BRIDGE_REQUEST_INVALID");}
+    }
     /** 空编号只读当前状态；具体编号只为本bridge拥有的会话续租。 */
     public void query(String sessionId,Callback callback){
         try{submit(new JSONObject().put("operation","query").put("session_id",sessionId),callback);}

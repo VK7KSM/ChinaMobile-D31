@@ -46,6 +46,12 @@ final class AppMediaBackend implements AppMediaController.Backend,AutoCloseable 
         String dataDir=app.getApplicationInfo().dataDir;
         return privateDirectory(dataDir==null?null:new File(dataDir),frameworkDirectory);
     }
+    /** 远程桌面只用数据通道，但仍要用同一套已校验的APK与原生库缓存，不另开一条加载路径。 */
+    DesktopSession desktopSession(String hash)throws Exception {
+        File apk=verifiedApk(hash);
+        return new DesktopSession(app,apk,hash,new File(appDirectory(app.getCodeCacheDir()),"media-native"));
+    }
+
     public JSONObject prepare(String hash,Cancellation cancel)throws Exception {
         cancel.check();File apk=verifiedApk(hash);cancel.check();
         AudioGuard current=null;try{current=guard();}catch(Exception unknown){}

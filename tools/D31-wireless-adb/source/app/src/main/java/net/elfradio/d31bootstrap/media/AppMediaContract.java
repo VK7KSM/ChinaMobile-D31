@@ -12,6 +12,23 @@ final class AppMediaContract {
     static final String DESCRIPTOR=PACKAGE+".media.IAppMediaControl";
     static final int EXECUTE=1,CANCEL=2,HELLO=1,RESULT=2,MAX_BYTES=16384;
     static final long WAIT_MS=6000,DIAGNOSTIC_WAIT_MS=10000,LEASE_MS=15000;
+    static final String DESKTOP_START="desktop_start",DESKTOP_QUERY="desktop_query",
+            DESKTOP_SERVER="desktop_server",DESKTOP_STOP="desktop_stop";
+
+    /**
+     * 远程桌面命令的形状校验。桌面会话一开就是几分钟，远超本桥6秒的同步时限，
+     * 所以这四个操作都只做登记或取状态，立刻返回，真正的连接过程在会话自己的线程里。
+     * 邀约内容（中继地址、令牌、档位）由 DesktopOffer 统一校验，此处不另写一套以免两边漂移。
+     */
+    private static JSONObject desktop(JSONObject value,String op)throws Exception {
+        if(DESKTOP_START.equals(op)){
+            if(!value.optString("apk_sha256").matches("[a-f0-9]{64}"))throw new IOException("MEDIA_BRIDGE_APK_HASH");
+            net.elfradio.d31bootstrap.DesktopOffer.parse(value.optJSONObject("offer"),System.currentTimeMillis());
+            return value;
+        }
+        if(DESKTOP_SERVER.equals(op)&&!value.optString("scid").matches("[0-9a-f]{8}"))throw new IOException("DESKTOP_SCID_INVALID");
+        return value;
+    }
     static void request(String id,String boot,long started,long now)throws IOException {
         request(id,boot,started,now,WAIT_MS);
     }
@@ -24,7 +41,9 @@ final class AppMediaContract {
     static JSONObject command(String json)throws Exception {
         if(json==null||json.length()>MAX_BYTES||json.getBytes("UTF-8").length>MAX_BYTES)throw new IOException("MEDIA_BRIDGE_SIZE");
         JSONObject value=new JSONObject(json);String op=value.getString("operation");
-        if(!"prepare".equals(op)&&!"start".equals(op)&&!"stop".equals(op)&&!"query".equals(op)&&!"local_audio_capture".equals(op))throw new IOException("MEDIA_BRIDGE_OPERATION");
+        boolean desktop=DESKTOP_START.equals(op)||DESKTOP_QUERY.equals(op)||DESKTOP_SERVER.equals(op)||DESKTOP_STOP.equals(op);
+        if(!desktop&&!"prepare".equals(op)&&!"start".equals(op)&&!"stop".equals(op)&&!"query".equals(op)&&!"local_audio_capture".equals(op))throw new IOException("MEDIA_BRIDGE_OPERATION");
+        if(desktop)return desktop(value,op);
         if(("prepare".equals(op)||"start".equals(op)||"local_audio_capture".equals(op))&&!value.optString("apk_sha256").matches("[a-f0-9]{64}"))throw new IOException("MEDIA_BRIDGE_APK_HASH");
         if("local_audio_capture".equals(op)){
             Object duration=value.opt("duration_ms");

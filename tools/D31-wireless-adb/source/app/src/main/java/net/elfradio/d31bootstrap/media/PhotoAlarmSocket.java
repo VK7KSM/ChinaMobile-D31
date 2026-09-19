@@ -39,6 +39,18 @@ public final class PhotoAlarmSocket implements PhotoAlarmSession.Wire {
         }catch(Exception failure){if(tls!=null)try{tls.close();}catch(Exception ignored){}try{plain.close();}catch(Exception ignored){}
             throw new IOException("VISUAL_TLS_CONNECT_FAILED");}
     }
+    /**
+     * 这里是持本对象的锁去调 client.send 的，刻意保留，但留个线索。
+     *
+     * 读线程投递 onMessage 后会经 PhotoAlarmSession.receive() 反过来调本方法，也要这把锁。
+     * 不构成死锁：send 只是把帧放进发送队列，消费它的写线程不需要本对象的锁，
+     * 队列满或网络背压时写线程仍能排空，卡住的一方终会往下走，属于暂时阻塞而非环。
+     * 所以它和 finish/close 那类反向锁序不是一回事，WebSocketLockOrderAuditTest 只审 close。
+     *
+     * 但后果要知道：send 在锁内卡住期间，等这把锁的读线程也跟着停，
+     * 于是照片/警报这一条通路会整体僵住直到网络恢复。它不会扩散到上报、不会让设备失联。
+     * 现场若出现「照片传一半不动了、要重启才好」，这里是第一个该看的地方。
+     */
     public synchronized void send(JSONObject value)throws Exception {
         if(closed||client==null||!client.isOpen())throw new IOException("VISUAL_SOCKET_CLOSED");client.send(value.toString());
     }

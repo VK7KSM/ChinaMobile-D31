@@ -35,6 +35,17 @@ public final class RemoteDaemon {
     private final RemoteTelemetry telemetry = new RemoteTelemetry();
     private volatile RemoteMediaSessions media;
     private volatile RemoteVisualMedia visual;
+    private volatile ShareLinkTasks shareLinks;
+    private volatile RemoteDesktop desktop;
+    private volatile net.elfradio.d31bootstrap.media.AppMediaBridge desktopBridge;
+    private volatile String desktopApkHash = "";
+    private long desktopInitRetry;
+    private volatile AndroidShareLinkScreen shareLinkScreen;
+    /** 墙上时钟用于回执里的时刻，开机时钟用于时限判定；后者不受对时跳变影响。 */
+    private static final ShareLinkTasks.Clock SHARE_LINK_CLOCK = new ShareLinkTasks.Clock() {
+        public long wall() { return System.currentTimeMillis(); }
+        public long elapsed() { return SystemClock.elapsedRealtime(); }
+    };
     private volatile RemoteAutomaticPhotos automaticPhotos;
     private long automaticPhotoInitRetry;
     private String mediaStatus = "";
@@ -110,6 +121,8 @@ public final class RemoteDaemon {
                 daemon.telemetry.close();
                 if (daemon.media != null) daemon.media.close();
                 if (daemon.visual != null) daemon.visual.close();
+                if (daemon.desktop != null) daemon.desktop.close();
+                if (daemon.desktopBridge != null) daemon.desktopBridge.close();
                 if (daemon.automaticPhotos != null) daemon.automaticPhotos.close();
                 daemon.sipReader.shutdownNow();
                 daemon.managementReader.shutdownNow();
@@ -184,6 +197,28 @@ public final class RemoteDaemon {
             telemetry.enableLocation(context(), () -> wake.set(true));
             if (media == null) media = new RemoteMediaSessions(context(), root, System.getenv("CLASSPATH"), () -> wake.set(true));
             if (visual == null) visual = new RemoteVisualMedia(context(), root, System.getenv("CLASSPATH"), () -> wake.set(true));
+            if (desktop == null && DesktopAsset.packaged() && SystemClock.elapsedRealtime() >= desktopInitRetry) {
+                desktopInitRetry = SystemClock.elapsedRealtime() + 60000;
+                try {
+                    // 资产每次都校验哈希，已就绪时 install 直接返回，不重复写盘。
+                    DesktopAsset.install();
+                    if (desktopApkHash.isEmpty()) desktopApkHash = RescueFiles.sha256(new File(System.getenv("CLASSPATH")));
+                    desktopBridge = new net.elfradio.d31bootstrap.media.AppMediaBridge(context());
+                    desktop = new RemoteDesktop(this::desktopRequest, new DesktopLauncher(root),
+                            SystemClock::elapsedRealtime, desktopApkHash);
+                } catch (Exception unavailable) { System.err.println("DESKTOP_INITIALIZATION_FAILED " + unavailable); }
+            }
+            if (shareLinks == null && ShareLinkAvailability.packaged()) {
+                // 自带一条桥：RemoteVisualMedia 那条是私有的，而这条桥本身每次请求都重新握手，不持状态。
+                net.elfradio.d31bootstrap.media.PhotoAlarmBridge shareLinkBridge =
+                        new net.elfradio.d31bootstrap.media.PhotoAlarmBridge(context());
+                shareLinkScreen = new AndroidShareLinkScreen(shareLinkBridge::request, SHARE_LINK_CLOCK);
+                shareLinks = new ShareLinkTasks(root, state.snapshot().getString("device_id"), shareLinkScreen,
+                        this::shareLinkProgress,
+                        // 警报是找设备用的，优先级高于二维码：媒体或照片会话占着就不显示。
+                        () -> (visual != null && visual.active()) || (media != null && media.active()),
+                        SHARE_LINK_CLOCK);
+            }
             if (automaticPhotos == null && SystemClock.elapsedRealtime()>=automaticPhotoInitRetry) {
                 automaticPhotoInitRetry=SystemClock.elapsedRealtime()+60000;
                 try{automaticPhotos = new RemoteAutomaticPhotos(context(),root,System.getenv("CLASSPATH"),this::credentials,
@@ -228,7 +263,7 @@ public final class RemoteDaemon {
     }
 
     private long runWork(RemoteWorkLoop.Stage stage) throws Exception {
-        if (stage == RemoteWorkLoop.Stage.TASKS) { tasks.resume(); return 5000; }
+        if (stage == RemoteWorkLoop.Stage.TASKS) { tasks.resume(); driveShareLinks(); driveDesktop(); return 5000; }
         if(stage==RemoteWorkLoop.Stage.FILES) {
             if(incoming==null){network();incoming=new RemoteFileTransfers(root,state.snapshot().getString("device_id"),
                     state.snapshot().getString("token"),body->{
@@ -269,6 +304,7 @@ public final class RemoteDaemon {
             controlLog.write(System.currentTimeMillis()+" SYNC_RECEIVED");
             consumeAdb(reply.optJSONObject("adb_session"));
             consumeMedia(reply.optJSONObject("media_session"));
+            consumeDesktop(reply.optJSONObject("desktop_session"));
             state.notice(reply.optJSONObject("status_request"), System.currentTimeMillis());
             if (state.snapshot().has("notice")) wake.set(true);
             return push.connected() ? 900000 : 60000;
@@ -296,6 +332,8 @@ public final class RemoteDaemon {
                     .put("managed_system_settings", false)
                     .put("managed_contacts_page_v1", false)
                     .put("managed_network_confirmation_v1", ready)
+                    .put("managed_share_link_tasks", ready && shareLinks != null)
+                    .put(DesktopOffer.CAPABILITY, ready && desktop != null && RemoteDesktop.available())
                     .put("network_write", false)
                     .put("maintenance", new JSONObject().put("ready", ready)
                             .put("state", ready ? "ready" : "unavailable"))
@@ -357,6 +395,72 @@ public final class RemoteDaemon {
         else work.request(RemoteWorkLoop.Stage.REPORT);
     }
 
+    /**
+     * 先取窗口结果再扫时限：取到了就能按真实结果结清，顺序反了会把刚结束的显示误判成超时。
+     * tick 还兼管未被服务端采纳的终态回执补发，所以即使没有窗口在显示也要照常调。
+     */
+    /**
+     * 桥是回调式的，这里包成同步调用给 RemoteDesktop 用。
+     * 8秒上限：桥自己是6秒时限，留一点余量，超了就当这一轮取不到，下一轮再来。
+     */
+    private JSONObject desktopRequest(JSONObject command) throws Exception {
+        net.elfradio.d31bootstrap.media.AppMediaBridge bridge = desktopBridge;
+        if (bridge == null) throw new java.io.IOException("DESKTOP_BRIDGE_UNAVAILABLE");
+        final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        final java.util.concurrent.atomic.AtomicReference<JSONObject> result = new java.util.concurrent.atomic.AtomicReference<JSONObject>();
+        final java.util.concurrent.atomic.AtomicReference<String> failure = new java.util.concurrent.atomic.AtomicReference<String>();
+        bridge.desktop(command, new net.elfradio.d31bootstrap.media.AppMediaBridge.Callback() {
+            public void completed(JSONObject value) { result.set(value); done.countDown(); }
+            public void failed(String code) { failure.set(code); done.countDown(); }
+        });
+        if (!done.await(8, java.util.concurrent.TimeUnit.SECONDS)) throw new java.io.IOException("DESKTOP_BRIDGE_TIMEOUT");
+        if (failure.get() != null) throw new java.io.IOException(failure.get());
+        return result.get();
+    }
+
+    /** 远程桌面邀约每轮上报都会带下来；重复的同一场会话由 RemoteDesktop 自己忽略。 */
+    private void consumeDesktop(JSONObject offer) {
+        RemoteDesktop current = desktop;
+        if (offer == null || current == null) return;
+        try { current.accept(offer); }
+        catch (Exception refused) { System.err.println("DESKTOP_OFFER_REFUSED " + refused.getMessage()); }
+    }
+
+    private void driveDesktop() {
+        RemoteDesktop current = desktop;
+        if (current != null) current.pump();
+    }
+
+    private void driveShareLinks() {
+        AndroidShareLinkScreen screen = shareLinkScreen;
+        ShareLinkTasks links = shareLinks;
+        if (screen != null) screen.pump();
+        if (links != null) links.tick();
+    }
+
+    /**
+     * 发二维码任务回执，返回服务端回读的任务状态。
+     * 不能用 ok 判定采纳：服务端对不在迁移表里的回执是静默丢弃，仍回200和ok，只是状态原地不动。
+     */
+    private String shareLinkProgress(JSONObject receipt) throws Exception {
+        receipt.put("token", state.snapshot().getString("token"));
+        JSONObject reply = RemoteHttp.cloud("/api/elfremote/task-progress", receipt);
+        JSONObject task = reply.optJSONObject("task");
+        if (task == null || !receipt.getString("task_id").equals(task.optString("id")))
+            throw new java.io.IOException("SHARE_LINK_PROGRESS_UNCONFIRMED");
+        return task.optString("state");
+    }
+
+    /** 基础版收到二维码任务：明确拒收，不能静默丢掉让服务端一直等。 */
+    private void shareLinkUnavailable(JSONObject task) throws Exception {
+        shareLinkProgress(new JSONObject()
+                .put("device_id", state.snapshot().getString("device_id"))
+                .put("task_id", task.optString("id")).put("state", "rejected")
+                .put("detail", "本机固件不含二维码窗口")
+                .put("result", ShareLinkTasks.result(ShareLinkOutcome.FAILED, 0,
+                        System.currentTimeMillis(), "window_not_packaged", "")));
+    }
+
     private void consumeReport(JSONObject body, JSONObject reply) throws Exception {
         state.acknowledge(body);
         state.notice(reply.optJSONObject("status_request"), System.currentTimeMillis());
@@ -367,11 +471,17 @@ public final class RemoteDaemon {
         if(task!=null) {
             if("restart_adbd".equals(task.optString("type")))adb.close();
             if("send_file".equals(task.optString("type"))||"get_file".equals(task.optString("type")))incoming.accept(task,System.currentTimeMillis());
+            else if(ShareLinkPayload.TYPE.equals(task.optString("type"))) {
+                // 完整版才有窗口；基础版能力位是false，真派下来也只能拒收，不能装作收下了。
+                if(shareLinks!=null)shareLinks.accept(task);
+                else shareLinkUnavailable(task);
+            }
             else tasks.accept(task,System.currentTimeMillis());
         }
         JSONObject update = reply.optJSONObject("managed_update");
         if (update != null) RemoteUpdates.enqueue(update);
         consumeMedia(reply.optJSONObject("media_session"));
+        consumeDesktop(reply.optJSONObject("desktop_session"));
     }
 
     private void consumeAdb(JSONObject session) throws Exception {

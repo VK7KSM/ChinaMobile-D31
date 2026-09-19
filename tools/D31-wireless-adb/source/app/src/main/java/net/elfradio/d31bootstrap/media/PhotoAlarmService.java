@@ -19,6 +19,8 @@ public final class PhotoAlarmService extends Service {
     private final ConcurrentHashMap<String,Endpoint> pending=new ConcurrentHashMap<>();
     private final ThreadPoolExecutor worker=new ThreadPoolExecutor(1,1,0,TimeUnit.MILLISECONDS,new ArrayBlockingQueue<Runnable>(4),PhotoAlarmSession.threads("d31-visual-control"));
     private static PhotoAlarmSession active;
+    /** 二维码窗口的拥有者；跨请求保留，核心靠 share_link_query 按轮次取结果。 */
+    private static ShareLinkWindow shareLinkWindow;
     private static IBinder owner;
     private IBinder.DeathRecipient death;
     private boolean destroyed;
@@ -90,6 +92,7 @@ public final class PhotoAlarmService extends Service {
         String op=x.getString("operation");
         if("prepare".equals(op))return prepare(x.getString("apk_sha256"));
         if(op.startsWith("auto_"))return automatic(x,caller);
+        if(op.startsWith("share_link_"))return shareLink(x,op);
         retireFinished();
         if("start".equals(op)){
             JSONObject rawOffer=x.getJSONObject("offer");String requested=rawOffer.optString("session_id");
@@ -125,6 +128,18 @@ public final class PhotoAlarmService extends Service {
             if(active==null)return new JSONObject().put("session_id",requested).put("state","idle").put("cleanup_complete",true);
             if(!caller.equals(owner)||!x.optString("session_id").equals(active.snapshot().optString("session_id")))throw new IOException("VISUAL_OWNER_MISMATCH");
             if("stop".equals(op))active.close();else active.renew();return active.snapshot();
+        }
+    }
+    /**
+     * 二维码窗口不占相机也不占音频，所以不参与媒体会话的占用判定，只和自己串行。
+     * show 只负责拉起并立即返回：显示时长以分钟计，远超本桥6秒的同步时限，等不起。
+     */
+    private JSONObject shareLink(JSONObject x,String op)throws Exception {
+        synchronized(PhotoAlarmService.class){
+            if(shareLinkWindow==null)shareLinkWindow=new ShareLinkWindow(getApplicationContext());
+            if(PhotoAlarmContract.SHARE_LINK_SHOW.equals(op))return shareLinkWindow.show(x);
+            if(PhotoAlarmContract.SHARE_LINK_DISMISS.equals(op))return shareLinkWindow.dismiss(x.optString("session"));
+            return shareLinkWindow.snapshot();
         }
     }
     private JSONObject automatic(JSONObject x,IBinder caller)throws Exception {

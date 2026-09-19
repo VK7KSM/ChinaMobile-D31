@@ -34,6 +34,7 @@ public final class AppMediaService extends Service {
             new ThreadFactory(){public Thread newThread(Runnable job){Thread t=new Thread(job,"d31-app-media-control");t.setDaemon(true);return t;}});
     private AppMediaController controller;
     private AppMediaBackend backend;
+    private static DesktopSession desktopSession;
     private boolean destroyed;
     private int lastStart;
     private final Runnable tick=new Runnable(){public void run(){
@@ -42,7 +43,8 @@ public final class AppMediaService extends Service {
         synchronized(owners){Iterator<Map.Entry<IBinder,IBinder.DeathRecipient>> it=owners.entrySet().iterator();
             while(it.hasNext()){Map.Entry<IBinder,IBinder.DeathRecipient> entry=it.next();
                 if(!controller.owns(entry.getKey())&&!hasPendingOwner(entry.getKey())){entry.getKey().unlinkToDeath(entry.getValue(),0);it.remove();}}}
-        if(pending.isEmpty()&&!controller.hasActive()){stopSelf(lastStart);return;}main.postDelayed(this,250);
+        // 桌面会话在开时不能把服务停掉：它不在 controller 的会话账上，漏判会当场把投屏掐断。
+        if(pending.isEmpty()&&!controller.hasActive()&&!desktopActive()){stopSelf(lastStart);return;}main.postDelayed(this,250);
     }};
     public void onCreate(){
         super.onCreate();backend=new AppMediaBackend(getApplicationContext());
@@ -113,7 +115,9 @@ public final class AppMediaService extends Service {
         void run(JSONObject command){
             try{
                 AppMediaContract.request(id,boot,started,SystemClock.elapsedRealtime(),executionWindow);cancellation.check();
-                JSONObject result=controller.execute(id,command,rootOwner,cancellation,started+executionWindow);
+                JSONObject result=command.getString("operation").startsWith("desktop_")
+                        ?desktop(command)
+                        :controller.execute(id,command,rootOwner,cancellation,started+executionWindow);
                 AppMediaContract.request(id,boot,started,SystemClock.elapsedRealtime(),executionWindow);cancellation.check();finish(result);
             }catch(Exception failure){
                 cancellation.cancel();controller.cancelRequest(id);
@@ -129,8 +133,42 @@ public final class AppMediaService extends Service {
             finish(AppMediaBridge.error("MEDIA_BRIDGE_CANCELLED"));}
     }
     public IBinder onBind(Intent intent){return null;}
+    /**
+     * 远程桌面不占相机也不占麦克风，所以不进媒体会话的占用状态机，在这里提前分流。
+     * 会话对象跨请求保留：核心靠 desktop_query 按轮次取状态，再决定拉起或收掉 scrcpy。
+     */
+    private static boolean desktopActive(){
+        synchronized(AppMediaService.class){
+            if(desktopSession==null)return false;
+            try{String state=desktopSession.snapshot().optString("state");
+                return !DesktopSession.IDLE.equals(state)&&!DesktopSession.ENDED.equals(state);}
+            catch(Exception unknown){return true;}
+        }
+    }
+
+    private JSONObject desktop(JSONObject command)throws Exception {
+        String op=command.getString("operation");
+        synchronized(AppMediaService.class){
+            if(desktopSession==null){
+                if(!AppMediaContract.DESKTOP_START.equals(op))
+                    return new JSONObject().put("session_id","").put("state",DesktopSession.IDLE);
+                desktopSession=backend.desktopSession(command.getString("apk_sha256"));
+            }
+            if(AppMediaContract.DESKTOP_START.equals(op))return desktopSession.start(command.getJSONObject("offer"));
+            if(AppMediaContract.DESKTOP_SERVER.equals(op))return desktopSession.server(command.getString("scid"));
+            if(AppMediaContract.DESKTOP_STOP.equals(op))return desktopSession.stop(command.optString("reason","核心已结束远程桌面"));
+            return desktopSession.snapshot();
+        }
+    }
+
     public void onDestroy(){
-        destroyed=true;main.removeCallbacks(tick);for(Endpoint endpoint:pending.values())endpoint.cancel();controller.serviceDestroyed();worker.shutdownNow();
+        destroyed=true;main.removeCallbacks(tick);
+        // 取出引用后出锁再关：shutdown 会走到 WebSocket 的 close，
+        // 握着类锁在主线程上关连接，既可能与读线程反向争锁，也会把 onDestroy 拖成 ANR。
+        DesktopSession closing;
+        synchronized(AppMediaService.class){closing=desktopSession;desktopSession=null;}
+        if(closing!=null)closing.shutdown();
+        for(Endpoint endpoint:pending.values())endpoint.cancel();controller.serviceDestroyed();worker.shutdownNow();
         synchronized(owners){for(Map.Entry<IBinder,IBinder.DeathRecipient> entry:owners.entrySet())entry.getKey().unlinkToDeath(entry.getValue(),0);owners.clear();}
         try{backend.close();}catch(Exception ignored){}super.onDestroy();
     }

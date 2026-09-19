@@ -12,10 +12,10 @@
     "SHA256": "37E9AE2D038BF27623B54ADEA8AD6351AA5A039A2FD6FFD3D5FBCF40A79A098B"
   },
   {
-    "来源": "f9f24981459b14cbb000a3c3b5e03297fdf9d86a:tools/D31-wireless-adb/source/app/build.gradle",
+    "来源": "research/d31_adb_bootstrap/app/build.gradle",
     "路径": "app/build.gradle",
-    "字节数": 7467,
-    "SHA256": "E85B2D37B8D15B4028D3D26EB3920A947DC9351DABDD1223ABF56EA518E27393"
+    "字节数": 7807,
+    "SHA256": "5840E2FB6BB5FE01024453B3C36824397C6F875915EFE560150380DA449A4AC6"
   },
   {
     "来源": "f9f24981459b14cbb000a3c3b5e03297fdf9d86a:tools/D31-wireless-adb/source/app/src/basic/AndroidManifest.xml",
@@ -102,10 +102,40 @@
     "SHA256": "B4DE6C86AC4A38660191A48085D0E502D0EA6107C7B9364CB02C4F1F1A1D4613"
   },
   {
-    "来源": "f9f24981459b14cbb000a3c3b5e03297fdf9d86a:tools/D31-wireless-adb/source/app/src/main/AndroidManifest.xml",
+    "来源": "research/d31_adb_bootstrap/app/src/full/java/net/elfradio/d31bootstrap/ShareLinkActivity.java",
+    "路径": "app/src/full/java/net/elfradio/d31bootstrap/ShareLinkActivity.java",
+    "字节数": 8153,
+    "SHA256": "D93F8CC61F96A32FE511C1E729F473752BC03994A27712951D6684F193FE337A"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/src/full/java/net/elfradio/d31bootstrap/qr/BitBuffer.java",
+    "路径": "app/src/full/java/net/elfradio/d31bootstrap/qr/BitBuffer.java",
+    "字节数": 4168,
+    "SHA256": "03ED4CE625FC671F9B04B61D8AB70E921C0BBA2341B63E85BF7B3EAB5564A4D6"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/src/full/java/net/elfradio/d31bootstrap/qr/DataTooLongException.java",
+    "路径": "app/src/full/java/net/elfradio/d31bootstrap/qr/DataTooLongException.java",
+    "字节数": 2899,
+    "SHA256": "407855D3DAC36B7EA377534DBBB071B37659E5E62DC495E60DBF76B6281D7DEC"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/src/full/java/net/elfradio/d31bootstrap/qr/QrCode.java",
+    "路径": "app/src/full/java/net/elfradio/d31bootstrap/qr/QrCode.java",
+    "字节数": 35247,
+    "SHA256": "24F00D1682E77847CF4A6DB04C75FD4D8B2A16D340320F629391D804A984756A"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/src/full/java/net/elfradio/d31bootstrap/qr/QrSegment.java",
+    "路径": "app/src/full/java/net/elfradio/d31bootstrap/qr/QrSegment.java",
+    "字节数": 12243,
+    "SHA256": "49FBBAF237BA51EC6FA03786FF086FA39FD7F008BB84641B9996E2E4540E200D"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/src/main/AndroidManifest.xml",
     "路径": "app/src/main/AndroidManifest.xml",
-    "字节数": 6811,
-    "SHA256": "FC7ABE6FC44B3D12E2E8EAF9A5D2FFE7409E2029168F2EFAB4DAA628950DB04C"
+    "字节数": 7732,
+    "SHA256": "4CF7F4D000BA39EE16B22D649FFD517C5BA89975097002E2640ECB952DAD63A6"
   },
   {
     "来源": "f9f24981459b14cbb000a3c3b5e03297fdf9d86a:tools/D31-wireless-adb/source/app/src/main/assets/remote-full.marker",
@@ -120,10 +150,10 @@
     "SHA256": "D95D054D1327362EB9AD42CE071011098E605CC3FE626F54DF90B6FBD9966BF7"
   },
   {
-    "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/AdbSessions.java",
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/AdbSessions.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/AdbSessions.java",
-    "字节数": 10743,
-    "SHA256": "C22E25AD2A4332E465822C6FD5CCC9F99ADDEC4B48B23324673E170FB99C62F3"
+    "字节数": 11663,
+    "SHA256": "206C741D78AC33E690707101985AFEC90D26EF85399CBD39FA8083DAE0480236"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/AdbShell.java",
@@ -142,6 +172,12 @@
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/AndroidProductConfiguration.java",
     "字节数": 7590,
     "SHA256": "18BBD3E1356858EA426C2766AD8070FB2CA68213BAB63CC92589E82ACDB52823"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/AndroidShareLinkScreen.java",
+    "路径": "app/src/main/java/net/elfradio/d31bootstrap/AndroidShareLinkScreen.java",
+    "字节数": 4643,
+    "SHA256": "928E8942DD3832C9F643F686FE42B711C187A5C40D00D45B0D445BAEC0472578"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/ArpControl.java",
@@ -172,6 +208,24 @@
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/DeferredAppStartup.java",
     "字节数": 1989,
     "SHA256": "C7F676EFB0D46DD844B19513AF85D9A97BA0CDEE5B2E45FC721325D3B2F90277"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/DesktopAsset.java",
+    "路径": "app/src/main/java/net/elfradio/d31bootstrap/DesktopAsset.java",
+    "字节数": 3857,
+    "SHA256": "E3762305513D1C0CF65C3F5B4F0ECEB307FD4703EAC5E2F2A0E6156DB79897E6"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/DesktopLauncher.java",
+    "路径": "app/src/main/java/net/elfradio/d31bootstrap/DesktopLauncher.java",
+    "字节数": 6822,
+    "SHA256": "92C894A22E7B8BF4118617D5538D9D0C5ACF7713C8DB6421458A2F8D01A9B072"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/DesktopOffer.java",
+    "路径": "app/src/main/java/net/elfradio/d31bootstrap/DesktopOffer.java",
+    "字节数": 4834,
+    "SHA256": "F5B3791157A0D2CE870A40666DEBFD5EA1B27EE12CD902D73EEEA44CFFDCD11B"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/main/java/net/elfradio/d31bootstrap/DeviceInfo.java",
@@ -284,14 +338,20 @@
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/RemoteDaemon.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/RemoteDaemon.java",
-    "字节数": 28288,
-    "SHA256": "2D97AA40480821D0667F2C80AF932549BE65FDA352EDBB410F9B77A016C00A91"
+    "字节数": 34898,
+    "SHA256": "1CB53456BA98D3CE702B5B77638C15E73FBE3D3425EFC73B10243AD0B39EA317"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/main/java/net/elfradio/d31bootstrap/RemoteDeployment.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/RemoteDeployment.java",
     "字节数": 225,
     "SHA256": "4C534E17A5A5C958E2C8EE55F3351ABE01FE80FD96D34361FB1FEEAFE4383C46"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/RemoteDesktop.java",
+    "路径": "app/src/main/java/net/elfradio/d31bootstrap/RemoteDesktop.java",
+    "字节数": 6416,
+    "SHA256": "443586FB58B1C0E8DEAA6204E283D1C6E533101E12CA1006FE32F3B7738C1266"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/RemoteDeviceName.java",
@@ -676,6 +736,30 @@
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/RootTransport.java",
     "字节数": 6107,
     "SHA256": "D78A86E19F69B0E064B41C29182F8B421459B8FED99BB2A024987D16CA7DB723"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/ShareLinkAvailability.java",
+    "路径": "app/src/main/java/net/elfradio/d31bootstrap/ShareLinkAvailability.java",
+    "字节数": 1263,
+    "SHA256": "D4C0C577922E3CE8DD7665C1BD3228EA090DAD93B3FCA587C4A912E8101679D6"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/ShareLinkOutcome.java",
+    "路径": "app/src/main/java/net/elfradio/d31bootstrap/ShareLinkOutcome.java",
+    "字节数": 548,
+    "SHA256": "D9B8751B0551133416255DC55C880212F047036C1FD6363A5DAFD1D520B8F389"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/ShareLinkPayload.java",
+    "路径": "app/src/main/java/net/elfradio/d31bootstrap/ShareLinkPayload.java",
+    "字节数": 4139,
+    "SHA256": "F552FEE1DF237AA353281649CAC3937BF5997BF3EF5EF2797DDE8180744DA821"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/ShareLinkTasks.java",
+    "路径": "app/src/main/java/net/elfradio/d31bootstrap/ShareLinkTasks.java",
+    "字节数": 14408,
+    "SHA256": "D81FABE1E7848D1F1CED1F86CADE779E0D420E1988FB5E6D512194AC0927E6F2"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/SipNetworkMonitor.java",
@@ -1242,22 +1326,22 @@
     "SHA256": "FAC16FC6400F3798BDCD9A5B9E076E580549FAB6AF37998B68E792FF1217B5C1"
   },
   {
-    "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AppMediaBackend.java",
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AppMediaBackend.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/media/AppMediaBackend.java",
-    "字节数": 12719,
-    "SHA256": "D2DC173F9D3B1FD4181A9898377593FD6C70EF2B07704AD5B75B0C892201C4D4"
+    "字节数": 12908,
+    "SHA256": "0A1C1F166BA8D61D8B97853DAFA096EE17D3680612F14570C8287ECA41041617"
   },
   {
-    "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AppMediaBridge.java",
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AppMediaBridge.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/media/AppMediaBridge.java",
-    "字节数": 11344,
-    "SHA256": "21BA6BEF17A1B7D243B01F9CBD8D67C47123E7713B3592F2727A7EE2841EDAD2"
+    "字节数": 11760,
+    "SHA256": "4DE3ED5FDE0FC21E1C509998DF90F2DB6A751DDAF8829426A2F1E6271E32B050"
   },
   {
-    "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AppMediaContract.java",
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AppMediaContract.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/media/AppMediaContract.java",
-    "字节数": 5189,
-    "SHA256": "52EEF919FECBDFCC04C09DFDB27F9B5987F3C008F12DAE71508DB2BB32F97A19"
+    "字节数": 6468,
+    "SHA256": "825CA3D962674561B556F4ADB1FDAD9BF5C29BF281FEA284A93A721F9AC9301C"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AppMediaController.java",
@@ -1296,10 +1380,10 @@
     "SHA256": "60627EA1C9028948721E1539395C4FB1C218B6C5C040D63F221F2C8632D61081"
   },
   {
-    "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AppMediaService.java",
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AppMediaService.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/media/AppMediaService.java",
-    "字节数": 9679,
-    "SHA256": "D833AAB48A7626EB060B0C7B35EA40863763F27E29EBC84C8BF73E44226C8DB5"
+    "字节数": 11914,
+    "SHA256": "CCA9DCE16FF5FD33824DB35BE7EC4744EFDC2AC926DC933398D14CB0F7FE8984"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AppPreparedExtras.java",
@@ -1464,6 +1548,12 @@
     "SHA256": "3B72E348BE227228CC8A818C662BD5027CB9054FC6E2FC0154DACB6647D4E26D"
   },
   {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/DesktopSession.java",
+    "路径": "app/src/main/java/net/elfradio/d31bootstrap/media/DesktopSession.java",
+    "字节数": 27774,
+    "SHA256": "3934A8FBFCE783CBDBDDD9B8D62D5197347F590B56EE7F4FC0C963717E1370BF"
+  },
+  {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/DownlinkRouteLease.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/media/DownlinkRouteLease.java",
     "字节数": 3021,
@@ -1536,10 +1626,10 @@
     "SHA256": "6B368B503B9AB98F31AD2334730A50794119406FDB4BCCCDFAAE043C3706B20E"
   },
   {
-    "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/PhotoAlarmContract.java",
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/PhotoAlarmContract.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/media/PhotoAlarmContract.java",
-    "字节数": 2665,
-    "SHA256": "F8055726756A9A8B2E466FF100A53810C934A4E7A172EB0CB3168C311998E8B7"
+    "字节数": 4431,
+    "SHA256": "499520FC792B810D60C85F61C05A650C6493BDE0BA1C472112064F316CA60870"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/PhotoAlarmJournal.java",
@@ -1554,10 +1644,10 @@
     "SHA256": "FD6BDD8CFAD465C70AF92A5B244B3BFEE3915CCAAEC8C7B3F9FA3D29E1912E31"
   },
   {
-    "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/PhotoAlarmService.java",
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/PhotoAlarmService.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/media/PhotoAlarmService.java",
-    "字节数": 14247,
-    "SHA256": "3C7CA39614DCEC095D91250EAE6FEFEF1CD692CFCA94B202EB3BE58464B69AAF"
+    "字节数": 15222,
+    "SHA256": "139690CC416DA6FCDC842C147F10725ACBCD82253FD515A6DF4B4BF729435A62"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/PhotoAlarmSession.java",
@@ -1566,10 +1656,10 @@
     "SHA256": "49AC531A0A69E5EF452BCDA04359B4C73D24B0A39C1CA953D4F67B7AA2FCF2AB"
   },
   {
-    "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/PhotoAlarmSocket.java",
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/PhotoAlarmSocket.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/media/PhotoAlarmSocket.java",
-    "字节数": 2874,
-    "SHA256": "03967089D1924DDF9DFBA6E68265CCCB5035CCAEBADDE06B93E4EACEF3481ECF"
+    "字节数": 3794,
+    "SHA256": "C1C3E3CC4997F0C18251F9C3F9164024722BA56599518ECF92CB2DE7465985CC"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/PhotoAlarmUpload.java",
@@ -1654,6 +1744,12 @@
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/media/RtcVideoPolicy.java",
     "字节数": 982,
     "SHA256": "E27E96887137BF6C3659637621638E52FCC4EDB6F0344C8D84868530EFEE7C0B"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/ShareLinkWindow.java",
+    "路径": "app/src/main/java/net/elfradio/d31bootstrap/media/ShareLinkWindow.java",
+    "字节数": 5816,
+    "SHA256": "7A63E906FEC6BEB9036845AE4D3733DA7CD534ABA33A04F4F6C72002ED6CD62C"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/repair/AndroidRepairFileIo.java",
@@ -1860,6 +1956,12 @@
     "SHA256": "73926C332B6358A755E07C4CCE787D930529B6B8C8DE2DC4A3A3CCAA358367C9"
   },
   {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/AndroidShareLinkScreenTest.java",
+    "路径": "app/src/test/java/net/elfradio/d31bootstrap/AndroidShareLinkScreenTest.java",
+    "字节数": 8113,
+    "SHA256": "54F0D8049CB6801F3E5BC30FEFE1F50B9698DDA5530A9D117DE71201C564E33C"
+  },
+  {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/ArpControlTest.java",
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/ArpControlTest.java",
     "字节数": 1801,
@@ -1882,6 +1984,18 @@
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/DeferredAppStartupTest.java",
     "字节数": 1633,
     "SHA256": "8D7D40083F96B9234E74FDD4863BCC9D5800D77A1D7FD3C24E7855FEBF9D5454"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/DesktopLauncherTest.java",
+    "路径": "app/src/test/java/net/elfradio/d31bootstrap/DesktopLauncherTest.java",
+    "字节数": 3987,
+    "SHA256": "B1E6153D986CE11591EF8C1B4EF945C12E04C1FD19369E74CF73437E2425F7D6"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/DesktopOfferTest.java",
+    "路径": "app/src/test/java/net/elfradio/d31bootstrap/DesktopOfferTest.java",
+    "字节数": 6692,
+    "SHA256": "D0227CB9E1B018FA2C1A54A487F4031D64AE5862A410BD58287CED01B0BDA44D"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/test/java/net/elfradio/d31bootstrap/DeviceInfoTest.java",
@@ -1996,6 +2110,12 @@
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/RemoteCoreTest.java",
     "字节数": 9721,
     "SHA256": "D6548D4503C0C085DD76F7F6159F951AEF1FC7E8C392BF1EF74FC16E5256DD13"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/RemoteDesktopTest.java",
+    "路径": "app/src/test/java/net/elfradio/d31bootstrap/RemoteDesktopTest.java",
+    "字节数": 10000,
+    "SHA256": "FFEA20F0D86B5EDEADC15709CCC92D22F2349A156CAC45DA3486DC9D14E91E81"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/RemoteDiagnosticJobsTest.java",
@@ -2224,6 +2344,18 @@
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/RootTransportTest.java",
     "字节数": 1535,
     "SHA256": "97826005CEED16DBB7EBCED2F492C0E8365177E9CDD36817FF2C815E65C1BA8F"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/ShareLinkPayloadTest.java",
+    "路径": "app/src/test/java/net/elfradio/d31bootstrap/ShareLinkPayloadTest.java",
+    "字节数": 5002,
+    "SHA256": "095841BF055C68AAB44C99FF49F71939CBD3909A17BCD45BEDAB23D2A827F17A"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/ShareLinkTasksTest.java",
+    "路径": "app/src/test/java/net/elfradio/d31bootstrap/ShareLinkTasksTest.java",
+    "字节数": 20775,
+    "SHA256": "59641DC15D500904750259AEF45EB3C1F6FF9134D2DF231E38C5C44ECB03FC1A"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/SipNetworkMonitorTest.java",
@@ -2992,6 +3124,18 @@
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/media/TransportReleaseAuditTest.java",
     "字节数": 4315,
     "SHA256": "9AFF17BF8C6D6D44A9519F7FF2395EC8FD843F8099D0C6BBCF8A6D04AF119011"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/media/WebSocketApiLevelAuditTest.java",
+    "路径": "app/src/test/java/net/elfradio/d31bootstrap/media/WebSocketApiLevelAuditTest.java",
+    "字节数": 6318,
+    "SHA256": "643C37F47F490A9BFF45B79EEA98F2D529488F88E9DEEF56C3FD219BA464C01D"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/media/WebSocketLockOrderAuditTest.java",
+    "路径": "app/src/test/java/net/elfradio/d31bootstrap/media/WebSocketLockOrderAuditTest.java",
+    "字节数": 14551,
+    "SHA256": "8099258249E66D90EE4981706FA4AED5049CEA025BD1F6A2259178FF4D9FE2C2"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/media/WebSocketWorkerReleaseAuditTest.java",
@@ -4484,7 +4628,7 @@
   {
     "来源": "本轮公开副本版本及构建说明更新",
     "路径": "源码来源与构建.md",
-    "字节数": 4638,
-    "SHA256": "B585E0E84939DF212FA12E56AB6106EEB94F195DB125A48F0A541C75D2A48BF8"
+    "字节数": 14732,
+    "SHA256": "7F091DB1636294C7D2FEB7D29DEC50039DE68E0B40765A926A646F49875EBB16"
   }
 ]
