@@ -1122,16 +1122,16 @@
     "SHA256": "DB7B1BBD05C488F06F11D5A96FEAED663C69A7673BEB4F1047405D4C19807418"
   },
   {
-    "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AlarmWaveform.java",
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AlarmWaveform.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/media/AlarmWaveform.java",
-    "字节数": 641,
-    "SHA256": "A4222E3A9D08684A362F0305242A5B83B8FDCA3EEED1CAF99C9FBA09A325F721"
+    "字节数": 1550,
+    "SHA256": "C78B032F32CD3D6C195CBA45E3D1EB6A77985F880DD99AED258EEAFEB68E19A4"
   },
   {
-    "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AndroidAlarm.java",
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AndroidAlarm.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/media/AndroidAlarm.java",
-    "字节数": 7740,
-    "SHA256": "AF0233119C1F2247F62BECC4920967C77411FD588CF2A4F9BD168D4411D40E4B"
+    "字节数": 9217,
+    "SHA256": "829D6CA1B217BDA240608923CC3E3539C901E7BABBD2CD32E8E513ACB1506701"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/media/AndroidAudioCaptureObservation.java",
@@ -2464,6 +2464,12 @@
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/management/SystemManagementTest.java",
     "字节数": 20725,
     "SHA256": "29F8CFF93BDDC848540B7F3088797D8642AF9B08452B3C4BD234EAC8BD6CA9D6"
+  },
+  {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/media/AlarmLoopCountTest.java",
+    "路径": "app/src/test/java/net/elfradio/d31bootstrap/media/AlarmLoopCountTest.java",
+    "字节数": 2089,
+    "SHA256": "41F65AE1E08632756B10E5AF011DC6978AB40104D2A88A0837AE3AE3351561F4"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/media/AlarmTasksTest.java",

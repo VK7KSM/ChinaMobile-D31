@@ -23,15 +23,18 @@ public final class AndroidAlarm implements AlarmTasks.Player,AlarmTasks.Schedule
     private final AudioGuard beforeSound;
     public AndroidAlarm(Context context,Handler ownerHandler){this(context,ownerHandler,()->{});}
     public AndroidAlarm(Context context,Handler ownerHandler,AudioGuard beforeSound){this.context=context;this.handler=ownerHandler;this.beforeSound=beforeSound;}
+    /** 不定时长（丢失模式）时每段发声的毫秒数，与下方30秒播放/10秒暂停的节拍一致。 */
+    static final int REPEAT_BURST_MS=30000;
     public AlarmTasks.Tone start(int durationMs)throws Exception {
         if(Looper.myLooper()==Looper.getMainLooper())throw new IOException("ALARM_MAIN_THREAD_FORBIDDEN");
-        Session session=new Session(durationMs==0);
+        Session session=new Session(durationMs);
         try{session.start();return session;}catch(Exception failure){session.close();throw failure;}
     }
     private final class Session extends Binder implements AlarmTasks.Tone {
         private final AudioManager audio=(AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
         private final CountDownLatch visible=new CountDownLatch(1);
         private final boolean repeating;
+        private final int frames,loops;
         private AudioTrack track;
         private int originalVolume;
         private volatile boolean active=true;
@@ -39,7 +42,12 @@ public final class AndroidAlarm implements AlarmTasks.Player,AlarmTasks.Schedule
         private boolean volumeChanged,closed;
         private final Runnable sound=()->cycle(true),pause=()->cycle(false);
         private final Runnable screenWatch=this::watchScreen;
-        Session(boolean repeating){this.repeating=repeating;}
+        Session(int durationMs){
+            repeating=durationMs==0;
+            // 循环片段固定为1.4秒；定时长按请求时长取整，不定时长按单段发声时长取整并在每次恢复播放时重新装填。
+            frames=AlarmWaveform.samples().length;
+            loops=AlarmWaveform.loopCount(repeating?REPEAT_BURST_MS:durationMs,AlarmWaveform.loopMs(frames));
+        }
         void start()throws Exception {
             if(audio==null||handler==null)throw new IOException("ALARM_AUDIO_UNAVAILABLE");
             originalVolume=audio.getStreamVolume(AudioManager.STREAM_ALARM);
@@ -62,22 +70,31 @@ public final class AndroidAlarm implements AlarmTasks.Player,AlarmTasks.Schedule
                         AudioFormat.ENCODING_PCM_16BIT,samples.length*2,AudioTrack.MODE_STATIC);
                 if(track.getState()!=AudioTrack.STATE_NO_STATIC_DATA||track.write(samples,0,samples.length)!=samples.length)
                     throw new IOException("ALARM_AUDIO_INITIALIZATION_FAILED");
-                if(track.setLoopPoints(0,samples.length,-1)!=AudioTrack.SUCCESS)throw new IOException("ALARM_LOOP_FAILED");
+                // 有限循环次数是原生层兜底：上层定时器失效时，发声也会在约 loops*loopMs 毫秒后自行结束，不会一直响。
+                if(track.setLoopPoints(0,samples.length,loops)!=AudioTrack.SUCCESS)throw new IOException("ALARM_LOOP_FAILED");
                 if(android.os.Build.VERSION.SDK_INT>=23)for(AudioDeviceInfo device:audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS))
                     if(device.getType()==AudioDeviceInfo.TYPE_BUILTIN_SPEAKER){track.setPreferredDevice(device);break;}
                 beforeSound.requireIdle();
                 track.play();
                 android.util.Log.i("D31Alarm","playing volume="+maximum+" elapsed_ms="+android.os.SystemClock.elapsedRealtime());
                 if(!handler.postDelayed(screenWatch,250))throw new IOException("ALARM_TIMER_UNAVAILABLE");
-                if(repeating&&!handler.postDelayed(pause,30000))throw new IOException("ALARM_TIMER_UNAVAILABLE");
+                if(repeating&&!handler.postDelayed(pause,REPEAT_BURST_MS))throw new IOException("ALARM_TIMER_UNAVAILABLE");
             }
         }
         private synchronized void cycle(boolean playing){
             if(closed||!active||track==null)return;
             try{
+                // 恢复播放前重新装填循环次数（AudioTrack要求处于暂停或停止态），使每段发声各自有界。
+                // 静态轨播完循环预算后会停在缓冲区末尾，只重设循环点仍然无声，因此先把播放头退回起点；
+                // 该重设失败不致命（正常节拍下预算未耗尽），循环次数装填失败才算故障。
+                if(playing){
+                    if(track.setPlaybackHeadPosition(0)!=AudioTrack.SUCCESS)
+                        android.util.Log.w("D31Alarm","playback head reset rejected, continuing");
+                    if(track.setLoopPoints(0,frames,loops)!=AudioTrack.SUCCESS)throw new IOException("ALARM_LOOP_FAILED");
+                }
                 if(playing)track.play();else track.pause();
                 android.util.Log.i("D31Alarm",(playing?"playing":"paused")+" elapsed_ms="+android.os.SystemClock.elapsedRealtime());
-                if(!handler.postDelayed(playing?pause:sound,playing?30000:10000))throw new IOException("ALARM_TIMER_UNAVAILABLE");
+                if(!handler.postDelayed(playing?pause:sound,playing?REPEAT_BURST_MS:10000))throw new IOException("ALARM_TIMER_UNAVAILABLE");
             }catch(Exception failure){try{close();}catch(Exception ignored){}}
         }
         private synchronized void watchScreen(){
