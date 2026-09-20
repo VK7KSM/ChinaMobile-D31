@@ -67,9 +67,12 @@ public class DesktopOfferTest {
         // 形状是服务端实现细节，钉死格式只会在服务端换格式时把自己弄哑。
         assertTrue("两个UUID拼接必须能过", DesktopOffer.validToken(TOKEN));
         assertTrue("换成64位十六进制也必须能过", DesktopOffer.validToken("a".repeat(64)));
-        assertTrue(DesktopOffer.validToken("Ab0._~+/=-"));
+        assertTrue(DesktopOffer.validToken("Ab0._~+/=-Ab0._~+"));
         // 但要挡住头注入与空值。
         assertFalse(DesktopOffer.validToken(""));
+        // 过短的令牌属于服务端故障，在设备侧早一步暴露而不是拿去连中继。
+        assertFalse(DesktopOffer.validToken("a".repeat(DesktopOffer.TOKEN_MIN - 1)));
+        assertTrue(DesktopOffer.validToken("a".repeat(DesktopOffer.TOKEN_MIN)));
         assertFalse(DesktopOffer.validToken(null));
         assertFalse("换行会被注进 Authorization 头", DesktopOffer.validToken("abc\r\nX-Evil: 1"));
         assertFalse(DesktopOffer.validToken("abc def"));

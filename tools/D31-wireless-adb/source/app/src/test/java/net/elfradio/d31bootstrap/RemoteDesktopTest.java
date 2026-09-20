@@ -181,6 +181,37 @@ public class RemoteDesktopTest {
         }
     }
 
+    @Test public void stuckAwaitingServerDoesNotRelaunchScrcpyForever() throws Exception {
+        try (RemoteDesktop desktop = desktop()) {
+            desktop.accept(offer());
+            // 应用一直停在 awaiting_server：真实成因是 desktop_server 这一跳抛出被 pump() 吞掉，
+            // 应用拿不到 scid。若不限次，每轮都会拉一次，而 DesktopLauncher.start() 开头先杀上一个，
+            // 就成了每轮杀一次再拉一次的活锁，应用刚要连抽象套接字就被掐断。
+            app.state = "awaiting_server";
+            for (int i = 0; i < 12; i++) poll(desktop);
+            assertEquals("拉起次数必须受上限约束", RemoteDesktop.MAX_LAUNCHES, launcher.started.size());
+            assertTrue("放弃时要收掉屏幕服务", launcher.stops > 0);
+            assertFalse("超出上限后必须结束会话，否则 pump 会一直空转", desktop.active());
+        }
+    }
+
+    @Test public void sessionIsReleasedAfterTheAbsoluteLimitEvenIfTheAppNeverAnswers() throws Exception {
+        try (RemoteDesktop desktop = desktop()) {
+            desktop.accept(offer());
+            // 应用进程没了：30秒准备时限和20分钟空闲时限都活在应用里，核心这边不能没有兜底。
+            app.failure = new java.io.IOException("VISUAL_BRIDGE_TIMEOUT");
+            // 直接调 pump，避开 poll() 自带的时间推进，免得把时限判断算岔。
+            clock.elapsed += RemoteDesktop.SESSION_LIMIT_MS - 1;
+            desktop.pump();
+            assertTrue("未到绝对时限不得提前结束", desktop.active());
+
+            clock.elapsed += 2;
+            desktop.pump();
+            assertFalse("超过绝对时限必须结束会话", desktop.active());
+            assertTrue(launcher.stops > 0);
+        }
+    }
+
     @Test public void scidLooksLikeTheOneD22Generates() {
         RemoteDesktop desktop = desktop();
         for (int i = 0; i < 200; i++) {

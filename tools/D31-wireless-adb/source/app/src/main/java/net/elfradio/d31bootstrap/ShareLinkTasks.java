@@ -39,6 +39,8 @@ final class ShareLinkTasks implements AutoCloseable {
     /** 窗口没有按时回报结束时的宽限；超过就按到期结清，不能让任务永远挂着。 */
     static final long GRACE_MS = 10000L;
     static final long RETRY_BASE_MS = 30000L, RETRY_MAX_MS = 300000L;
+    /** 已确认的记录保留多久。留一段是为了防重投重弹，不是为了存档。 */
+    static final long RETENTION_MS = 7L * 24 * 3600 * 1000;
     private static final String ID = "[A-Za-z0-9_-]{1,96}";
     private static final int RECORD_MAX_CHARS = 16000;
 
@@ -48,6 +50,8 @@ final class ShareLinkTasks implements AutoCloseable {
     private final Progress progress;
     private final Busy busy;
     private final Clock clock;
+    /** 已确认、无需再补发的任务号。避免 retry() 每轮把整个目录读进内存解析一遍。 */
+    private final java.util.Set<String> settledIds = new java.util.HashSet<>();
     private String current = "", session = "", qrMode = "";
     private long deadlineElapsed, shownAtMs;
     private boolean closed;
@@ -113,14 +117,16 @@ final class ShareLinkTasks implements AutoCloseable {
             finish(taskId, saved, "rejected", "任务领取期限已过", ShareLinkOutcome.FAILED, "envelope_expired", 0, "");
             return;
         }
-        if (busy != null && busy.alarmActive()) {
-            finish(taskId, saved, "rejected", "警报占用中，未显示二维码", ShareLinkOutcome.FAILED, "alarm_busy", 0, "");
-            return;
-        }
         ShareLinkPayload payload;
         try { payload = ShareLinkPayload.parse(task.optJSONObject("params"), now); }
         catch (Exception invalid) {
             finish(taskId, saved, "failed", invalid.getMessage(), ShareLinkOutcome.FAILED, "", 0, "");
+            return;
+        }
+        // 排在载荷校验之后：警报期间收到一个畸形载荷，该报载荷无效而不是 alarm_busy，
+        // 否则服务端学不到载荷有问题，重试多少次都一样。
+        if (busy != null && busy.alarmActive()) {
+            finish(taskId, saved, "rejected", "警报占用中，未显示二维码", ShareLinkOutcome.FAILED, "alarm_busy", 0, "");
             return;
         }
 
@@ -188,7 +194,13 @@ final class ShareLinkTasks implements AutoCloseable {
         retry();
     }
 
-    /** 终态回执没被服务端确认就一直重试；不重试过程态，那个重发没有意义。 */
+    /**
+     * 终态回执没被服务端确认就一直重试；不重试过程态，那个重发没有意义。
+     *
+     * 每轮都读整个目录会随使用时间线性变慢：记录只增不删，tick 又是5秒一次，
+     * 用一年就是每5秒把几百个早已结清的 JSON 全解析一遍。所以先用内存里的已结清集合
+     * 按文件名过滤，真有待补发的才读盘；同时顺带清理超过保留期的已确认记录。
+     */
     private void retry() {
         File[] files = records.listFiles((dir, name) -> name.endsWith(".json"));
         if (files == null) return;
@@ -196,12 +208,23 @@ final class ShareLinkTasks implements AutoCloseable {
         for (File file : files) {
             String name = file.getName(), taskId = name.substring(0, name.length() - ".json".length());
             if (!taskId.matches(ID) || taskId.equals(current)) continue;
+            if (settledIds.contains(taskId)) { expire(file, now); continue; }
             try {
                 JSONObject saved = new JSONObject(RescueFiles.read(file, RECORD_MAX_CHARS));
-                if (!saved.has("receipt") || saved.optBoolean("acknowledged") || saved.optLong("retry_at") > now) continue;
+                if (!saved.has("receipt")) continue;
+                if (saved.optBoolean("acknowledged")) { settledIds.add(taskId); expire(file, now); continue; }
+                if (saved.optLong("retry_at") > now) continue;
                 flush(taskId, saved);
             } catch (Exception unreadable) { /* 单条记录坏了不拖垮整轮补发 */ }
         }
+    }
+
+    /** 已确认且过了保留期的记录可以删；删掉后重投会再弹一次，所以保留期不能太短。 */
+    private void expire(File file, long now) {
+        long modified = file.lastModified();
+        if (modified <= 0 || now - modified < RETENTION_MS) return;
+        String name = file.getName();
+        if (file.delete()) settledIds.remove(name.substring(0, name.length() - ".json".length()));
     }
 
     private void settle(String outcome, String reason) throws Exception {
@@ -271,12 +294,28 @@ final class ShareLinkTasks implements AutoCloseable {
         }
         saved.put("acknowledged", true).put("retry_at", 0);
         save(taskId, saved);
+        settledIds.add(taskId);
     }
 
+    /**
+     * 退出前必须把在途任务结清。窗口最长显示300秒，核心因升级或重启退出时撞上的概率不低；
+     * 不结清的话服务端那条任务就停在 running——下次启动 current 是空的，到期清扫进不来，
+     * retry() 又只补发「已有 receipt」的记录，这条会永远补不上。
+     * finish() 是先落盘再发，所以此刻发不出去也留在磁盘上，下次启动由 retry() 补发。
+     */
     @Override public synchronized void close() {
         if (closed) return;
         closed = true;
-        if (!current.isEmpty()) screen.dismiss();
+        if (!current.isEmpty()) {
+            String taskId = current;
+            screen.dismiss();
+            try {
+                JSONObject saved = load(taskId);
+                if (saved != null && !saved.has("receipt"))
+                    finish(taskId, saved, "success", "核心退出，二维码已撤下",
+                            ShareLinkOutcome.SUPERSEDED, "core_shutdown", shownAtMs, qrMode);
+            } catch (Exception unrecorded) { System.err.println("SHARE_LINK_SHUTDOWN_UNRECORDED " + taskId); }
+        }
         current = ""; session = "";
     }
 }

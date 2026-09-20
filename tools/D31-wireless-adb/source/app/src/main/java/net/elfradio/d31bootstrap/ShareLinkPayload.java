@@ -21,7 +21,11 @@ public final class ShareLinkPayload {
     static final int TEXT_MAX = 512;
     /** 二维码字母数字模式的字符集；不在其中就只能用字节模式。 */
     private static final String ALPHANUMERIC = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
-    /** 载荷里出现任何一项都直接拒收：屏幕可能摆在公共位置，口令不进设备。 */
+    /**
+     * 载荷顶层出现任何一项都直接拒收。这是第二道闸，不是安全边界：
+     * 只查顶层精确键名，嵌套对象里的同名字段查不到；而且分享链接本身就是持有即可用的凭据，
+     * 所以「口令不进设备」这个说法要收着讲——真正该保证的是链接有效期短、且只显示给在场的人。
+     */
     private static final String[] FORBIDDEN = {"password", "passcode", "pin", "secret", "token", "credential"};
 
     final String url, qrText;
@@ -62,6 +66,15 @@ public final class ShareLinkPayload {
             if (params.has(forbidden)) throw new IOException("SHARE_LINK_CREDENTIAL_FORBIDDEN");
         String url = text(params, "url"), qrText = text(params, "qr_text");
         if (!url.startsWith("https://")) throw new IOException("SHARE_LINK_URL_INVALID");
+        // 只认本管理服务器的主机，口径与远程桌面校验中继地址一致：
+        // 邀约被改写就能把扫码的人引到别处去。
+        if (!new java.net.URI(url).getHost().equals(new java.net.URI(RemoteProtocol.BASE).getHost()))
+            throw new IOException("SHARE_LINK_URL_HOST_INVALID");
+        // 屏幕上显示的是 url，二维码里编码的是 qr_text，两者必须是同一个地址。
+        // 不钉死的话，「看到的」和「扫到的」可以不一致，那正是钓鱼的形状——扫码的人看的是码不是字。
+        // 服务端保证 qr_text 就是 url 的大写形式（二维码字母数字模式不收小写），这里复核一遍。
+        if (!qrText.equals(url.toUpperCase(java.util.Locale.US)))
+            throw new IOException("SHARE_LINK_QR_TEXT_MISMATCH");
         long linkExpiresAt = params.optLong("link_expires_at", 0);
         if (linkExpiresAt <= now) throw new IOException("SHARE_LINK_ALREADY_EXPIRED");
         return new ShareLinkPayload(url, qrText, linkExpiresAt, clampDisplayMs(params.optLong("display_ms", 0)));

@@ -40,6 +40,12 @@ public final class RemoteDaemon {
     private volatile net.elfradio.d31bootstrap.media.AppMediaBridge desktopBridge;
     private volatile String desktopApkHash = "";
     private long desktopInitRetry;
+    private volatile ProxyRuntime proxy;
+    private volatile ProxyTasks proxyTasks;
+    private volatile ProxyLocal proxyLocal;
+    private long proxyInitRetry;
+    /** 上报因代理字段被服务端 400 拒收后，暂停声明代理能力到这一刻；合同漂移不能把整台设备的上报打死。 */
+    private long proxyReportSuppressedUntil;
     private volatile AndroidShareLinkScreen shareLinkScreen;
     /** 墙上时钟用于回执里的时刻，开机时钟用于时限判定；后者不受对时跳变影响。 */
     private static final ShareLinkTasks.Clock SHARE_LINK_CLOCK = new ShareLinkTasks.Clock() {
@@ -219,6 +225,25 @@ public final class RemoteDaemon {
                         () -> (visual != null && visual.active()) || (media != null && media.active()),
                         SHARE_LINK_CLOCK);
             }
+            if (proxy == null && SystemClock.elapsedRealtime() >= proxyInitRetry) {
+                proxyInitRetry = SystemClock.elapsedRealtime() + 60000;
+                try {
+                    // 「无网络 ≠ 直连被墙」：看门狗只在活动网络存在时探测与计数，新机开箱没配网时什么都不做。
+                    ProxyRuntime.Environment environment = new ProxyRuntime.Environment() {
+                        public boolean online() { return !"offline".equals(network()); }
+                        public boolean managementReachable() { return ProxyCore.managementReachable(); }
+                        public long now() { return System.currentTimeMillis(); }
+                    };
+                    ProxyRuntime runtime = new ProxyRuntime(new ProxyCore(ProxyCore.HOME), ProxyDownload::fetch,
+                            environment, RemoteUpdatePolicy.trustedKey());
+                    proxyTasks = new ProxyTasks(root, state.snapshot().getString("device_id"), runtime,
+                            this::shareLinkProgress, System::currentTimeMillis);
+                    // 本机按钮取配置：与 configure_proxy 参数同形，由服务端按本设备已上传的配置铸一次性下载口。
+                    proxyLocal = new ProxyLocal(root, runtime, requestId -> RemoteHttp.cloud(ProxyLocal.OFFER_PATH,
+                            credentials().put("request_id", requestId)).getJSONObject("params"));
+                    proxy = runtime;
+                } catch (Exception unavailable) { System.err.println("PROXY_INITIALIZATION_FAILED " + unavailable); }
+            }
             if (automaticPhotos == null && SystemClock.elapsedRealtime()>=automaticPhotoInitRetry) {
                 automaticPhotoInitRetry=SystemClock.elapsedRealtime()+60000;
                 try{automaticPhotos = new RemoteAutomaticPhotos(context(),root,System.getenv("CLASSPATH"),this::credentials,
@@ -263,7 +288,7 @@ public final class RemoteDaemon {
     }
 
     private long runWork(RemoteWorkLoop.Stage stage) throws Exception {
-        if (stage == RemoteWorkLoop.Stage.TASKS) { tasks.resume(); driveShareLinks(); driveDesktop(); return 5000; }
+        if (stage == RemoteWorkLoop.Stage.TASKS) { tasks.resume(); driveShareLinks(); driveDesktop(); driveProxy(); return 5000; }
         if(stage==RemoteWorkLoop.Stage.FILES) {
             if(incoming==null){network();incoming=new RemoteFileTransfers(root,state.snapshot().getString("device_id"),
                     state.snapshot().getString("token"),body->{
@@ -334,11 +359,18 @@ public final class RemoteDaemon {
                     .put("managed_network_confirmation_v1", ready)
                     .put("managed_share_link_tasks", ready && shareLinks != null)
                     .put(DesktopOffer.CAPABILITY, ready && desktop != null && RemoteDesktop.available())
+                    .put("managed_proxy_tasks", ready && proxy != null && proxyTasks != null
+                            && SystemClock.elapsedRealtime() >= proxyReportSuppressedUntil)
                     .put("network_write", false)
                     .put("maintenance", new JSONObject().put("ready", ready)
                             .put("state", ready ? "ready" : "unavailable"))
                     .put("hardware_identity", state.snapshot().getJSONObject("hardware_identity"));
             RemoteMediaReport.merge(body, media == null ? null : media.snapshot(), visual == null ? null : visual.snapshot());
+            if (body.optBoolean("managed_proxy_tasks")) {
+                // 声明了能力位就必须带运行状态；状态取不到宁可这一轮不声明，也不发半截。
+                try { body.put("proxy_runtime", proxy.status()); }
+                catch (Exception unavailable) { body.put("managed_proxy_tasks", false); }
+            }
             if (RemoteUpdates.ready()) body.put("managed_update", true).put("managed_update_v2", true);
             if(bootComplete()){
                 if (managementReading != null && managementReading.isDone()) {
@@ -382,7 +414,18 @@ public final class RemoteDaemon {
         File responseFile = new File(root, "report-response.json");
         JSONObject reply = responseFile.isFile() ? new JSONObject(RescueFiles.read(responseFile, 600000)) : null;
         if (reply == null || !body.getString("report_id").equals(reply.optString("report_id"))) {
-            reply = RemoteHttp.cloud("/api/devices/report", RemoteReportReceipt.wire(body));
+            try { reply = RemoteHttp.cloud("/api/devices/report", RemoteReportReceipt.wire(body)); }
+            catch (RemoteHttp.Rejected rejected) {
+                // 2026-09-20 实测：服务端一处未放开的型号判定把带代理字段的上报整条 400，设备随之失联。
+                // 400 且本轮带了代理字段：改写待报告去掉代理字段，一小时内不再声明，其余能力照常上报。
+                if (rejected.status == 400 && body.optBoolean("managed_proxy_tasks")) {
+                    body.put("managed_proxy_tasks", false); body.remove("proxy_runtime");
+                    RescueFiles.write(file, body.toString());
+                    proxyReportSuppressedUntil = SystemClock.elapsedRealtime() + 3600000;
+                    controlLog.write(System.currentTimeMillis() + " PROXY_REPORT_SUPPRESSED http=400 " + rejected.reason);
+                }
+                throw rejected;
+            }
         }
         if (!body.getString("report_id").equals(reply.optString("report_id"))) throw new IOException("状态报告未确认");
         // 先持久化服务端回复，避免确认报告后退出而丢失任务。
@@ -431,6 +474,23 @@ public final class RemoteDaemon {
         if (current != null) current.pump();
     }
 
+    private void driveProxy() {
+        ProxyTasks handler = proxyTasks;
+        ProxyLocal local = proxyLocal;
+        ProxyRuntime runtime = proxy;
+        if (handler != null) handler.tick();
+        if (local != null) local.tick();
+        if (runtime != null) runtime.tick();
+    }
+
+    /** 代理模块没初始化却收到代理任务：明确拒收，不能静默丢掉让服务端一直等。 */
+    private void proxyUnavailable(JSONObject task) throws Exception {
+        shareLinkProgress(new JSONObject()
+                .put("device_id", state.snapshot().getString("device_id"))
+                .put("task_id", task.optString("id")).put("state", "rejected")
+                .put("detail", "本机代理模块未初始化").put("result", JSONObject.NULL));
+    }
+
     private void driveShareLinks() {
         AndroidShareLinkScreen screen = shareLinkScreen;
         ShareLinkTasks links = shareLinks;
@@ -475,6 +535,11 @@ public final class RemoteDaemon {
                 // 完整版才有窗口；基础版能力位是false，真派下来也只能拒收，不能装作收下了。
                 if(shareLinks!=null)shareLinks.accept(task);
                 else shareLinkUnavailable(task);
+            }
+            else if(ProxyTasks.supports(task.optString("type"))) {
+                ProxyTasks handler = proxyTasks;
+                if(handler!=null)handler.accept(task);
+                else proxyUnavailable(task);
             }
             else tasks.accept(task,System.currentTimeMillis());
         }

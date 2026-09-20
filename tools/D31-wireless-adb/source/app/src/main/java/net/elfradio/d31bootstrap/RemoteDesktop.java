@@ -26,6 +26,14 @@ final class RemoteDesktop implements AutoCloseable {
     static final long POLL_MS = 1000L;
     /** 与 D22 一致：换一个 scid 再拉一次，仍失败才判失败。 */
     static final int MAX_LAUNCHES = 2;
+    /**
+     * 核心侧的绝对会话时限。应用进程有30秒准备时限和20分钟空闲时限，但那两个兜底
+     * 都活在应用进程里——进程没了，兜底也没了，核心这边会一直轮询下去。
+     *
+     * 注意不能拿邀约的 expires_at 当这个时限：那是 created + 30 秒的**领取**期限，
+     * 不是会话时长，用它会在半分钟后掐掉正常会话。这里取中继的20分钟会话上限加一分钟余量。
+     */
+    static final long SESSION_LIMIT_MS = 21 * 60 * 1000L;
 
     private final Bridge bridge;
     private final Launcher launcher;
@@ -36,7 +44,7 @@ final class RemoteDesktop implements AutoCloseable {
 
     private String session = "", scid = "";
     private int launches;
-    private long polledElapsed;
+    private long polledElapsed, startedElapsed;
     private boolean closed;
 
     RemoteDesktop(Bridge bridge, Launcher launcher, Clock clock, String apkHash) {
@@ -71,6 +79,7 @@ final class RemoteDesktop implements AutoCloseable {
         if (!availability.ready()) throw new java.io.IOException("DESKTOP_ASSET_NOT_READY");
         if (active()) release("已开始新的远程桌面会话");
         session = parsed.sessionId; scid = ""; launches = 0; polledElapsed = 0;
+        startedElapsed = clock.elapsed();
         bridge.request(new JSONObject().put("operation", "desktop_start")
                 .put("apk_sha256", apkHash).put("offer", parsed.forApp()));
     }
@@ -78,6 +87,7 @@ final class RemoteDesktop implements AutoCloseable {
     /** 由核心工作循环驱动，和其他按轮次的活儿同一圈。 */
     synchronized void pump() {
         if (closed || !active()) return;
+        if (clock.elapsed() - startedElapsed > SESSION_LIMIT_MS) { release("远程桌面已超过会话时限"); return; }
         if (polledElapsed != 0 && clock.elapsed() - polledElapsed < POLL_MS) return;
         polledElapsed = clock.elapsed();
         try { advance(bridge.request(new JSONObject().put("operation", "desktop_query"))); }
@@ -93,10 +103,11 @@ final class RemoteDesktop implements AutoCloseable {
         String reported = snapshot.optString("session_id");
         if (!session.equals(reported)) return;
         String state = snapshot.optString("state");
-        if ("awaiting_server".equals(state)) { launch(snapshot.optString("quality", DesktopOffer.WIFI)); return; }
-        if ("server_failed".equals(state)) {
-            if (launches < MAX_LAUNCHES) { launch(snapshot.optString("quality", DesktopOffer.WIFI)); return; }
-            release("屏幕服务未能启动");
+        // 两个分支都要受拉起次数约束：awaiting_server 下若 desktop_server 这一跳抛出，
+        // 应用永远拿不到 scid、状态不变，下一轮又会拉一次，而 DesktopLauncher.start()
+        // 开头会先杀掉上一个——就成了每轮杀一次再拉一次的活锁，应用刚要连套接字就被掐。
+        if ("awaiting_server".equals(state) || "server_failed".equals(state)) {
+            launch(snapshot.optString("quality", DesktopOffer.WIFI));
             return;
         }
         if ("ended".equals(state) || "idle".equals(state)) release(snapshot.optString("detail", "远程桌面已结束"));
@@ -104,6 +115,7 @@ final class RemoteDesktop implements AutoCloseable {
 
     /** 拉起 scrcpy 并把 scid 送进应用进程；scid 每次都换，避免撞上残留进程占着的抽象套接字。 */
     private void launch(String quality) throws Exception {
+        if (launches >= MAX_LAUNCHES) { release("屏幕服务未能启动"); return; }
         launches++;
         String next = newScid();
         launcher.start(DesktopOffer.scrcpyParams(next, quality));

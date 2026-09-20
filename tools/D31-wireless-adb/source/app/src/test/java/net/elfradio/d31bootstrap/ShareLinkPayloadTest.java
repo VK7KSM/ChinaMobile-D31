@@ -70,4 +70,21 @@ public class ShareLinkPayloadTest {
         assertEquals("byte", ShareLinkPayload.qrMode(""));
         assertEquals("byte", ShareLinkPayload.qrMode(null));
     }
+
+    @Test public void qrTextMustEncodeTheSameAddressThatIsDisplayed() throws Exception {
+        // 屏幕上显示 url，二维码里编码 qr_text。两者不一致就是钓鱼的形状——扫码的人看的是码不是字。
+        JSONObject mismatched = params().put("qr_text", "HTTPS://V.ELFRADIO.NET/M/OTHER1");
+        try { ShareLinkPayload.parse(mismatched, NOW); fail("二维码与显示的网址不一致必须拒收"); }
+        catch (Exception expected) { assertEquals("SHARE_LINK_QR_TEXT_MISMATCH", expected.getMessage()); }
+
+        // 只有大小写形式的差别是合同规定的（二维码字母数字模式不收小写）。
+        assertEquals("HTTPS://V.ELFRADIO.NET/M/ABC123DEF456", ShareLinkPayload.parse(params(), NOW).qrText);
+    }
+
+    @Test public void urlMustPointAtThisManagementServer() throws Exception {
+        JSONObject elsewhere = params().put("url", "https://evil.example/m/ABC123")
+                .put("qr_text", "HTTPS://EVIL.EXAMPLE/M/ABC123");
+        try { ShareLinkPayload.parse(elsewhere, NOW); fail("别的主机必须拒收"); }
+        catch (Exception expected) { assertEquals("SHARE_LINK_URL_HOST_INVALID", expected.getMessage()); }
+    }
 }

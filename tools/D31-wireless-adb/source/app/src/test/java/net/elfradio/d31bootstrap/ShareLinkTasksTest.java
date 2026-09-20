@@ -91,8 +91,8 @@ public class ShareLinkTasksTest {
     private JSONObject task(String id) throws Exception {
         return new JSONObject().put("id", id).put("type", ShareLinkPayload.TYPE)
                 .put("expires_at", clock.wall + 60000)
-                .put("params", new JSONObject().put("url", "https://example.invalid/d/ABC")
-                        .put("qr_text", "HTTPS://EXAMPLE.INVALID/D/ABC")
+                .put("params", new JSONObject().put("url", "https://v.elfradio.net/m/ABC123")
+                        .put("qr_text", "HTTPS://V.ELFRADIO.NET/M/ABC123")
                         .put("link_expires_at", clock.wall + 600000)
                         .put("display_ms", 30000));
     }
@@ -398,6 +398,63 @@ public class ShareLinkTasksTest {
         assertTrue(ShareLinkTasks.rank("running") > ShareLinkTasks.rank("claimed"));
         assertTrue(ShareLinkTasks.rank("success") > ShareLinkTasks.rank("running"));
         assertEquals("终态之间不分先后", ShareLinkTasks.rank("failed"), ShareLinkTasks.rank("success"));
+    }
+
+    @Test public void acknowledgedRecordsAreCleanedUpAfterTheRetentionPeriod() throws Exception {
+        File journal = new File(temp.getRoot(), "share-links");
+        try (ShareLinkTasks owner = tasks()) {
+            owner.accept(task("task-15"));
+            screen.listener.outcome(screen.session, ShareLinkOutcome.DISMISSED, "");
+            assertEquals("success", server.state("task-15"));
+            assertEquals(1, journal.list().length);
+
+            // 保留期内不删：重投时还要靠它挡住重弹。
+            clock.wall += ShareLinkTasks.RETENTION_MS - 1000;
+            owner.tick();
+            assertEquals("保留期内不得删除", 1, journal.list().length);
+
+            // 记录只增不删的话，tick 每5秒把整个目录读一遍，用久了会线性变慢。
+            for (File record : journal.listFiles()) record.setLastModified(clock.wall - ShareLinkTasks.RETENTION_MS - 1);
+            owner.tick();
+            assertEquals("过了保留期的已确认记录应当清掉", 0, journal.list().length);
+        }
+    }
+
+    @Test public void shutdownSettlesTheTaskStillOnScreenSoItIsNotLeftRunning() throws Exception {
+        File journal = new File(temp.getRoot(), "share-links");
+        ShareLinkTasks owner = tasks();
+        owner.accept(task("task-16"));
+        screen.listener.outcome(screen.session, ShareLinkOutcome.SHOWN, "");
+        assertEquals("running", server.state("task-16"));
+        sent.clear();
+
+        // 核心因升级或重启退出时二维码还在显示：不结清的话服务端那条任务永远停在 running，
+        // 下次启动 current 是空的、到期清扫进不来、retry 又只补发已有 receipt 的记录。
+        owner.close();
+        assertEquals("退出必须把在途任务结清", "success", server.state("task-16"));
+        assertEquals(ShareLinkOutcome.SUPERSEDED, link(last()).optString("outcome"));
+        assertEquals("core_shutdown", link(last()).optString("reason"));
+        assertEquals(1, screen.dismisses);
+        assertEquals(1, journal.list().length);
+    }
+
+    @Test public void shutdownReceiptSurvivesAnUnreachableServerAndIsResentNextStart() throws Exception {
+        ShareLinkTasks owner = tasks();
+        owner.accept(task("task-17"));
+        screen.listener.outcome(screen.session, ShareLinkOutcome.SHOWN, "");
+        offline = new java.io.IOException("unreachable");
+        owner.close();
+        assertEquals("发不出去时状态不得前进", "running", server.state("task-17"));
+
+        // finish() 是先落盘再发，所以下次启动 retry() 能补上。
+        offline = null;
+        sent.clear();
+        try (ShareLinkTasks restarted = tasks()) {
+            clock.wall += ShareLinkTasks.RETRY_MAX_MS;
+            restarted.tick();
+            assertEquals("success", server.state("task-17"));
+            assertEquals("task-17", last().optString("task_id"));
+        }
     }
 
     @Test public void malformedTaskIdIsRefusedBeforeAnythingIsWrittenToDisk() throws Exception {

@@ -21,7 +21,8 @@ public final class DesktopOffer {
     public static final String PATH = "/api/elfremote/desktop/device";
     /** 服务端只认这两个档位，传别的会被中继拒掉。 */
     public static final String WIFI = "wifi", CELLULAR = "cellular";
-    public static final int TOKEN_MAX = 256;
+    /** 最小长度与 D22 对齐：服务端下发空或过短令牌属于故障，在设备侧早一步暴露。 */
+    public static final int TOKEN_MIN = 16, TOKEN_MAX = 256;
 
     public final String sessionId, token, quality;
     public final int generation;
@@ -41,7 +42,7 @@ public final class DesktopOffer {
     public static int maxSize(String quality) { return CELLULAR.equals(quality) ? 960 : 1280; }
 
     public static boolean validToken(String token) {
-        return token != null && !token.isEmpty() && token.length() <= TOKEN_MAX
+        return token != null && token.length() >= TOKEN_MIN && token.length() <= TOKEN_MAX
                 && token.matches("[A-Za-z0-9._~+/=-]+");
     }
 

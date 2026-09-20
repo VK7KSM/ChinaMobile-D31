@@ -58,8 +58,8 @@ public class AndroidShareLinkScreenTest {
     private final AndroidShareLinkScreen screen = new AndroidShareLinkScreen(window, clock);
 
     private ShareLinkPayload payload() throws Exception {
-        return ShareLinkPayload.parse(new JSONObject().put("url", "https://example.invalid/d/ABC")
-                .put("qr_text", "HTTPS://EXAMPLE.INVALID/D/ABC")
+        return ShareLinkPayload.parse(new JSONObject().put("url", "https://v.elfradio.net/m/ABC123")
+                .put("qr_text", "HTTPS://V.ELFRADIO.NET/M/ABC123")
                 .put("link_expires_at", clock.wall + 600000)
                 .put("display_ms", 30000), clock.wall);
     }
@@ -71,8 +71,8 @@ public class AndroidShareLinkScreenTest {
         JSONObject command = window.commands.get(0);
         assertEquals(ShareLinkPayload.OP_SHOW, command.optString("operation"));
         assertEquals("session-1", command.optString("session"));
-        assertEquals("https://example.invalid/d/ABC", command.optString("url"));
-        assertEquals("HTTPS://EXAMPLE.INVALID/D/ABC", command.optString("qr_text"));
+        assertEquals("https://v.elfradio.net/m/ABC123", command.optString("url"));
+        assertEquals("HTTPS://V.ELFRADIO.NET/M/ABC123", command.optString("qr_text"));
         assertEquals(30000, command.optLong("display_ms"));
         // 桥上只传链接本身，设备令牌和任何口令都不经过这里。
         for (String forbidden : new String[]{"password", "passcode", "pin", "secret", "token", "credential"})

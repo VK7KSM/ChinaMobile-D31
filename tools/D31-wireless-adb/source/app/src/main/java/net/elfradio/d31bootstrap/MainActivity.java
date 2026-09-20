@@ -37,6 +37,26 @@ public final class MainActivity extends Activity {
         summary.setGravity(Gravity.CENTER_HORIZONTAL);
         content.addView(summary, new LinearLayout.LayoutParams(-1, -2));
 
+        // 站在机器跟前的人按一下就出码；链接由服务端生成，设备只负责请求与显示。
+        Button shareLink = new Button(this);
+        shareLink.setText("生成管理链接（扫码管理这台设备）");
+        shareLink.setAllCaps(false);
+        shareLink.setOnClickListener(view -> DeviceShareLink.generate(this));
+        content.addView(shareLink, new LinearLayout.LayoutParams(-1, -2));
+
+        // 代理模块：核心按需下载、可单独移除；四个操作都交给 root 核心执行，这里只发请求、显示结果。
+        LinearLayout proxyRow = new LinearLayout(this);
+        proxyRow.setOrientation(LinearLayout.HORIZONTAL);
+        String[][] proxyOps = {{ProxyLocal.OP_ENABLE, "代理：下载并启用"}, {ProxyLocal.OP_STOP, "代理：停用"},
+                {ProxyLocal.OP_REMOVE, "代理：移除"}, {ProxyLocal.OP_STATUS, "代理：状态"}};
+        for (String[] op : proxyOps) {
+            Button button = new Button(this);
+            button.setText(op[1]);
+            button.setOnClickListener(view -> DeviceProxy.request(this, op[0], op[1]));
+            proxyRow.addView(button, new LinearLayout.LayoutParams(0, -2, 1f));
+        }
+        content.addView(proxyRow, new LinearLayout.LayoutParams(-1, -2));
+
         Button recovery = new Button(this);
         recovery.setText("开始本地急救（开机卡顿与无线ADB）");
         recovery.setAllCaps(false);
