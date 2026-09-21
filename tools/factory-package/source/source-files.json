@@ -48,10 +48,10 @@
     "SHA256": "D49F83EB05AC8CAC91234E86D0722331312D3B3546B9A1E60C2FE326AC703488"
   },
   {
-    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/flash_d31_recovery.ps1",
+    "来源": "research/d31/factory_package/flash_d31_recovery.ps1（2026-09-22 可移植性修订）",
     "路径": "flash_d31_recovery.ps1",
-    "字节数": 44168,
-    "SHA256": "6E8D28C90084CFC5637F45FAE4641256075B00BCF24A58E4BC811400776A53BA"
+    "字节数": 44645,
+    "SHA256": "4C79CCBCA70F77D95243B937395B8D508381F9DBD20523D5B22DA6173CB021FD"
   },
   {
     "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",

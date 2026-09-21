@@ -1,0 +1,26 @@
+[
+  {
+    "来源": "research/d31_flash_tool/mac/build-mac.ps1",
+    "路径": "build-mac.ps1",
+    "字节数": 3227,
+    "SHA256": "87FD344EA20B7B26BED6EB378EDD9E411FBB38B379A5E649CB8D38353ACBAF13"
+  },
+  {
+    "来源": "research/d31_flash_tool/mac/d31-flash.ps1",
+    "路径": "d31-flash.ps1",
+    "字节数": 6495,
+    "SHA256": "C7FF5515EB4FC9EB7838CF962405DB2BC0EF335CB30A1E3D059D3277A48BABC6"
+  },
+  {
+    "来源": "research/d31_flash_tool/mac/d31-flash.sh",
+    "路径": "d31-flash.sh",
+    "字节数": 6500,
+    "SHA256": "A5139A4C0B6CBD66EE0430210462BC71DAFAE1F56E29B05DDE330F5A303A0CA2"
+  },
+  {
+    "来源": "research/d31_flash_tool/mac/使用说明.md",
+    "路径": "使用说明.md",
+    "字节数": 2800,
+    "SHA256": "FCE1FB11C13E569617E90BCEDC992AF2F738848260101C468E5D0B341F4BF918"
+  }
+]

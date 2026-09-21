@@ -3,6 +3,7 @@ param(
     [int]$AdbPort = 5042,
     [string]$PackagePath,
     [string]$RescueDirectory,
+    [string]$AdbPath,
     [switch]$SkipBackup,
     [switch]$PreflightOnly,
     [switch]$DevicePreflightOnly,
@@ -13,7 +14,12 @@ $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $OutputEncoding = [Console]::OutputEncoding
 $PackageRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Adb = Join-Path $PackageRoot "tools\adb.exe"
+# Windows PowerShell 5.1 没有 $IsWindows 这个变量；未定义即按 Windows 处理，Windows 上的行为不变。
+$OnWindows = if ($null -eq $IsWindows) { $true } else { [bool]$IsWindows }
+# macOS 命令行版把下载来的 platform-tools 路径经 -AdbPath 传进来；不传时沿用刷机目录里的 tools。
+$Adb = if ($AdbPath) { $AdbPath } else {
+    Join-Path (Join-Path $PackageRoot 'tools') $(if ($OnWindows) { 'adb.exe' } else { 'adb' })
+}
 $Package = $PackagePath
 $ApprovedPackage = Get-Content -Raw -LiteralPath (Join-Path $PackageRoot 'approved-package.json') | ConvertFrom-Json
 $ExpectedPackageBytes = [int64]$ApprovedPackage.bytes
@@ -423,7 +429,7 @@ function Copy-PackageToDeviceResumable {
         Write-Host "发现已校验上传断点：$offset/$ExpectedPackageBytes字节，将继续传输。"
     }
 
-    $temporaryDirectory = Join-Path ([System.IO.Path]::GetTempPath()) "Elfradio\D31FlashTool\upload"
+    $temporaryDirectory = Join-Path ([System.IO.Path]::GetTempPath()) (Join-Path 'Elfradio' (Join-Path 'D31FlashTool' 'upload'))
     New-Item -ItemType Directory -Force -Path $temporaryDirectory | Out-Null
     $chunkTotal = [int][Math]::Ceiling($ExpectedPackageBytes / [double]$chunkBytes)
     try {
@@ -678,7 +684,7 @@ if ($SkipBackup) {
 }
 
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$logRoot = Join-Path $PackageRoot "logs\D31_recovery_flash_$timestamp"
+$logRoot = Join-Path (Join-Path $PackageRoot 'logs') "D31_recovery_flash_$timestamp"
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 $SessionLog = Join-Path $logRoot "刷机记录.txt"
 Write-Utf8 $SessionLog @("D31 Recovery刷机记录", "目标：$Serial", "开始时间：$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")

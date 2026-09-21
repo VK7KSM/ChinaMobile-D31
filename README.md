@@ -92,7 +92,7 @@
 - [D31-Flash-Tool-v1.6.8.exe](https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.8.exe)
 - [D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip)
 
-源码：[Windows刷机工具](tools/Windows-flash/README.md)、[固件安装器与启动初始化](tools/factory-package/README.md)、[无线ADB与独立系统支持](tools/D31-wireless-adb/README.md)、[短信客户端](tools/D31-Messages/README.md)。
+源码：[Windows刷机工具](tools/Windows-flash/README.md)、[macOS刷机工具](tools/macOS-flash/README.md)、[固件安装器与启动初始化](tools/factory-package/README.md)、[无线ADB与独立系统支持](tools/D31-wireless-adb/README.md)、[短信客户端](tools/D31-Messages/README.md)。
 
 ### SHA-256
 
@@ -117,7 +117,7 @@ D31的两个USB-A口目前只证明是主机口，不能当作USB设备接口连
 
 旧`D31-wireless-adb-v1.11.6-signed.apk`及固件内独立8765载荷继续保留，摘要仍为`2B52229010CFD4E704BE9EB386C4D0157FF73DF055AFBE961B8B848F8029A97F`。已有旧探针且ADB可连时可直接维护，无需为连接而换包。首次蓝牙引导使用基础193，固件系统预置完整194，独立救援载荷仍是1.11.6。外置存储由系统支持组件负责。开发版8765免密码，仅用于可信维护网络；用法及启用条件见[探针文档](tools/D31-wireless-adb/README.md)。
 
-[Windows工具源码](tools/Windows-flash/) · [刷机包与首次初始化源码](tools/factory-package/)
+[Windows工具源码](tools/Windows-flash/) · [macOS工具源码](tools/macOS-flash/) · [刷机包与首次初始化源码](tools/factory-package/)
 
 ## 正式刷机流程
 
