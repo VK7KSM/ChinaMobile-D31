@@ -6,25 +6,32 @@ import java.util.concurrent.Executors;
 import org.json.JSONObject;
 
 /**
- * 单轮无线观测和主动定位在独立线程运行；tick和报告合并不调用框架服务。
+ * 先采后报，与 D22 的 DailyLocation 同一做法：没有独立计时器，报告要发时先扫一轮 Wi-Fi 与基站，
+ * 扫完再随这份报告带出去。报告什么时候发，就什么时候扫；每份报告带的都是刚采的位置。
  *
- * 采样结果只等下一次常规报告带出去，不因为位置变了就提前上报。D31 没有可用的 GPS，
- * 也没有陀螺仪，位置全部来自 Wi-Fi 与基站，本身就在十几米到公里量级漂移；
- * 拿这种数据判断「设备动了」只会把漂移当成位移。位置在 D31 上仅供参考。
+ * 一轮只有无线观测：最多约 2 秒主动扫描，结果不够时约 3 秒后再被动补读一次缓存。
+ * 不开 GPS 监听窗口——D31 没有引出 GPS 天线，那 45 秒窗口每轮必然超时，只白白给 GPS 芯片上电。
+ *
+ * 不做移动检测，位置变了也不提前上报。D31 没有 GPS 和陀螺仪，Wi-Fi 与基站定位本身就在
+ * 十几米到公里量级漂移，拿它判断「设备动了」只会把漂移当位移。位置在 D31 上仅供参考。
  */
 public final class RemoteLocationSampler implements AutoCloseable {
-    public static final long INTERVAL_MS = 300000, GPS_WINDOW_MS = 45000, FIX_AGE_MS = 300000;
+    /** 上一轮完成不超过这么久，报告直接复用，不再扫一次；与 D22 复用刚完成定位的窗口相同。 */
+    public static final long REUSE_MS = 60000;
+    public static final long FIX_AGE_MS = 300000;
     public interface Source {
         TelemetryCollector.LocationReading read(long windowMs, boolean radio) throws Exception;
         default TelemetryCollector.LocationReading readCachedRadio() throws Exception { return null; }
+        /** 主动扫描后等迟到结果的那几秒；测试用假时钟推进代替真实等待。 */
+        default void pause(long ms) throws InterruptedException { Thread.sleep(ms); }
     }
     private final Source source;
     private final TelemetryCollector.Clock clock;
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
         Thread thread = new Thread(r, "d31-location-sampler"); thread.setDaemon(true); return thread;
     });
-    private boolean closed, active;
-    private long nextNanos;
+    private boolean closed, active, completed;
+    private long completedNanos;
     private TelemetryCollector.LocationReading latest;
     private String radio;
     private String cacheRecheck;
@@ -51,36 +58,51 @@ public final class RemoteLocationSampler implements AutoCloseable {
         this.source = source; this.clock = clock;
     }
 
-    /** 可每次核心tick调用。只投递一次任务；重报不重置节流时间。 */
-    public synchronized boolean tick() {
-        if (closed || active || clock.elapsedRealtimeNanos() < nextNanos) return false;
+    /**
+     * 报告前调用。刚完成的一轮仍可复用时返回 true；否则按需发起一轮并返回 false，
+     * 调用方推迟这份报告、稍后再问。只投递任务，不在调用线程里做任何框架调用。
+     */
+    public synchronized boolean readyForReport() {
+        if (closed) return true;
+        if (active) return false;
+        if (reusable()) return true;
+        start();
+        return false;
+    }
+
+    private boolean reusable() {
+        long now = clock.elapsedRealtimeNanos();
+        return completed && now >= completedNanos && now - completedNanos <= REUSE_MS * 1000000L;
+    }
+
+    /** 发起一轮。已关闭、正在采样或刚完成的一轮仍可复用时不发起，返回是否真的发起了。 */
+    synchronized boolean start() {
+        if (closed || active || reusable()) return false;
         active = true;
         cacheRecheck = null;
         JSONObject previous = reportRadio(radio, radioWall, radioElapsed);
         holdingRadio = previous != null && previous.optJSONArray("wifiAccessPoints").length() >= 2;
         pendingRadio = null;
-        nextNanos = clock.elapsedRealtimeNanos() + INTERVAL_MS * 1000000L;
         worker.execute(() -> {
             try {
                 TelemetryCollector.LocationReading initial = readStage(0, true);
                 long initialCompleted = clock.elapsedRealtimeNanos();
-                boolean recheck = needsCacheRecheck(initial);
                 publish(initial);
-                if (!isClosed() && !Thread.currentThread().isInterrupted()) {
-                    publish(readStage(GPS_WINDOW_MS, false));
-                    if (recheck && !isClosed() && !Thread.currentThread().isInterrupted()) {
-                        // GPS可提前结束；仅定位工作线程等待已发出的扫描，不延长任何桥回包预算。
-                        long delay = cacheRecheckDelayMs(initialCompleted, clock.elapsedRealtimeNanos());
-                        if (delay > 0) Thread.sleep(delay);
-                        if (!isClosed() && !Thread.currentThread().isInterrupted()) recheckCachedRadio();
-                    }
+                if (needsCacheRecheck(initial) && !isClosed() && !Thread.currentThread().isInterrupted()) {
+                    // 只在定位工作线程里等已发出的扫描；报告那边按推迟重试，不被这几秒拖住。
+                    long delay = cacheRecheckDelayMs(initialCompleted, clock.elapsedRealtimeNanos());
+                    if (delay > 0) source.pause(delay);
+                    if (!isClosed() && !Thread.currentThread().isInterrupted()) recheckCachedRadio();
                 }
             } catch (InterruptedException cancelled) { Thread.currentThread().interrupt(); }
             catch (Exception unavailable) {
                 publish(new TelemetryCollector.LocationReading(null, "provider_unavailable", false));
             } finally {
                 finishRadioRound();
-                synchronized (RemoteLocationSampler.this) { active = false; }
+                // 失败的一轮也算完成：报告照样发，只是位置按原因如实上报，不因此反复重扫。
+                synchronized (RemoteLocationSampler.this) {
+                    active = false; completed = true; completedNanos = clock.elapsedRealtimeNanos();
+                }
             }
         });
         return true;

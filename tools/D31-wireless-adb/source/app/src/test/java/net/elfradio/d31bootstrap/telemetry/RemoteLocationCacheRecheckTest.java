@@ -3,13 +3,15 @@ package net.elfradio.d31bootstrap.telemetry;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-/** 从首次cell到GPS再到纯缓存Wi-Fi的真实调度回放，不连接设备。 */
+/**
+ * 一轮内「主动扫描 → 等迟到结果 → 被动补读缓存」的调度回放，不连接设备。
+ * 等待用假时钟推进（{@link RemoteLocationSampler.Source#pause}），与真机上 3 秒的实际间隔对应。
+ */
 public class RemoteLocationCacheRecheckTest {
     private static final long START = 1000000000000L, WALL = 1800000000000L;
     private static class Clock implements TelemetryCollector.Clock {
@@ -20,15 +22,23 @@ public class RemoteLocationCacheRecheckTest {
     }
     private static class Scenario implements RemoteLocationSampler.Source, RemoteLocationWifi.Access {
         final Clock clock = new Clock();
-        final CountDownLatch gpsEntered = new CountDownLatch(1), gpsRelease = new CountDownLatch(1);
+        /** 进入等待时计数；需要在「主动扫描已发布、补读未开始」这一刻观察时，由测试放行。 */
+        final CountDownLatch pauseEntered = new CountDownLatch(1);
+        CountDownLatch pauseRelease;
         int starts, sleeps, reads, cacheReads, aps = 6;
         String initialResult = "no_fresh_results_before_deadline";
-        boolean gpsFix, missingCache, throwCache, busyOnce;
-        long gpsMs = 45000;
+        boolean missingCache, throwCache, busyOnce;
+        /** 大于等于 0 时替代实际等待时长，模拟等待期间设备休眠了更久。 */
+        long pauseOverrideMs = -1;
         public long nowNanos() { return clock.elapsed; }
         public boolean enabled() { return true; }
         public boolean start() { starts++; return true; }
         public void sleep(long ms) { sleeps++; clock.advance(ms); }
+        public void pause(long ms) throws InterruptedException {
+            pauseEntered.countDown();
+            if (pauseRelease != null) pauseRelease.await();
+            clock.advance(pauseOverrideMs >= 0 ? pauseOverrideMs : ms);
+        }
         public List<RemoteLocationWifi.Scan> results() {
             List<RemoteLocationWifi.Scan> result = new ArrayList<RemoteLocationWifi.Scan>();
             long at = clock.elapsed - START < 3928000000L ? START - 213480000000L : START + 3928000000L;
@@ -36,7 +46,7 @@ public class RemoteLocationCacheRecheckTest {
                     String.format(Locale.US, "00:11:22:33:44:%02x", i), -45 - i, at / 1000));
             return result;
         }
-        private String observation(RemoteLocationWifi.Result scan, boolean cell) throws Exception {
+        String observation(RemoteLocationWifi.Result scan, boolean cell) throws Exception {
             JSONArray rows = new JSONArray();
             long oldest = cell ? clock.elapsed : Long.MAX_VALUE;
             for (RemoteLocationWifi.Scan row : scan.valid) {
@@ -50,15 +60,10 @@ public class RemoteLocationCacheRecheckTest {
         }
         public TelemetryCollector.LocationReading read(long window, boolean radio) throws Exception {
             reads++;
-            if (radio) {
-                assertEquals(0, window);
-                JSONObject value = new JSONObject(observation(RemoteLocationWifi.capture(this), true));
-                value.put("wifi_scan_result", initialResult);
-                return new TelemetryCollector.LocationReading(null, "no_cached_location", true, value.toString());
-            }
-            assertEquals(45000, window); gpsEntered.countDown(); gpsRelease.await(); clock.advance(gpsMs);
-            return new TelemetryCollector.LocationReading(gpsFix ? new TelemetryCollector.Fix(1, 2, 10f, "gps", clock.wall, clock.elapsed, false) : null,
-                    gpsFix ? "sampled" : "timeout", true);
+            assertEquals("一轮只做无线观测，不开 GPS 窗口", 0, window); assertTrue(radio);
+            JSONObject value = new JSONObject(observation(RemoteLocationWifi.capture(this), true));
+            value.put("wifi_scan_result", initialResult);
+            return new TelemetryCollector.LocationReading(null, "no_cached_location", true, value.toString());
         }
         public TelemetryCollector.LocationReading readCachedRadio() throws Exception {
             cacheReads++;
@@ -74,30 +79,31 @@ public class RemoteLocationCacheRecheckTest {
         while (sampler.isActive() && System.nanoTime() < deadline) Thread.sleep(5);
         assertFalse("本轮应有界结束", sampler.isActive());
     }
-    @Test(timeout = 8000) public void cellFirstThenGpsThenLateWifiWithOneScan() throws Exception {
-        Scenario s = new Scenario(); s.gpsFix = true;
+
+    @Test(timeout = 8000) public void cellFirstThenLateWifiWithOneScan() throws Exception {
+        Scenario s = new Scenario(); s.pauseRelease = new CountDownLatch(1);
         try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock)) {
-            assertTrue(sampler.tick()); assertTrue(s.gpsEntered.await(2, TimeUnit.SECONDS));
+            assertFalse(sampler.readyForReport()); assertTrue(s.pauseEntered.await(2, TimeUnit.SECONDS));
             JSONObject before = sampler.merge(new JSONObject().put("gps", JSONObject.NULL));
             assertEquals(1, before.getJSONObject("radio").getJSONArray("cellTowers").length());
+            assertEquals(0, before.getJSONObject("radio").getJSONArray("wifiAccessPoints").length());
             assertTrue(before.isNull("gps"));
-            for (int i = 0; i < 50; i++) { assertFalse(sampler.tick()); sampler.snapshot(); sampler.merge(before); }
-            s.gpsRelease.countDown(); finish(sampler);
+            for (int i = 0; i < 50; i++) { assertFalse("补读没完成前报告一直推迟", sampler.readyForReport()); sampler.snapshot(); sampler.merge(before); }
+            s.pauseRelease.countDown(); finish(sampler);
             JSONObject after = sampler.merge(new JSONObject().put("gps", JSONObject.NULL));
-            assertEquals("gps", after.getJSONObject("gps").getString("provider"));
             assertEquals(6, after.getJSONObject("radio").getJSONArray("wifiAccessPoints").length());
             assertEquals(WALL + 2000, after.getJSONObject("radio").getLong("sampled_at_ms"));
             assertEquals(1, after.getJSONObject("radio").getJSONArray("cellTowers").length());
             assertEquals(123, after.getJSONObject("radio").getJSONArray("cellTowers").getJSONObject(0).getInt("cellId"));
             assertEquals("lte", after.getJSONObject("radio").getString("radioType"));
             assertEquals("passive_cache", after.getJSONObject("radio").getString("wifi_scan_result"));
-            assertEquals(1, s.starts); assertEquals(4, s.sleeps); assertEquals(1, s.cacheReads); assertEquals(2, s.reads);
-            assertFalse(sampler.tick());
+            assertEquals(1, s.starts); assertEquals(4, s.sleeps); assertEquals(1, s.cacheReads); assertEquals(1, s.reads);
+            assertTrue(sampler.readyForReport());
             String status = sampler.snapshot().getJSONObject("radio_cache_recheck").toString();
             assertFalse(status.contains("macAddress")); assertFalse(status.contains("00:11"));
             for (int i = 0; i < 100; i++) sampler.merge(after);
             assertEquals(1, s.cacheReads);
-        } finally { s.gpsRelease.countDown(); }
+        } finally { if (s.pauseRelease != null) s.pauseRelease.countDown(); }
     }
     private static TelemetryCollector.LocationReading passiveWifi(long at, String cellType, int cellId) throws Exception {
         JSONArray wifi = new JSONArray();
@@ -109,6 +115,7 @@ public class RemoteLocationCacheRecheckTest {
         if (cellType != null) value.put("radioType", cellType);
         return new TelemetryCollector.LocationReading(null, "no_cached_location", true, value.toString());
     }
+    /** 等待期间设备若休眠得更久，旧基站仍按 120 秒准入，不能借十五分钟报告有效期带进新观测。 */
     @Test(timeout = 8000) public void retainedCellsUse120SecondGateNotFifteenMinuteReportLifetime() throws Exception {
         for (long age : new long[]{120000, 120001}) {
             Scenario s = new Scenario() {
@@ -116,9 +123,9 @@ public class RemoteLocationCacheRecheckTest {
                     cacheReads++; return passiveWifi(clock.wall - 1000, null, 0);
                 }
             };
-            s.gpsMs = age; s.gpsRelease.countDown();
+            s.pauseOverrideMs = age;
             try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock)) {
-                sampler.tick(); finish(sampler);
+                sampler.readyForReport(); finish(sampler);
                 JSONObject radio = sampler.merge(new JSONObject()).getJSONObject("radio");
                 assertEquals(2, radio.getJSONArray("wifiAccessPoints").length());
                 assertEquals(age == 120000 ? 1 : 0, radio.getJSONArray("cellTowers").length());
@@ -140,9 +147,8 @@ public class RemoteLocationCacheRecheckTest {
                 incoming[0] = value.radio; return value;
             }
         };
-        s.gpsRelease.countDown();
         try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock)) {
-            sampler.tick(); finish(sampler);
+            sampler.readyForReport(); finish(sampler);
             JSONObject radio = sampler.merge(new JSONObject()).getJSONObject("radio");
             assertEquals("wcdma", radio.getString("radioType")); assertEquals(1, radio.getJSONArray("cellTowers").length());
             assertEquals(456, radio.getJSONArray("cellTowers").getJSONObject(0).getInt("cellId"));
@@ -156,9 +162,8 @@ public class RemoteLocationCacheRecheckTest {
                 cacheReads++; return passiveWifi(WALL + 1000, null, 0);
             }
         };
-        s.gpsRelease.countDown();
         try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock)) {
-            sampler.tick(); finish(sampler);
+            sampler.readyForReport(); finish(sampler);
             JSONObject radio = sampler.merge(new JSONObject()).getJSONObject("radio");
             assertEquals(1, radio.getJSONArray("cellTowers").length());
             assertEquals(WALL + 1000, radio.getLong("sampled_at_ms"));
@@ -177,9 +182,8 @@ public class RemoteLocationCacheRecheckTest {
                     return passiveWifi(clock.wall - 1000, null, 0);
                 }
             };
-            s.gpsRelease.countDown();
             try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock)) {
-                sampler.tick(); finish(sampler);
+                sampler.readyForReport(); finish(sampler);
                 JSONObject radio = sampler.merge(new JSONObject()).getJSONObject("radio");
                 assertEquals(2, radio.getJSONArray("wifiAccessPoints").length());
                 assertEquals(0, radio.getJSONArray("cellTowers").length()); assertFalse(radio.has("radioType"));
@@ -187,24 +191,23 @@ public class RemoteLocationCacheRecheckTest {
             }
         }
     }
-    @Test(timeout = 8000) public void gpsTimeoutStillRecoversWifiInSameRound() throws Exception {
-        Scenario s = new Scenario(); s.gpsRelease.countDown();
+    @Test(timeout = 8000) public void lateWifiIsRecoveredInTheSameRound() throws Exception {
+        Scenario s = new Scenario();
         try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock)) {
-            sampler.tick(); finish(sampler);
-            assertEquals("timeout", sampler.snapshot().getString("location_reason"));
+            sampler.readyForReport(); finish(sampler);
+            assertEquals("no_cached_location", sampler.snapshot().getString("location_reason"));
             assertEquals(6, sampler.snapshot().getJSONObject("radio").getInt("wifi_count"));
             assertEquals(1, s.starts); assertEquals(1, s.cacheReads);
         }
     }
-    @Test(timeout = 8000) public void unsuccessfulPassiveReadDoesNotEraseCellOrGpsOutcome() throws Exception {
+    @Test(timeout = 8000) public void unsuccessfulPassiveReadDoesNotEraseCell() throws Exception {
         for (int mode = 0; mode < 4; mode++) {
             Scenario s = new Scenario(); s.aps = mode == 0 ? 1 : 0; s.missingCache = mode == 2; s.throwCache = mode == 3;
-            s.gpsRelease.countDown();
             try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock)) {
-                sampler.tick(); finish(sampler);
+                sampler.readyForReport(); finish(sampler);
                 JSONObject status = sampler.snapshot();
                 assertEquals(1, status.getJSONObject("radio").getInt("cell_count"));
-                assertEquals("timeout", status.getString("location_reason"));
+                assertEquals("no_cached_location", status.getString("location_reason"));
                 assertEquals(1, s.cacheReads); assertEquals(1, s.starts);
                 if (mode == 0) assertEquals(1, status.getJSONObject("radio_cache_recheck").getInt("wifi_valid_count"));
             }
@@ -212,9 +215,10 @@ public class RemoteLocationCacheRecheckTest {
     }
     @Test(timeout = 8000) public void otherScanReasonsNeverScheduleCacheRecheck() throws Exception {
         for (String reason : new String[]{"cached_results", "request_rejected", "permission_denied", "wifi_disabled"}) {
-            Scenario s = new Scenario(); s.initialResult = reason; s.gpsRelease.countDown();
+            Scenario s = new Scenario(); s.initialResult = reason;
             try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock)) {
-                sampler.tick(); finish(sampler); assertEquals(0, s.cacheReads);
+                sampler.readyForReport(); finish(sampler); assertEquals(0, s.cacheReads);
+                assertEquals(1, s.pauseEntered.getCount());
                 assertFalse(sampler.snapshot().has("radio_cache_recheck"));
             }
         }
@@ -223,78 +227,71 @@ public class RemoteLocationCacheRecheckTest {
         for (int points : new int[]{0, 1, 2}) {
             Scenario s = new Scenario() {
                 @Override public List<RemoteLocationWifi.Scan> results() {
-                    int count = reads == 1 ? points : 6;
+                    int count = cacheReads == 0 ? points : 6;
                     List<RemoteLocationWifi.Scan> result = new ArrayList<>();
                     for (int i = 0; i < count; i++) result.add(new RemoteLocationWifi.Scan(
                             String.format(Locale.US, "00:11:22:33:44:%02x", i), -50 - i, clock.elapsed / 1000));
                     return result;
                 }
             };
-            s.initialResult = "results_updated"; s.gpsRelease.countDown();
+            s.initialResult = "results_updated";
             try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock)) {
-                sampler.tick(); finish(sampler);
+                sampler.readyForReport(); finish(sampler);
                 assertEquals(points < 2 ? 1 : 0, s.cacheReads);
                 assertEquals(points < 2 ? 6 : 2, sampler.snapshot().getJSONObject("radio").getInt("wifi_count"));
             }
         }
     }
 
+    /** 两轮报告：上一轮的 Wi-Fi 在本轮补读完成前继续可用，补读失败时降级而不续用旧时间。 */
     private static class TwoRounds implements RemoteLocationSampler.Source {
         final Clock clock = new Clock();
-        final CountDownLatch gpsEntered = new CountDownLatch(1), gpsRelease = new CountDownLatch(1);
         final CountDownLatch cacheEntered = new CountDownLatch(1), cacheRelease = new CountDownLatch(1);
         int rounds, cacheReads;
         long initialAt;
-        boolean gpsFix, gpsFailure, initialMissing, cacheFailure, clockJump;
+        boolean initialMissing, cacheFailure, clockJump;
         String scanResult = "no_fresh_results_before_deadline";
         public TelemetryCollector.LocationReading read(long window, boolean includeRadio) throws Exception {
-            if (includeRadio) {
-                rounds++;
-                if (rounds == 1) return passiveWifi(clock.wall, "lte", 900);
-                if (initialMissing) return new TelemetryCollector.LocationReading(null, "provider_unavailable", true);
-                initialAt = clock.wall;
-                JSONObject cell = new JSONObject(passiveWifi(initialAt, "lte", 123).radio)
-                        .put("wifiAccessPoints", new JSONArray()).put("wifi_valid_count", 0)
-                        .put("wifi_scan_result", scanResult).put("wifi_reason",
-                                "wifi_disabled".equals(scanResult) ? "wifi_disabled" : "insufficient_fresh_access_points");
-                return new TelemetryCollector.LocationReading(null, "no_cached_location", true, cell.toString());
-            }
-            if (rounds == 1) return new TelemetryCollector.LocationReading(null, "timeout", true);
-            gpsEntered.countDown(); gpsRelease.await(); clock.advance(45000);
-            if (clockJump) clock.wall += 5000;
-            if (gpsFailure) throw new IllegalStateException("模拟GPS读取失败");
-            return new TelemetryCollector.LocationReading(gpsFix ? new TelemetryCollector.Fix(1, 2, 10f,
-                    "gps", clock.wall, clock.elapsed, false) : null, gpsFix ? "sampled" : "timeout", true);
+            rounds++;
+            if (rounds == 1) return passiveWifi(clock.wall, "lte", 900);
+            if (initialMissing) return new TelemetryCollector.LocationReading(null, "provider_unavailable", true);
+            initialAt = clock.wall;
+            JSONObject cell = new JSONObject(passiveWifi(initialAt, "lte", 123).radio)
+                    .put("wifiAccessPoints", new JSONArray()).put("wifi_valid_count", 0)
+                    .put("wifi_scan_result", scanResult).put("wifi_reason",
+                            "wifi_disabled".equals(scanResult) ? "wifi_disabled" : "insufficient_fresh_access_points");
+            return new TelemetryCollector.LocationReading(null, "no_cached_location", true, cell.toString());
         }
+        public void pause(long ms) { clock.advance(ms); }
         public TelemetryCollector.LocationReading readCachedRadio() throws Exception {
             cacheReads++; cacheEntered.countDown(); cacheRelease.await();
+            if (clockJump) clock.wall += 5000;
             if (cacheFailure) throw new IllegalStateException("模拟被动读取失败");
             return passiveWifi(clock.wall - 1000, null, 0);
         }
-        void release() { gpsRelease.countDown(); cacheRelease.countDown(); }
+        void release() { cacheRelease.countDown(); }
     }
 
+    /** 第一轮完成后推进 age，发起第二轮；本轮若需补读则停在补读处，否则等它结束。 */
     private static String startSecondRound(TwoRounds s, RemoteLocationSampler sampler, long age) throws Exception {
-        assertTrue(sampler.tick()); finish(sampler);
+        assertFalse(sampler.readyForReport()); finish(sampler);
         String previous = sampler.merge(new JSONObject()).getJSONObject("radio").toString();
-        s.clock.advance(age); assertTrue(sampler.tick()); assertTrue(s.gpsEntered.await(2, TimeUnit.SECONDS));
+        s.clock.advance(age); assertFalse(sampler.readyForReport());
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        while (s.cacheEntered.getCount() > 0 && sampler.isActive() && System.nanoTime() < deadline) Thread.sleep(5);
         return previous;
     }
 
-    @Test(timeout = 8000) public void mediaReadsKeepPreviousWifiUntilLateWifiArrives() throws Exception {
-        TwoRounds s = new TwoRounds(); s.gpsFix = true;
+    @Test(timeout = 8000) public void reportsKeepPreviousWifiUntilLateWifiArrives() throws Exception {
+        TwoRounds s = new TwoRounds();
         try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock)) {
             String previous = startSecondRound(s, sampler, 300000);
+            assertEquals(0, s.cacheEntered.getCount());
             for (int i = 0; i < 20; i++) {
                 JSONObject report = new JSONObject().put("report_id", "media-" + i).put("gps", JSONObject.NULL);
                 assertEquals(previous, sampler.merge(report).getJSONObject("radio").toString());
-                assertFalse(report.has("radio")); assertFalse(sampler.tick());
+                assertFalse(report.has("radio")); assertFalse(sampler.readyForReport());
             }
-            // 被动读已经进入，说明 GPS 那一段早已发布完毕。
-            s.gpsRelease.countDown(); assertTrue(s.cacheEntered.await(2, TimeUnit.SECONDS));
-            JSONObject duringCache = sampler.merge(new JSONObject());
-            assertEquals("gps", duringCache.getJSONObject("gps").getString("provider"));
-            assertEquals(previous, duringCache.getJSONObject("radio").toString());
             s.cacheRelease.countDown(); finish(sampler);
             JSONObject after = sampler.merge(new JSONObject()).getJSONObject("radio");
             assertEquals(2, after.getJSONArray("wifiAccessPoints").length());
@@ -305,13 +302,14 @@ public class RemoteLocationCacheRecheckTest {
     }
 
     @Test(timeout = 8000) public void failedOrRejectedRoundDowngradesWithoutRenewingCellTime() throws Exception {
-        for (int mode = 0; mode < 4; mode++) {
-            TwoRounds s = new TwoRounds(); s.cacheFailure = mode == 0; s.gpsFailure = mode == 1;
-            if (mode == 2) s.scanResult = "request_rejected";
-            if (mode == 3) s.initialMissing = true;
+        for (int mode = 0; mode < 3; mode++) {
+            TwoRounds s = new TwoRounds(); s.cacheFailure = mode == 0;
+            if (mode == 1) s.scanResult = "request_rejected";
+            if (mode == 2) s.initialMissing = true;
             try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock)) {
                 String previous = startSecondRound(s, sampler, 300000);
-                assertEquals(previous, sampler.merge(new JSONObject()).getJSONObject("radio").toString());
+                // 只有要补读的那种会停在补读处；此时报告仍取上一轮的 Wi-Fi。
+                if (mode == 0) assertEquals(previous, sampler.merge(new JSONObject()).getJSONObject("radio").toString());
                 s.release(); finish(sampler);
                 JSONObject result = sampler.merge(new JSONObject());
                 if (s.initialMissing) assertTrue(result.isNull("radio"));
@@ -328,9 +326,9 @@ public class RemoteLocationCacheRecheckTest {
     @Test(timeout = 8000) public void disabledWifiDowngradesImmediatelyWithoutPassiveRead() throws Exception {
         TwoRounds s = new TwoRounds(); s.scanResult = "wifi_disabled";
         try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock)) {
-            startSecondRound(s, sampler, 300000);
+            startSecondRound(s, sampler, 300000); finish(sampler);
             assertEquals(0, sampler.merge(new JSONObject()).getJSONObject("radio").getJSONArray("wifiAccessPoints").length());
-            s.release(); finish(sampler); assertEquals(0, s.cacheReads);
+            assertEquals(0, s.cacheReads);
         } finally { s.release(); }
     }
 
@@ -356,49 +354,36 @@ public class RemoteLocationCacheRecheckTest {
         try {
             startSecondRound(s, sampler, 300000);
             sampler.close(); finish(sampler);
+            s.release();
             assertTrue(sampler.merge(new JSONObject()).isNull("radio"));
-            assertEquals(0, s.cacheReads); assertFalse(sampler.tick());
+            assertTrue("关闭后不能再拖住报告", sampler.readyForReport());
         } finally { s.release(); sampler.close(); }
     }
     @Test(timeout = 8000) public void busyServiceRetryStillHasOnlyOnePassiveObservationAndNoScan() throws Exception {
-        Scenario s = new Scenario(); s.busyOnce = true; s.gpsRelease.countDown();
+        Scenario s = new Scenario(); s.busyOnce = true;
         try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock)) {
-            sampler.tick(); finish(sampler); assertEquals(2, s.cacheReads); assertEquals(1, s.starts);
+            sampler.readyForReport(); finish(sampler); assertEquals(2, s.cacheReads); assertEquals(1, s.starts);
             assertEquals(6, sampler.snapshot().getJSONObject("radio").getInt("wifi_count"));
         }
     }
-    @Test(timeout = 10000) public void earlyGpsDoesNotRaceTheLateScanOrBlockTickAndReport() throws Exception {
-        final long[] gpsReturned = new long[1];
-        Scenario s = new Scenario() {
-            @Override public TelemetryCollector.LocationReading read(long window, boolean radio) throws Exception {
-                TelemetryCollector.LocationReading value = super.read(window, radio);
-                if (!radio) gpsReturned[0] = System.nanoTime();
-                return value;
-            }
-            @Override public TelemetryCollector.LocationReading readCachedRadio() throws Exception {
-                assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - gpsReturned[0]) >= 2900);
-                clock.advance(3000);
-                return super.readCachedRadio();
-            }
-        };
-        s.gpsMs = 0; s.gpsRelease.countDown();
+    /** 等迟到结果的那几秒只占定位线程；报告那边的询问、快照和合并都立即返回。 */
+    @Test(timeout = 8000) public void reportQueriesDoNotWaitForTheLateScan() throws Exception {
+        Scenario s = new Scenario(); s.pauseRelease = new CountDownLatch(1);
         try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock)) {
-            sampler.tick();
-            // 等 GPS 那一段真的返回，之后才是被动读的三秒宽限期。
-            for (int i = 0; i < 200 && gpsReturned[0] == 0; i++) Thread.sleep(10);
-            assertTrue("GPS 读取应已返回", gpsReturned[0] != 0);
+            sampler.readyForReport(); assertTrue(s.pauseEntered.await(2, TimeUnit.SECONDS));
             long before = System.nanoTime();
-            for (int i = 0; i < 20; i++) { assertFalse(sampler.tick()); sampler.snapshot(); sampler.merge(new JSONObject()); }
-            assertTrue("业务读取不得等待定位宽限期", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - before) < 1000);
+            for (int i = 0; i < 20; i++) { assertFalse(sampler.readyForReport()); sampler.snapshot(); sampler.merge(new JSONObject()); }
+            assertTrue("报告询问不得等待定位", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - before) < 1000);
             assertEquals(0, s.cacheReads);
-            finish(sampler); assertEquals(1, s.cacheReads); assertEquals(1, s.starts);
+            s.pauseRelease.countDown(); finish(sampler); assertEquals(1, s.cacheReads); assertEquals(1, s.starts);
             assertEquals(6, sampler.snapshot().getJSONObject("radio").getInt("wifi_count"));
-        }
+        } finally { s.pauseRelease.countDown(); }
     }
-    @Test(timeout = 8000) public void stalePostGpsCacheCannotRenewOldObservation() throws Exception {
-        Scenario s = new Scenario(); s.gpsMs = 200000; s.gpsRelease.countDown();
+    /** 等待期间设备若休眠过久，缓存里的扫描结果已经过期，不能拿来续命旧观测。 */
+    @Test(timeout = 8000) public void staleCacheAfterLongSuspendCannotRenewOldObservation() throws Exception {
+        Scenario s = new Scenario(); s.pauseOverrideMs = 200000;
         try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock)) {
-            sampler.tick(); finish(sampler);
+            sampler.readyForReport(); finish(sampler);
             JSONObject radio = sampler.merge(new JSONObject()).getJSONObject("radio");
             assertEquals(WALL + 2000, radio.getLong("sampled_at_ms"));
             assertEquals(1, radio.getJSONArray("cellTowers").length()); assertEquals(0, radio.getJSONArray("wifiAccessPoints").length());
@@ -406,28 +391,33 @@ public class RemoteLocationCacheRecheckTest {
             assertEquals(1, s.starts); assertEquals(1, s.cacheReads);
         }
     }
-    @Test(timeout = 8000) public void closeDuringGracePeriodCancelsDeferredRead() throws Exception {
-        Scenario s = new Scenario(); s.gpsFix = true; s.gpsMs = 0; s.gpsRelease.countDown();
+    @Test(timeout = 8000) public void closeDuringTheWaitCancelsTheDeferredRead() throws Exception {
+        Scenario s = new Scenario(); s.pauseRelease = new CountDownLatch(1);
         RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock);
         try {
-            sampler.tick(); assertTrue(s.gpsEntered.await(2, TimeUnit.SECONDS));
+            sampler.readyForReport(); assertTrue(s.pauseEntered.await(2, TimeUnit.SECONDS));
             sampler.close(); finish(sampler);
-            assertEquals("宽限期内关闭应取消被动读", 0, s.cacheReads);
-        } finally { sampler.close(); }
+            assertEquals("等待期间关闭应取消被动读", 0, s.cacheReads);
+        } finally { s.pauseRelease.countDown(); sampler.close(); }
     }
-    @Test public void earlyGpsDelayIsBoundedAndDoesNotExtendLateGps() {
+    @Test(timeout = 8000) public void closeDuringTheScanPreventsThePassiveRead() throws Exception {
+        CountDownLatch entered = new CountDownLatch(1), release = new CountDownLatch(1);
+        Scenario s = new Scenario() {
+            @Override public TelemetryCollector.LocationReading read(long window, boolean radio) throws Exception {
+                entered.countDown(); release.await(); return super.read(window, radio);
+            }
+        };
+        RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock);
+        try {
+            sampler.readyForReport(); assertTrue(entered.await(2, TimeUnit.SECONDS)); sampler.close(); finish(sampler);
+            assertEquals(0, s.cacheReads);
+        } finally { release.countDown(); sampler.close(); }
+    }
+    @Test public void recheckDelayIsBounded() {
         assertEquals(3000, RemoteLocationSampler.cacheRecheckDelayMs(START, START));
         assertEquals(1072, RemoteLocationSampler.cacheRecheckDelayMs(START, START + 1928000000L));
         assertEquals(0, RemoteLocationSampler.cacheRecheckDelayMs(START, START + 3000000000L));
         assertEquals(0, RemoteLocationSampler.cacheRecheckDelayMs(START, START + 45000000000L));
         assertEquals(0, RemoteLocationSampler.cacheRecheckDelayMs(START, START - 1));
-    }
-    @Test(timeout = 8000) public void closeDuringGpsPreventsPassiveReads() throws Exception {
-        Scenario s = new Scenario();
-        RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock);
-        try {
-            sampler.tick(); assertTrue(s.gpsEntered.await(2, TimeUnit.SECONDS)); sampler.close(); finish(sampler);
-            assertEquals(0, s.cacheReads);
-        } finally { s.gpsRelease.countDown(); sampler.close(); }
     }
 }

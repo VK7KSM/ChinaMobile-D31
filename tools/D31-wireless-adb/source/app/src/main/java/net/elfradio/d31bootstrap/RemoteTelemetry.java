@@ -21,13 +21,33 @@ final class RemoteTelemetry implements AutoCloseable {
     private Future<TelemetryCollector.Sample> pending;
     private TelemetryCollector.Sample latest;
     private RemoteLocationSampler location;
+    /** 一份报告为等本轮定位最多推迟这么久；一轮正常约 2–6 秒，超时就照常上报，不因定位卡住报告。 */
+    static final long LOCATION_WAIT_MS = 15000;
+    private final long locationWaitMs;
+    private boolean waitingForLocation;
+    private long locationWaitStartedNanos;
 
-    /** 初始化一次。采样结果只等下一次常规报告带出去，不回调、不提前唤醒上报。 */
+    /** 初始化一次。 */
     synchronized void enableLocation(android.content.Context context) {
         if (location == null) location = new RemoteLocationSampler(context);
     }
 
-    synchronized void tickLocation() { if (location != null) location.tick(); }
+    /** 测试用：注入不连设备的采样器。 */
+    synchronized void enableLocation(RemoteLocationSampler sampler) {
+        if (location == null) location = sampler;
+    }
+
+    /**
+     * 先采后报：新建报告前调用。本轮定位还没完成就抛 {@link PreparationPending}，报告阶段稍后重试，
+     * 期间工作循环照常处理其它阶段；等满 {@link #LOCATION_WAIT_MS} 仍未完成则放行，按已有缓存如实上报。
+     */
+    synchronized void prepareLocation() {
+        if (location == null || location.readyForReport()) { waitingForLocation = false; return; }
+        long now = System.nanoTime();
+        if (!waitingForLocation) { waitingForLocation = true; locationWaitStartedNanos = now; }
+        if (now - locationWaitStartedNanos < TimeUnit.MILLISECONDS.toNanos(locationWaitMs)) throw new PreparationPending();
+        waitingForLocation = false;
+    }
 
     /** 只读脱敏缓存快照；不触发采样、Binder或报告唤醒。 */
     synchronized JSONObject locationSnapshot() throws Exception {
@@ -39,9 +59,11 @@ final class RemoteTelemetry implements AutoCloseable {
     }
 
     RemoteTelemetry() { this(5000); }
-    RemoteTelemetry(long preparationMs) {
+    RemoteTelemetry(long preparationMs) { this(preparationMs, LOCATION_WAIT_MS); }
+    RemoteTelemetry(long preparationMs, long locationWaitMs) {
         if (preparationMs < 0 || preparationMs > 5000) throw new IllegalArgumentException("报告准备窗口无效");
-        this.preparationMs = preparationMs;
+        if (locationWaitMs < 0 || locationWaitMs > LOCATION_WAIT_MS) throw new IllegalArgumentException("定位等待上限无效");
+        this.preparationMs = preparationMs; this.locationWaitMs = locationWaitMs;
     }
 
     JSONObject enrich(JSONObject report, Callable<TelemetryCollector.Sample> collect, long waitMs) throws Exception {

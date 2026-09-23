@@ -268,7 +268,6 @@ public final class RemoteDaemon {
     private void tickBusiness() {
         try {
             if (stopping()) return;
-            telemetry.tickLocation();
             String location = telemetry.locationSnapshot().toString();
             if (!location.equals(locationStatus)) {
                 RescueFiles.write(new File(root, "location-status.json"), location);
@@ -342,6 +341,8 @@ public final class RemoteDaemon {
         JSONObject body;
         if (file.isFile()) body = new JSONObject(RescueFiles.read(file, 64000));
         else {
+            // 先采后报：本轮定位没完成就推迟，放在组装报告之前，推迟重试时不重复读各项状态。
+            if (bootComplete()) telemetry.prepareLocation();
             boolean ready = false;
             try { ready = RemoteHttp.local("/health", null).optInt("uid", -1) == 0; } catch (Exception ignored) { }
             body = credentials().put("report_id", UUID.randomUUID().toString())

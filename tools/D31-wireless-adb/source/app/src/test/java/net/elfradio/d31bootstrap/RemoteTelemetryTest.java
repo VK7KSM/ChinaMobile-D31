@@ -135,4 +135,46 @@ public class RemoteTelemetryTest {
             assertEquals(1, retried.get());
         }
     }
+
+    /** 先采后报：本轮定位没完成，报告推迟；完成后放行，一分钟内的后续报告不再触发采样。 */
+    @Test(timeout = 10000) public void reportWaitsForTheLocationRoundThenReusesIt() throws Exception {
+        AtomicInteger reads = new AtomicInteger();
+        CountDownLatch release = new CountDownLatch(1);
+        net.elfradio.d31bootstrap.telemetry.RemoteLocationSampler sampler = new net.elfradio.d31bootstrap.telemetry.RemoteLocationSampler(
+                (window, radio) -> { reads.incrementAndGet(); release.await(); return new TelemetryCollector.LocationReading(null, "no_cached_location", true); },
+                new TelemetryCollector.Clock() {
+                    public long wallTimeMillis() { return System.currentTimeMillis(); }
+                    public long elapsedRealtimeNanos() { return System.nanoTime(); }
+                });
+        try (RemoteTelemetry telemetry = new RemoteTelemetry(0, 5000)) {
+            telemetry.enableLocation(sampler);
+            for (int i = 0; i < 10; i++) {
+                try { telemetry.prepareLocation(); fail("本轮没完成，报告应推迟"); }
+                catch (RemoteTelemetry.PreparationPending expected) { }
+            }
+            release.countDown();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (sampler.isActive() && System.nanoTime() < deadline) Thread.sleep(5);
+            telemetry.prepareLocation();
+            for (int i = 0; i < 10; i++) telemetry.prepareLocation();
+            assertEquals("一份报告一轮采样，复用窗口内不重扫", 1, reads.get());
+        } finally { release.countDown(); }
+    }
+
+    /** 定位卡住也不能扣住报告：等满上限就放行，按已有缓存如实上报。 */
+    @Test(timeout = 10000) public void stuckLocationReleasesTheReportAfterTheWaitLimit() throws Exception {
+        CountDownLatch never = new CountDownLatch(1);
+        net.elfradio.d31bootstrap.telemetry.RemoteLocationSampler sampler = new net.elfradio.d31bootstrap.telemetry.RemoteLocationSampler(
+                (window, radio) -> { never.await(); return null; },
+                new TelemetryCollector.Clock() {
+                    public long wallTimeMillis() { return System.currentTimeMillis(); }
+                    public long elapsedRealtimeNanos() { return System.nanoTime(); }
+                });
+        try (RemoteTelemetry telemetry = new RemoteTelemetry(0, 200)) {
+            telemetry.enableLocation(sampler);
+            try { telemetry.prepareLocation(); fail(); } catch (RemoteTelemetry.PreparationPending expected) { }
+            Thread.sleep(250);
+            telemetry.prepareLocation();
+        } finally { never.countDown(); }
+    }
 }
