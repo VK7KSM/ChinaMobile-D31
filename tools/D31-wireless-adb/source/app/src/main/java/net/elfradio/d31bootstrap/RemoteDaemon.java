@@ -368,8 +368,17 @@ public final class RemoteDaemon {
             RemoteMediaReport.merge(body, media == null ? null : media.snapshot(), visual == null ? null : visual.snapshot());
             if (body.optBoolean("managed_proxy_tasks")) {
                 // 声明了能力位就必须带运行状态；状态取不到宁可这一轮不声明，也不发半截。
-                try { body.put("proxy_runtime", proxy.status()); }
-                catch (Exception unavailable) { body.put("managed_proxy_tasks", false); }
+                try {
+                    body.put("proxy_runtime", proxy.status()).put("proxy_nodes", proxy.nodesReport())
+                            .put("proxy_apps", proxy.appsReport());
+                    // 已装应用清单只在变化时带：服务端「字段缺席 = 保留既有」，不是清空。
+                    org.json.JSONArray apps = installedApps();
+                    String digest = RemoteProtocol.hash(apps.toString());
+                    if (!digest.equals(installedAppsAcknowledged)) { body.put("installed_apps", apps); body.put("_installed_apps_digest", digest); }
+                } catch (Exception unavailable) {
+                    body.put("managed_proxy_tasks", false); body.remove("proxy_runtime"); body.remove("proxy_nodes");
+                    body.remove("proxy_apps"); body.remove("installed_apps"); body.remove("_installed_apps_digest");
+                }
             }
             if (RemoteUpdates.ready()) body.put("managed_update", true).put("managed_update_v2", true);
             if(bootComplete()){
@@ -420,6 +429,8 @@ public final class RemoteDaemon {
                 // 400 且本轮带了代理字段：改写待报告去掉代理字段，一小时内不再声明，其余能力照常上报。
                 if (rejected.status == 400 && body.optBoolean("managed_proxy_tasks")) {
                     body.put("managed_proxy_tasks", false); body.remove("proxy_runtime");
+                    body.remove("proxy_nodes"); body.remove("proxy_apps");
+                    body.remove("installed_apps"); body.remove("_installed_apps_digest");
                     RescueFiles.write(file, body.toString());
                     proxyReportSuppressedUntil = SystemClock.elapsedRealtime() + 3600000;
                     controlLog.write(System.currentTimeMillis() + " PROXY_REPORT_SUPPRESSED http=400 " + rejected.reason);
@@ -521,7 +532,29 @@ public final class RemoteDaemon {
                         System.currentTimeMillis(), "window_not_packaged", "")));
     }
 
+    /** 可启动的应用（有桌面入口的），供面板勾选「哪些程序走代理」；管理程序自己永不出现；≤64 条。 */
+    private org.json.JSONArray installedApps() throws Exception {
+        android.content.pm.PackageManager pm = context().getPackageManager();
+        android.content.Intent launcher = new android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_LAUNCHER);
+        java.util.TreeMap<String, JSONObject> found = new java.util.TreeMap<>();
+        for (android.content.pm.ResolveInfo info : pm.queryIntentActivities(launcher, 0)) {
+            String pkg = info.activityInfo.packageName;
+            // 只排除管理程序自己；同命名空间的 Zello 守护、SIP 短信客户端都是普通应用，面板要能勾。
+            if (ProxyRuntime.management(pkg) || found.containsKey(pkg) || !pkg.matches("[A-Za-z0-9_.]{1,128}")) continue;
+            String label = String.valueOf(info.loadLabel(pm)).replaceAll("[\\x00-\\x1f]", "").trim();
+            if (label.isEmpty()) label = pkg;
+            if (label.length() > 64) label = label.substring(0, 64);
+            boolean system = (info.activityInfo.applicationInfo.flags & android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0;
+            found.put(pkg, new JSONObject().put("package", pkg).put("label", label).put("system", system));
+        }
+        org.json.JSONArray result = new org.json.JSONArray();
+        for (JSONObject entry : found.values()) { if (result.length() >= 64) break; result.put(entry); }
+        return result;
+    }
+    private String installedAppsAcknowledged = "";
+
     private void consumeReport(JSONObject body, JSONObject reply) throws Exception {
+        if (body.has("_installed_apps_digest")) installedAppsAcknowledged = body.getString("_installed_apps_digest");
         state.acknowledge(body);
         state.notice(reply.optJSONObject("status_request"), System.currentTimeMillis());
         JSONObject notice = state.snapshot().optJSONObject("notice");

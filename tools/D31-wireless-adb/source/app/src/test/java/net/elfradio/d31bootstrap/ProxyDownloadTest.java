@@ -29,6 +29,35 @@ public class ProxyDownloadTest {
         rejects("https://v.elfradio.net/api/elfremote/proxy-config/task-1?device_id=dev&token=" + "f".repeat(64));
     }
 
+    @Test public void oneTimeTokenLeavesTheQueryStringAndGoesIntoTheHeader() {
+        // 查询串会进各种访问日志，一次性下载令牌不该留在那里（web-dev F6）。
+        String[] split = ProxyDownload.splitToken(CONFIG);
+        assertEquals("https://v.elfradio.net/api/elfremote/proxy-config/task-1?device_id=dev_abc", split[0]);
+        assertEquals("f".repeat(64), split[1]);
+        // 顺序反过来也要摘干净，且不能把 device_id 一起丢掉。
+        split = ProxyDownload.splitToken("https://v.elfradio.net/x?token=abc&device_id=dev_abc");
+        assertEquals("https://v.elfradio.net/x?device_id=dev_abc", split[0]);
+        assertEquals("abc", split[1]);
+        // 只有令牌一项时问号也要去掉，不能留下空查询串。
+        split = ProxyDownload.splitToken("https://v.elfradio.net/x?token=abc");
+        assertEquals("https://v.elfradio.net/x", split[0]);
+        assertEquals("abc", split[1]);
+        // 本来就没有令牌（服务端改完之后的形状）原样放行，不臆造。
+        split = ProxyDownload.splitToken("https://v.elfradio.net/api/elfremote/apk/job-1");
+        assertEquals("https://v.elfradio.net/api/elfremote/apk/job-1", split[0]);
+        assertEquals("", split[1]);
+    }
+
+    @Test public void configUrlIsAcceptedWithOrWithoutTheTokenParameter() throws Exception {
+        // 服务端过渡期仍下发带 token 的地址；改完之后会只剩 device_id，两种都要收。
+        String withoutToken = "https://v.elfradio.net/api/elfremote/proxy-config/task-1?device_id=dev_abc";
+        assertEquals(withoutToken, ProxyDownload.validate(withoutToken, ProxyDownload.CONFIG_PATH));
+        assertEquals(CONFIG, ProxyDownload.validate(CONFIG, ProxyDownload.CONFIG_PATH));
+        // 但 device_id 仍然必须有，且不接受别的参数。
+        rejects("https://v.elfradio.net/api/elfremote/proxy-config/task-1?token=" + "f".repeat(64));
+        rejects(withoutToken + "&relay=evil.example");
+    }
+
     @Test public void coreDownloadIsTheApkEndpointWithoutAnyQuery() throws Exception {
         String core = "https://v.elfradio.net/api/elfremote/apk/d31-proxy-core-1";
         assertEquals(core, ProxyDownload.validate(core, "/api/elfremote/apk/d31-proxy-core-1", false));

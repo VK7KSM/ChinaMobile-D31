@@ -38,6 +38,10 @@ public class ProxyTasksTest {
             return ProxyStatus.build(installed ? "1.19.31" : "", installed, installed, configured, running, running, running,
                     running && reachable, "direct", 1000L, "v1", "c".repeat(64), "");
         }
+        @Override public String selectNode(String name) throws Exception { op("select:" + name); return name; }
+        @Override public org.json.JSONArray setApps(List<String> packages) throws Exception {
+            op("apps:" + packages); return new org.json.JSONArray(packages);
+        }
     }
 
     /** 假服务端：只接受合法迁移，其余丢弃但仍回当前状态；`dropNext` 模拟一次静默丢弃。 */
@@ -211,6 +215,39 @@ public class ProxyTasksTest {
         drive();
         assertEquals("rejected", server.states.get("t1"));
         assertTrue(runtime.ops.isEmpty());
+    }
+
+    @Test public void selectAndAppsTasksCarryTheDeviceReadbackInTheReceipt() throws Exception {
+        tasks().accept(task(ProxyTasks.SELECT, "t1").put("params", new JSONObject().put("name", "AUTO")));
+        drive();
+        JSONObject result = journal("t1").getJSONObject("receipt").getJSONObject("result");
+        assertEquals("success", server.states.get("t1"));
+        assertEquals("AUTO", result.getString("selected"));
+        assertEquals("select_proxy_node", result.getString("action"));
+        assertTrue(result.has("proxy"));
+
+        tasks().accept(task(ProxyTasks.APPS, "t2").put("params", new JSONObject().put("apps", new org.json.JSONArray().put("com.loudtalks"))));
+        drive();
+        result = journal("t2").getJSONObject("receipt").getJSONObject("result");
+        assertEquals("success", server.states.get("t2"));
+        assertEquals("com.loudtalks", result.getJSONArray("apps").getString(0));
+        assertEquals(java.util.Arrays.asList("select:AUTO", "apps:[com.loudtalks]"), runtime.ops);
+        // 其它类型的回执仍恰好三个键。
+        tasks().accept(task(ProxyTasks.START, "t3"));
+        drive();
+        assertEquals(3, journal("t3").getJSONObject("receipt").getJSONObject("result").length());
+    }
+
+    @Test public void appsTaskNeverAcceptsTheManagementProgram() throws Exception {
+        JSONObject bad = task(ProxyTasks.APPS, "t1").put("params", new JSONObject().put("apps", new org.json.JSONArray().put("net.elfradio.d31bootstrap")));
+        try { ProxyTasks.validate(bad, wall); fail(); } catch (IOException expected) { assertEquals("PROXY_TASK_APP_INVALID", expected.getMessage()); }
+        // 同命名空间的其它自家应用是普通应用，必须放行（与服务端 MANAGEMENT_PACKAGES 同一判据）。
+        ProxyTasks.validate(task(ProxyTasks.APPS, "t4").put("params", new JSONObject()
+                .put("apps", new org.json.JSONArray().put("net.elfradio.d31zelloguard").put("net.elfradio.d31phone.debug"))), wall);
+        try { ProxyTasks.validate(task(ProxyTasks.SELECT, "t2").put("params", new JSONObject().put("name", "").put("x", 1)), wall); fail(); }
+        catch (IOException expected) { assertEquals("PROXY_TASK_PARAMS_INVALID", expected.getMessage()); }
+        // 空名单合法：等于「谁都不走代理」。
+        ProxyTasks.validate(task(ProxyTasks.APPS, "t3").put("params", new JSONObject().put("apps", new org.json.JSONArray())), wall);
     }
 
     @Test public void removeTaskReportsTheUninstalledShape() throws Exception {

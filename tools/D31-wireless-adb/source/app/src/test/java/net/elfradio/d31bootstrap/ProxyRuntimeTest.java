@@ -40,6 +40,26 @@ public class ProxyRuntimeTest {
         @Override public boolean httpReady() { return running && http; }
         @Override public boolean socksReady() { return running && socks; }
         @Override public boolean reachable() { return running && reachable; }
+        String nowSelected = ProxyConfig.AUTO; int selects; boolean selectFails;
+        final java.util.Map<String, Integer> delays = new java.util.HashMap<>();
+        java.util.List<Integer> routed = new ArrayList<>(); int routeCalls;
+        final java.util.Map<String, Integer> installedApps = new java.util.HashMap<>();
+        { installedApps.put("org.telegram.messenger.web", 10081); installedApps.put("com.loudtalks", 10083); }
+        @Override public String selected(String secret) { return nowSelected; }
+        @Override public void select(String secret, String node) throws Exception {
+            selects++; if (!selectFails) nowSelected = node;
+        }
+        @Override public int delay(String secret, String node) { Integer d = delays.get(node); return d == null ? -1 : d; }
+        @Override public org.json.JSONObject traffic(String secret) {
+            try { return new org.json.JSONObject().put("upload_bytes", 10).put("download_bytes", 20).put("connections", 1); }
+            catch (Exception e) { return new org.json.JSONObject(); }
+        }
+        @Override public void routes(java.util.List<Integer> uids) { routeCalls++; routed = new ArrayList<>(uids); }
+        @Override public java.util.Map<String, Integer> uids(java.util.List<String> packages) {
+            java.util.Map<String, Integer> r = new java.util.HashMap<>();
+            for (String p : packages) if (installedApps.containsKey(p)) r.put(p, installedApps.get(p));
+            return r;
+        }
         private static void delete(File file) {
             File[] children = file.listFiles();
             if (children != null) for (File child : children) delete(child);
@@ -280,5 +300,97 @@ public class ProxyRuntimeTest {
         core.reachable = true;
         assertTrue(runtime.test().getBoolean("proxy_reachable"));
         assertTrue("测试不改变启用状态", runtime.enabled());
+    }
+
+    @Test public void startBuildsTheTunAndRoutesOnlyTheProxiedApps() throws Exception {
+        ProxyRuntime runtime = runtime();
+        runtime.configure(params("v1", true));
+        runtime.start();
+        java.util.List<Integer> expected = java.util.Arrays.asList(10081, 10083);
+        java.util.Collections.sort(core.routed);
+        assertEquals("默认名单里装了的应用各一条 uid 规则；守护未安装不下", expected, core.routed);
+        String rendered = RescueFiles.read(new File(new File(core.home, "config"), "current.yaml"), 65536);
+        assertTrue("启动时生成的配置带 TUN", rendered.contains("\ntun:\n  enable: true\n"));
+        assertTrue(rendered.contains("auto-route: false"));
+        runtime.stop();
+        assertTrue("停止先撤规则", core.routed.isEmpty());
+        // 配置事务里的验证实例不建 TUN、不下规则。
+        core.routeCalls = 0; core.routed.clear();
+        runtime.configure(params("v2", false));
+        assertTrue(core.routed.isEmpty());
+    }
+
+    @Test public void selectingANodeIsConfirmedThroughTheController() throws Exception {
+        ProxyRuntime runtime = runtime();
+        runtime.configure(params("v1", true));
+        assertEquals("a", runtime.selectNode("a"));
+        assertEquals("没在跑就只记下", 0, core.selects);
+        runtime.start();
+        assertEquals("启动时应用记下的选择", "a", core.nowSelected);
+        assertEquals(ProxyConfig.AUTO, runtime.selectNode(ProxyConfig.AUTO));
+        assertEquals(ProxyConfig.AUTO, core.nowSelected);
+        try { runtime.selectNode("ghost"); fail(); } catch (IOException expected) { assertEquals("PROXY_NODE_UNKNOWN", expected.getMessage()); }
+        core.selectFails = true;
+        try { runtime.selectNode("a"); fail(); } catch (IOException expected) { assertEquals("控制口没确认就不能说切了", "PROXY_SELECT_UNCONFIRMED", expected.getMessage()); }
+        assertTrue(runtime.nodes().getJSONObject(0).has("selected"));
+    }
+
+    @Test public void testingNodesUsesAStandbyInstanceWhenNotRunning() throws Exception {
+        ProxyRuntime runtime = runtime();
+        runtime.configure(params("v1", true));
+        core.delays.put("a", 505);
+        int starts = core.starts, stops = core.stops;
+        org.json.JSONArray nodes = runtime.testNodes();
+        assertEquals(505, nodes.getJSONObject(0).getInt("delay_ms"));
+        assertEquals("测完要收掉临时实例", starts + 1, core.starts);
+        assertEquals(stops + 1, core.stops);
+        assertFalse(core.running);
+        assertTrue("临时实例不下路由", core.routed.isEmpty());
+        // 结果缓存进总览；换了配置就作废。
+        assertEquals(505, runtime.overview().getJSONArray("nodes").getJSONObject(0).getInt("delay_ms"));
+        runtime.configure(params("v2", false));
+        assertTrue(runtime.nodes().getJSONObject(0).isNull("delay_ms"));
+    }
+
+    @Test public void appListNeverIncludesTheManagementProgram() throws Exception {
+        ProxyRuntime runtime = runtime();
+        runtime.configure(params("v1", true));
+        org.json.JSONArray apps = runtime.setApps(java.util.Arrays.asList("com.loudtalks", "net.elfradio.d31bootstrap",
+                "net.elfradio.d31bootstrap.preview", "bad name"));
+        assertEquals(1, apps.length());
+        assertEquals("com.loudtalks", apps.getString(0));
+        runtime.start();
+        assertEquals(java.util.Collections.singletonList(10083), core.routed);
+        assertEquals("上报的名单与生效的是同一份", "com.loudtalks", runtime.appsReport().getString(0));
+    }
+
+    @Test public void onlyTheManagementPackageIsBannedNotTheWholeNamespace() throws Exception {
+        // 同命名空间里的 Zello 守护、SIP 短信客户端是普通应用；把边界画成整个 net.elfradio.
+        // 会让使用者勾一下守护就被服务端拒掉整份上报，遥测持续停摆。
+        assertTrue(ProxyRuntime.management("net.elfradio.d31bootstrap"));
+        assertTrue(ProxyRuntime.management("net.elfradio.d31bootstrap.preview"));
+        assertTrue(ProxyRuntime.management("net.elfradio.d31bootstrap.debug"));
+        assertFalse(ProxyRuntime.management("net.elfradio.d31zelloguard"));
+        assertFalse(ProxyRuntime.management("net.elfradio.d31phone.debug"));
+        assertFalse(ProxyRuntime.management("net.elfradio.d31system"));
+        assertFalse(ProxyRuntime.management("net.elfradio.d31bootstrapX"));
+        assertFalse(ProxyRuntime.management(null));
+
+        ProxyRuntime runtime = runtime();
+        runtime.configure(params("v1", true));
+        org.json.JSONArray apps = runtime.setApps(java.util.Arrays.asList("net.elfradio.d31zelloguard", "net.elfradio.d31phone.debug"));
+        assertEquals(2, apps.length());
+        assertEquals(2, runtime.appsReport().length());
+    }
+
+    @Test public void reportedAppsAreEmptyArrayWhenTheUserUnchecksEverything() throws Exception {
+        ProxyRuntime runtime = runtime();
+        runtime.configure(params("v1", true));
+        assertEquals("默认名单在没人改过时上报", 3, runtime.appsReport().length());
+        runtime.setApps(new ArrayList<String>());
+        // 服务端「缺席保留既有、[] 才是清空」：一个都没勾必须报空数组，不能不带。
+        assertEquals(0, runtime.appsReport().length());
+        runtime.start();
+        assertTrue("名单空就不下任何 uid 规则", core.routed.isEmpty());
     }
 }

@@ -50,16 +50,26 @@ public class ProxyConfigTest {
         assertFalse(proxies.block.contains("MATCH"));
         assertFalse(proxies.block.contains("proxy-groups"));
 
-        String rendered = ProxyConfig.render(proxies);
+        String rendered = ProxyConfig.render(proxies, new ProxyConfig.Options("0123456789abcdef0123456789abcdef", false));
         assertTrue(rendered.contains("\nport: 17890\n"));
         assertTrue(rendered.contains("\nsocks-port: 17891\n"));
         assertTrue(rendered.contains("\nbind-address: 127.0.0.1\n"));
         assertTrue(rendered.contains("\nallow-lan: false\n"));
-        assertFalse("第 2 步不开 TUN", rendered.contains("\ntun:"));
-        assertFalse(rendered.contains("external-controller"));
-        assertTrue(rendered.contains("      - \"Oracle1\"\n      - \"Oracle 3\"\n"));
+        assertFalse("不建 TUN 时不得出现 tun 段", rendered.contains("\ntun:"));
+        // 控制口只绑回环、带口令；allow-lan 关着，口令不会从外面被读到。
+        assertTrue(rendered.contains("\nexternal-controller: 127.0.0.1:17992\n"));
+        assertTrue(rendered.contains("\nsecret: 0123456789abcdef0123456789abcdef\n"));
+        // 手选组第一项 AUTO，之后是节点；AUTO 自己是 url-test 组。
+        assertTrue(rendered.contains("  - name: PROXY\n    type: select\n    proxies:\n      - AUTO\n      - \"Oracle1\"\n      - \"Oracle 3\"\n"));
+        assertTrue(rendered.contains("  - name: AUTO\n    type: url-test\n"));
         assertTrue(rendered.contains("interval: 600"));
         assertTrue(rendered.endsWith("  - MATCH,PROXY\n"));
+        // 建 TUN 时只建接口不下路由：这颗内核不认 sing-tun 的 uid 规则，路由由核心自己下。
+        String withTun = ProxyConfig.render(proxies, new ProxyConfig.Options("0123456789abcdef0123456789abcdef", true));
+        assertTrue(withTun.contains("\ntun:\n  enable: true\n  stack: gvisor\n  auto-route: false\n"));
+        assertTrue(withTun.contains("dns-hijack"));
+        assertFalse(withTun.contains("include-uid"));
+        try { ProxyConfig.render(proxies, new ProxyConfig.Options("short", false)); fail(); } catch (IllegalArgumentException expected) { }
         // 节点段原样保留，包括 ws-opts 这类嵌套。
         assertTrue(rendered.contains("        Host: \"o1.example\"\n"));
     }
@@ -71,6 +81,9 @@ public class ProxyConfigTest {
         rejects("PROXY_CONFIG_PROXIES_DUPLICATE", "proxies:\n  - name: a\nproxies:\n  - name: b\n");
         rejects("PROXY_CONFIG_NAME_INVALID", "proxies:\n  - name: a\n  - name: a\n");
         rejects("PROXY_CONFIG_NAME_INVALID", "proxies:\n  - name: \"\"\n");
+        // 与骨架里的组同名会让手选组指向自己，直接拒。
+        rejects("PROXY_CONFIG_NAME_INVALID", "proxies:\n  - name: AUTO\n");
+        rejects("PROXY_CONFIG_NAME_INVALID", "proxies:\n  - name: PROXY\n");
         rejects("PROXY_CONFIG_TEXT_INVALID", "proxies:\n\t- name: a\n");
         rejects("PROXY_CONFIG_TEXT_INVALID", "proxies:\n  - name: a\0\n");
     }

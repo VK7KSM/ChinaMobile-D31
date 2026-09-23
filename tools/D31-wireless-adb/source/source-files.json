@@ -134,8 +134,8 @@
   {
     "来源": "research/d31_adb_bootstrap/app/src/main/AndroidManifest.xml",
     "路径": "app/src/main/AndroidManifest.xml",
-    "字节数": 7732,
-    "SHA256": "4CF7F4D000BA39EE16B22D649FFD517C5BA89975097002E2640ECB952DAD63A6"
+    "字节数": 7938,
+    "SHA256": "8BFE579705BD8C7D69A910AFA429E473821B3E1F6610BC7E16F7EF745CDF8F05"
   },
   {
     "来源": "f9f24981459b14cbb000a3c3b5e03297fdf9d86a:tools/D31-wireless-adb/source/app/src/main/assets/remote-full.marker",
@@ -236,8 +236,8 @@
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/DeviceProxy.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/DeviceProxy.java",
-    "字节数": 4560,
-    "SHA256": "47BECF227EA7A8435B172E62B663F531DB1FC11F4838D32220B01013B5CC700F"
+    "字节数": 2797,
+    "SHA256": "EFBC20232AAF93A956C6BD78C0169F8E17B35C0A6242CB245522417B3914FDE8"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/DeviceShareLink.java",
@@ -278,8 +278,8 @@
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/MainActivity.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/MainActivity.java",
-    "字节数": 9290,
-    "SHA256": "FC90DF282383C197466C0F4E760071D20AB9B31D51092C0AE4AB6D4937407358"
+    "字节数": 8735,
+    "SHA256": "A978ED39E27D466835413F1E716E9043D271BC909E123A6F4107F2504604F3A0"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/main/java/net/elfradio/d31bootstrap/ProbeLog.java",
@@ -294,16 +294,22 @@
     "SHA256": "E51A308FA976E198BD624E7D0A32CD8BA648C405A45BA83F7DAC8E5EA7960B35"
   },
   {
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/ProxyActivity.java",
+    "路径": "app/src/main/java/net/elfradio/d31bootstrap/ProxyActivity.java",
+    "字节数": 18056,
+    "SHA256": "B450C5352437DDB116AD87EFB064BCB221704037E7F4B38A9D2359ACE092A373"
+  },
+  {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/ProxyConfig.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/ProxyConfig.java",
-    "字节数": 6263,
-    "SHA256": "94991CEA14BA17B8FCC3FF39D88F0EA09A97E55886E66927E3C3C5D58CE71189"
+    "字节数": 8100,
+    "SHA256": "09F459ADDA4E2AF907DC5EFB9EDF7181267544C60A8B6C96801F61F1E0EF805C"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/ProxyCore.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/ProxyCore.java",
-    "字节数": 13115,
-    "SHA256": "EAB0CCDB5178CE93E6F7558205C1EAFD91B4302C7524742E1233586190E53031"
+    "字节数": 18889,
+    "SHA256": "1A7A900093468C5156117F4130534D4BD043A58D9414122D15B80EC56DF533CE"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/ProxyCoreManifest.java",
@@ -314,20 +320,20 @@
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/ProxyDownload.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/ProxyDownload.java",
-    "字节数": 4482,
-    "SHA256": "D94068A07EB485F67711ADFF1DE344E94E61774CC7124B90B4FD2E42EB935384"
+    "字节数": 5890,
+    "SHA256": "CC761DA489B118A3F69B33D70CB54F8820987E70AA8BD75C17BCB2513D36E008"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/ProxyLocal.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/ProxyLocal.java",
-    "字节数": 4784,
-    "SHA256": "A064A32E026FC280ADA707321AACFE17CA66B3A7847E12EA81CBC59A1A4DE7D5"
+    "字节数": 7289,
+    "SHA256": "305CBD6245A020F4211CCF5A59295CE0241FD6A51C7F6B8B49018C713A8463CF"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/ProxyRuntime.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/ProxyRuntime.java",
-    "字节数": 12695,
-    "SHA256": "AB79FE76083D89D4B5A7CEA3F3009A92EA2EC1013BED16B1DD5E76053FD8BB3A"
+    "字节数": 23271,
+    "SHA256": "B62A177CA8D8159DD03EFD972F1D443E3C276B6DD594580499AF3EBB9ACAABBF"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/ProxyStatus.java",
@@ -338,8 +344,8 @@
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/ProxyTasks.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/ProxyTasks.java",
-    "字节数": 13243,
-    "SHA256": "0645CF0105FF087E3583DD1E9DFF908A0F284CC46DD4D4CE8E2139AE3D9305CE"
+    "字节数": 15592,
+    "SHA256": "76D08216F401F9AF5E801C89398E82F9BEF044B2C507ED293DEDF065DA9E7949"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/RemoteAdbMaintenance.java",
@@ -398,8 +404,8 @@
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/RemoteDaemon.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/RemoteDaemon.java",
-    "字节数": 39305,
-    "SHA256": "BE83F4B41E1E1C40DEEE304664AD2DA642D227A02511AAC28A17F69F05DA485F"
+    "字节数": 41984,
+    "SHA256": "57920FB01FB9E7975554A8982FD7CE9A15DBE0041B204F551CD82AD27289DED2"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/main/java/net/elfradio/d31bootstrap/RemoteDeployment.java",
@@ -630,10 +636,10 @@
     "SHA256": "6DA810FF82B4EB166D716A4B774D06E131064775BF15ECAB2E986E5842B2A1FF"
   },
   {
-    "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/RemoteReportReceipt.java",
+    "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/RemoteReportReceipt.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/RemoteReportReceipt.java",
-    "字节数": 823,
-    "SHA256": "E3E29AB718BBB59305CEBB6A75F72BE5A762341090C3DB5F773228DFB2D6BC87"
+    "字节数": 872,
+    "SHA256": "8BF0F71D4331D6FEEC6F0A9290066D02FF05A3461C8DAC2B8B2B7D88582DA84A"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/RemoteRuntimeInventory.java",
@@ -2126,8 +2132,8 @@
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/ProxyConfigTest.java",
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/ProxyConfigTest.java",
-    "字节数": 5325,
-    "SHA256": "862E6CEEDDFB485343BAED2B7CF9F35FE3D7171AA1FD4EC5C296332D39C95421"
+    "字节数": 6667,
+    "SHA256": "FE99CDD3896522B786CFC670522237C00F337FA98C8C1F4D36CFA55D1B12F172"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/ProxyCoreManifestTest.java",
@@ -2138,20 +2144,20 @@
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/ProxyDownloadTest.java",
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/ProxyDownloadTest.java",
-    "字节数": 2497,
-    "SHA256": "A0B6BEFA747FACE8D0724700533C491969FDE804E0B644D4642CC625F10E6FA0"
+    "字节数": 4508,
+    "SHA256": "02F278FDC5B5641A511E1CE27F7F1D84240A648FDF33BB86DA387F5E9ABBB420"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/ProxyLocalTest.java",
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/ProxyLocalTest.java",
-    "字节数": 3854,
-    "SHA256": "C5E0A354AD1C7A661C20385FF5492E4F01274EEEB65FED38C40FF169A71C921A"
+    "字节数": 7744,
+    "SHA256": "C72145741C4765ACC592394EFD8A9AB8FC07049273C5EDE73E7E73F3D4B2307F"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/ProxyRuntimeTest.java",
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/ProxyRuntimeTest.java",
-    "字节数": 14631,
-    "SHA256": "9F6C5A359016138FA80D956F7ABD70E1CE9ED67DEF4F185349697E1C90697EF4"
+    "字节数": 21592,
+    "SHA256": "6C4AE7AD031E8B96AF2D9AE6C3A473E2124D65BA6466882944AD8CC280485871"
   },
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/ProxyStatusTest.java",
@@ -2162,8 +2168,8 @@
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/ProxyTasksTest.java",
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/ProxyTasksTest.java",
-    "字节数": 11617,
-    "SHA256": "197FC918E98F96AF4DE317E85BEE93174173646DC987C03FF268252A0A0E9B2E"
+    "字节数": 14361,
+    "SHA256": "7F9D425C15FE2219CFBD8B73D372BF89705F2942D417F44A6274A6F4ED3AE16F"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/RemoteAdbMaintenanceTest.java",

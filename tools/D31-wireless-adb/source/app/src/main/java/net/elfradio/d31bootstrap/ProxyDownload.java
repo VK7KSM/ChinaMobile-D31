@@ -15,7 +15,10 @@ import java.net.URL;
 final class ProxyDownload {
     interface Fetch { void fetch(String url, long size, String sha256, File dest) throws Exception; }
     static final String CONFIG_PATH = "/api/elfremote/proxy-config/[A-Za-z0-9-]{1,96}";
-    private static final String QUERY = "device_id=[A-Za-z0-9_-]{1,128}&token=[A-Za-z0-9_-]{16,256}";
+    private static final String DEVICE = "device_id=[A-Za-z0-9_-]{1,128}";
+    private static final String TOKEN = "token=[A-Za-z0-9_-]{16,256}";
+    /** 过渡期两种都收：服务端仍在下发带 token 的地址，改完验收后才会去掉。 */
+    private static final String QUERY = DEVICE + "(?:&" + TOKEN + ")?";
 
     static String validate(String raw, String pathPattern) throws IOException { return validate(raw, pathPattern, true); }
 
@@ -40,15 +43,37 @@ final class ProxyDownload {
         return raw;
     }
 
+    /**
+     * 一次性下载令牌从查询串挪到 Authorization 头：查询串会进各种访问日志，令牌不该留在那里。
+     * 服务端读到 Bearer 就以它为准、不再拿查询串兜底，所以这里摘下来之后必须把它从地址里去掉。
+     * 返回「不带令牌的地址 + 令牌」；地址里本来就没有令牌时令牌为空，按无凭证请求发出去。
+     */
+    static String[] splitToken(String url) {
+        int query = url.indexOf('?');
+        if (query < 0) return new String[]{url, ""};
+        StringBuilder kept = new StringBuilder();
+        String token = "";
+        for (String pair : url.substring(query + 1).split("&")) {
+            if (pair.startsWith("token=")) { token = pair.substring(6); continue; }
+            if (kept.length() > 0) kept.append('&');
+            kept.append(pair);
+        }
+        String head = url.substring(0, query);
+        return new String[]{kept.length() == 0 ? head : head + "?" + kept, token};
+    }
+
     static void fetch(String url, long size, String sha256, File dest) throws Exception {
         if (size <= 0 || !sha256.matches("[0-9a-f]{64}")) throw new IOException("PROXY_DOWNLOAD_CONTRACT");
-        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+        String[] split = splitToken(url);
+        String bearer = split[1];
+        HttpURLConnection c = (HttpURLConnection) new URL(split[0]).openConnection();
         File temporary = new File(dest.getPath() + ".part");
         try {
             c.setConnectTimeout(15000); c.setReadTimeout(30000);
             c.setInstanceFollowRedirects(false); c.setUseCaches(false);
             c.setRequestProperty("Accept-Encoding", "identity");
             c.setRequestProperty("Accept", "application/octet-stream, application/yaml, text/yaml");
+            if (!bearer.isEmpty()) c.setRequestProperty("Authorization", "Bearer " + bearer);
             int status = c.getResponseCode();
             if (status != 200) throw new RemoteHttp.Rejected(status, "代理制品下载响应不符",
                     RemoteHttp.retryAfterDelay(c.getHeaderField("Retry-After"), System.currentTimeMillis()));

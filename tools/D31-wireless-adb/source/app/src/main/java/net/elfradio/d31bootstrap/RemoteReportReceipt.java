@@ -8,6 +8,7 @@ final class RemoteReportReceipt {
         JSONObject result = new JSONObject(saved.toString());
         result.remove("_notice_version");
         result.remove("_core_instance");
+        result.remove("_installed_apps_digest");
         return result;
     }
 

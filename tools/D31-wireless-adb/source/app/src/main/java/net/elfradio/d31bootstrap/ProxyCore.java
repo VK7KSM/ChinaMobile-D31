@@ -222,6 +222,106 @@ final class ProxyCore implements ProxyRuntime.Core {
         } catch (Exception closed) { return false; }
     }
 
+    // ---- 本机控制口（127.0.0.1:17992，口令随机存核心目录）----
+
+    private static JSONObject controller(String secret, String method, String path, String body, int timeoutMs) throws Exception {
+        HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:" + ProxyConfig.CONTROLLER_PORT + path).openConnection();
+        try {
+            c.setConnectTimeout(1000); c.setReadTimeout(timeoutMs); c.setUseCaches(false);
+            c.setRequestProperty("Authorization", "Bearer " + secret);
+            c.setRequestMethod(method);
+            if (body != null) {
+                c.setDoOutput(true); c.setRequestProperty("Content-Type", "application/json");
+                byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+                c.setFixedLengthStreamingMode(bytes.length);
+                try (java.io.OutputStream out = c.getOutputStream()) { out.write(bytes); }
+            }
+            int status = c.getResponseCode();
+            String text = "";
+            try (InputStream in = status < 400 ? c.getInputStream() : c.getErrorStream()) {
+                if (in != null) {
+                    java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+                    byte[] buffer = new byte[4096]; int n;
+                    while ((n = in.read(buffer)) != -1 && out.size() < 65536) out.write(buffer, 0, n);
+                    text = new String(out.toByteArray(), StandardCharsets.UTF_8);
+                }
+            }
+            if (status < 200 || status >= 300) throw new IOException("PROXY_CONTROLLER_HTTP_" + status);
+            return text.trim().startsWith("{") ? new JSONObject(text) : new JSONObject();
+        } finally { c.disconnect(); }
+    }
+
+    @Override public String selected(String secret) {
+        try { return controller(secret, "GET", "/proxies/" + ProxyConfig.GROUP, null, 3000).optString("now"); }
+        catch (Exception unavailable) { return ""; }
+    }
+
+    @Override public void select(String secret, String node) throws Exception {
+        controller(secret, "PUT", "/proxies/" + ProxyConfig.GROUP, new JSONObject().put("name", node).toString(), 3000);
+    }
+
+    @Override public int delay(String secret, String node) {
+        try {
+            String encoded = java.net.URLEncoder.encode(node, "UTF-8").replace("+", "%20");
+            JSONObject reply = controller(secret, "GET", "/proxies/" + encoded + "/delay?timeout=5000&url="
+                    + java.net.URLEncoder.encode("http://cp.cloudflare.com/generate_204", "UTF-8"), null, 8000);
+            int delay = reply.optInt("delay", -1);
+            return delay > 0 ? delay : -1;
+        } catch (Exception unreachable) { return -1; }
+    }
+
+    /** `/connections`：累计上传/下载字节与活动连接；只取三个数，连接明细不出核心。 */
+    @Override public JSONObject traffic(String secret) {
+        try {
+            JSONObject reply = controller(secret, "GET", "/connections", null, 3000);
+            org.json.JSONArray connections = reply.optJSONArray("connections");
+            return new JSONObject().put("upload_bytes", reply.optLong("uploadTotal")).put("download_bytes", reply.optLong("downloadTotal"))
+                    .put("connections", connections == null ? 0 : connections.length());
+        } catch (Exception unavailable) { return new JSONObject(); }
+    }
+
+    // ---- 按 uid 的策略路由：这颗内核不认 sing-tun 下的 uid 规则，核心自己用 ip 下 ----
+
+    static final String TUN_INTERFACE = "Meta";
+    static final int ROUTE_TABLE = 2022, RULE_PRIORITY = 9000;
+
+    private static int shell(String command) throws Exception {
+        Process process = new ProcessBuilder("/system/bin/sh", "-c", command + " >/dev/null 2>&1").start();
+        return waitFor(process, 10000);
+    }
+
+    @Override public synchronized void routes(java.util.List<Integer> uids) throws Exception {
+        // 先撤干净再下：同一优先级可能残留上次的规则；按优先级逐条删直到删不动。
+        for (int n = 0; n < 128 && shell("ip rule del prio " + RULE_PRIORITY) == 0; n++) { /* 逐条删 */ }
+        shell("ip route flush table " + ROUTE_TABLE);
+        if (uids.isEmpty()) return;
+        long deadline = System.currentTimeMillis() + 5000;
+        while (!new File("/sys/class/net/" + TUN_INTERFACE).isDirectory()) {
+            if (System.currentTimeMillis() >= deadline) throw new IOException("PROXY_TUN_MISSING");
+            Thread.sleep(200);
+        }
+        if (shell("ip route replace default dev " + TUN_INTERFACE + " table " + ROUTE_TABLE) != 0) throw new IOException("PROXY_ROUTE_TABLE");
+        for (int uid : uids) {
+            if (uid < 10000) throw new IOException("PROXY_ROUTE_UID_INVALID");
+            if (shell("ip rule add uidrange " + uid + "-" + uid + " lookup " + ROUTE_TABLE + " prio " + RULE_PRIORITY) != 0)
+                throw new IOException("PROXY_ROUTE_RULE");
+        }
+    }
+
+    /** `/data/system/packages.list` 每行「包名 uid …」；比 dumpsys 快，且不经 Binder。 */
+    @Override public java.util.Map<String, Integer> uids(java.util.List<String> packages) {
+        java.util.Map<String, Integer> result = new java.util.HashMap<>();
+        try {
+            for (String line : RescueFiles.read(new File("/data/system/packages.list"), 512 * 1024).split("\n")) {
+                String[] parts = line.trim().split(" ");
+                if (parts.length >= 2 && packages.contains(parts[0])) {
+                    try { result.put(parts[0], Integer.parseInt(parts[1])); } catch (NumberFormatException ignored) { }
+                }
+            }
+        } catch (Exception unavailable) { /* 读不到就当都没装，规则一条不下 */ }
+        return result;
+    }
+
     /** 直连管理服务器：拿到任何 HTTP 状态码都算通，证明 DNS、TCP、TLS 这条直连路径没被代理改坏。 */
     static boolean managementReachable() {
         try {

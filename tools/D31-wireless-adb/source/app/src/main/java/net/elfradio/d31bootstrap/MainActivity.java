@@ -44,18 +44,10 @@ public final class MainActivity extends Activity {
         shareLink.setOnClickListener(view -> DeviceShareLink.generate(this));
         content.addView(shareLink, new LinearLayout.LayoutParams(-1, -2));
 
-        // 代理模块：核心按需下载、可单独移除；四个操作都交给 root 核心执行，这里只发请求、显示结果。
-        LinearLayout proxyRow = new LinearLayout(this);
-        proxyRow.setOrientation(LinearLayout.HORIZONTAL);
-        String[][] proxyOps = {{ProxyLocal.OP_ENABLE, "代理：下载并启用"}, {ProxyLocal.OP_STOP, "代理：停用"},
-                {ProxyLocal.OP_REMOVE, "代理：移除"}, {ProxyLocal.OP_STATUS, "代理：状态"}};
-        for (String[] op : proxyOps) {
-            Button button = new Button(this);
-            button.setText(op[1]);
-            button.setOnClickListener(view -> DeviceProxy.request(this, op[0], op[1]));
-            proxyRow.addView(button, new LinearLayout.LayoutParams(0, -2, 1f));
-        }
-        content.addView(proxyRow, new LinearLayout.LayoutParams(-1, -2));
+        Button proxy = new Button(this);
+        proxy.setText("代理客户端（节点、订阅、连接开关）");
+        proxy.setOnClickListener(view -> startActivity(new android.content.Intent(this, ProxyActivity.class)));
+        content.addView(proxy, new LinearLayout.LayoutParams(-1, -2));
 
         Button recovery = new Button(this);
         recovery.setText("开始本地急救（开机卡顿与无线ADB）");

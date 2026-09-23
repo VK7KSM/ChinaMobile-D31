@@ -14,7 +14,8 @@ import org.json.JSONObject;
  */
 final class ProxyTasks {
     static final String CONFIGURE = "configure_proxy", START = "start_proxy", STOP = "stop_proxy",
-            TEST = "test_proxy", REMOVE = "remove_proxy";
+            TEST = "test_proxy", REMOVE = "remove_proxy", SELECT = "select_proxy_node", APPS = "set_proxy_apps";
+    static final int MAX_APPS = 64;
     static final long RETRY_BASE_MS = 30000, RETRY_MAX_MS = 300000, RETENTION_MS = 7L * 24 * 3600 * 1000;
     static final int MAX_JOURNAL = 256;
 
@@ -25,6 +26,10 @@ final class ProxyTasks {
         JSONObject test() throws Exception;
         JSONObject remove() throws Exception;
         JSONObject status() throws Exception;
+        /** 选节点（`AUTO` 或节点名），返回控制口确认后的当前选择；核心没在跑就记下、下次启动生效。 */
+        String selectNode(String name) throws Exception;
+        /** 分流名单（包名），返回设备实际保存的名单（管理程序已剔除）。 */
+        org.json.JSONArray setApps(java.util.List<String> packages) throws Exception;
     }
     /** 发一条回执，返回服务端回读的任务状态。 */
     interface Progress { String send(JSONObject receipt) throws Exception; }
@@ -48,7 +53,8 @@ final class ProxyTasks {
     }
 
     static boolean supports(String type) {
-        return CONFIGURE.equals(type) || START.equals(type) || STOP.equals(type) || TEST.equals(type) || REMOVE.equals(type);
+        return CONFIGURE.equals(type) || START.equals(type) || STOP.equals(type) || TEST.equals(type) || REMOVE.equals(type)
+                || SELECT.equals(type) || APPS.equals(type);
     }
 
     /** 与 Pixel 网关同一份合同：编号形状、期限、类型、参数只在配置任务上出现。 */
@@ -70,6 +76,17 @@ final class ProxyTasks {
             if (!url.contains("/proxy-config/" + id + "?")) throw new IOException("PROXY_TASK_URL_ID_MISMATCH");
             if (params.optLong("size") < 2 || params.optLong("size") > ProxyRuntime.MAX_CONFIG_BYTES
                     || !params.optString("sha256").matches("[0-9a-f]{64}")) throw new IOException("PROXY_TASK_PARAMS_INVALID");
+        } else if (SELECT.equals(type)) {
+            if (params == null || params.length() != 1 || !params.optString("name").matches("[^\\x00-\\x1f]{1,64}"))
+                throw new IOException("PROXY_TASK_PARAMS_INVALID");
+        } else if (APPS.equals(type)) {
+            org.json.JSONArray apps = params == null ? null : params.optJSONArray("apps");
+            if (params == null || params.length() != 1 || apps == null || apps.length() > MAX_APPS) throw new IOException("PROXY_TASK_PARAMS_INVALID");
+            for (int i = 0; i < apps.length(); i++) {
+                String app = apps.optString(i);
+                // 管理程序自己永不进名单：服务端对下发也拒整条任务，两侧同一判据（只是这一个包，不是整个命名空间）。
+                if (!app.matches("[A-Za-z0-9_.]{1,128}") || ProxyRuntime.management(app)) throw new IOException("PROXY_TASK_APP_INVALID");
+            }
         } else if (params != null && params.length() != 0) throw new IOException("PROXY_TASK_PARAMS_UNEXPECTED");
         return task;
     }
@@ -156,12 +173,22 @@ final class ProxyTasks {
         worker = new Thread(() -> {
             JSONObject result = new JSONObject();
             try {
-                JSONObject status = CONFIGURE.equals(type) ? runtime.configure(params)
+                JSONObject status; Object readback = null;
+                if (SELECT.equals(type)) { readback = runtime.selectNode(params.getString("name")); status = runtime.status(); }
+                else if (APPS.equals(type)) {
+                    java.util.List<String> apps = new java.util.ArrayList<>();
+                    org.json.JSONArray given = params.getJSONArray("apps");
+                    for (int i = 0; i < given.length(); i++) apps.add(given.getString(i));
+                    readback = runtime.setApps(apps); status = runtime.status();
+                } else status = CONFIGURE.equals(type) ? runtime.configure(params)
                         : START.equals(type) ? runtime.start() : STOP.equals(type) ? runtime.stop()
                         : TEST.equals(type) ? runtime.test() : runtime.remove();
                 boolean ok = TEST.equals(type) ? status.optBoolean("proxy_reachable") : true;
-                result.put("ok", ok).put("detail", ok ? "代理任务已完成" : "代理路径检测未通过")
-                        .put("result", envelope(type, status));
+                JSONObject envelope = envelope(type, status);
+                // 切换与名单的回执必须带设备回读的实际值，服务端据此回填面板；其它类型回执恰好三个键。
+                if (SELECT.equals(type)) envelope.put("selected", readback);
+                if (APPS.equals(type)) envelope.put("apps", readback);
+                result.put("ok", ok).put("detail", ok ? "代理任务已完成" : "代理路径检测未通过").put("result", envelope);
             } catch (Exception failure) {
                 JSONObject status = null;
                 try { status = runtime.status(); } catch (Exception unavailable) { /* 状态取不到就回空结果 */ }
