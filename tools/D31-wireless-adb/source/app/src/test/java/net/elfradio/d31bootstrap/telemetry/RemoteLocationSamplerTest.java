@@ -15,6 +15,11 @@ public class RemoteLocationSamplerTest {
         public long elapsedRealtimeNanos() { return elapsed; }
         void advance(long ms) { wall += ms; elapsed += ms * 1000000L; }
     }
+    private static void finish(RemoteLocationSampler sampler) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (sampler.isActive() && System.nanoTime() < deadline) Thread.sleep(5);
+        assertFalse("本轮应有界结束", sampler.isActive());
+    }
     private static String radio(Clock clock) throws Exception {
         return new JSONObject().put("sampled_at_ms", clock.wall - 1000).put("wifiAccessPoints", new JSONArray()
                 .put(new JSONObject().put("macAddress", "00:11:22:33:44:55").put("signalStrength", -45))
@@ -88,8 +93,8 @@ public class RemoteLocationSamplerTest {
                             .put("radioType", "lte").put("cellTowers", new JSONArray()
                                     .put(RemoteLocationRadio.tower("lte", 123, 10, 505, 2, -70))).toString());
             return new TelemetryCollector.LocationReading(null, "timeout", true);
-        }, clock, () -> { if (wakes.incrementAndGet() == 2) completed.countDown(); })) {
-            assertTrue(sampler.tick()); assertTrue(completed.await(2, TimeUnit.SECONDS));
+        }, clock, () -> { if (wakes.incrementAndGet() == 1) completed.countDown(); })) {
+            assertTrue(sampler.tick()); assertTrue(completed.await(2, TimeUnit.SECONDS)); finish(sampler);
             for (long age : new long[]{120001, 180000, 299999, 300000, 900000}) {
                 clock.advance(age - (clock.wall - sampledAt));
                 JSONObject report = new JSONObject().put("report_id", "media-" + age).put("gps", JSONObject.NULL);
@@ -100,7 +105,8 @@ public class RemoteLocationSamplerTest {
                 assertEquals(1, result.getJSONObject("radio").getJSONArray("cellTowers").length());
                 if (age < 300000) assertFalse(sampler.tick());
             }
-            assertEquals(2, reads.get()); assertEquals(2, wakes.get());
+            assertEquals(2, reads.get());
+            assertEquals("没有定位结果的一轮只唤醒一次", 1, wakes.get());
             clock.advance(1);
             assertTrue(sampler.merge(new JSONObject().put("gps", JSONObject.NULL)).isNull("radio"));
         }
@@ -115,7 +121,7 @@ public class RemoteLocationSamplerTest {
             observation.put("wifi_raw_count", 8).put("wifi_valid_count", 1).put("wifi_scan_result", "results_updated")
                     .put("wifi_scan_wait_ms", 2000).put("wifi_newest_age_ms", 1000);
             return new TelemetryCollector.LocationReading(null, "no_cached_location", true, observation.toString());
-        }, clock, () -> { if (wakes.incrementAndGet() == 2) done.countDown(); })) {
+        }, clock, () -> { if (wakes.incrementAndGet() == 1) done.countDown(); })) {
             sampler.tick(); assertTrue(done.await(2, TimeUnit.SECONDS));
             JSONObject status = sampler.snapshot().getJSONObject("radio");
             assertEquals(0, status.getInt("wifi_count")); assertEquals(1, status.getInt("wifi_valid_count"));
@@ -124,7 +130,7 @@ public class RemoteLocationSamplerTest {
             String frozen = status.toString();
             for (int i = 0; i < 100; i++) assertEquals(frozen, sampler.snapshot().getJSONObject("radio").toString());
             clock.advance(180000); assertFalse(sampler.tick()); assertEquals(frozen, sampler.snapshot().getJSONObject("radio").toString());
-            assertEquals(2, wakes.get()); clock.advance(720000);
+            assertEquals(1, wakes.get()); clock.advance(720000);
             assertEquals(1, sampler.snapshot().getJSONObject("radio").getInt("wifi_valid_count"));
             assertFalse(sampler.snapshot().getJSONObject("radio").getBoolean("usable"));
         }
@@ -164,6 +170,87 @@ public class RemoteLocationSamplerTest {
             assertEquals(0, expired.getJSONObject("radio").getInt("wifi_count"));
             assertEquals(sampledAt, expired.getJSONObject("radio").getLong("sampled_at_ms"));
             assertEquals(2, calls.get()); assertEquals(2, wakes.get());
+        }
+    }
+
+    private static JSONObject ap(String mac, int level) throws Exception {
+        return new JSONObject().put("macAddress", mac).put("signalStrength", level);
+    }
+
+    /** 无线快照按身份比较：时钟和信号在动，地方没动。 */
+    @Test public void samePlaceIgnoresTimestampAndSignalButNotTheAccessPointSetOrCell() throws Exception {
+        JSONObject base = new JSONObject().put("sampled_at_ms", 1800000000000L)
+                .put("wifiAccessPoints", new JSONArray().put(ap("00:11:22:33:44:01", -40))
+                        .put(ap("00:11:22:33:44:02", -50)).put(ap("00:11:22:33:44:03", -60)))
+                .put("cellTowers", new JSONArray());
+        JSONObject later = new JSONObject(base.toString()).put("sampled_at_ms", 1800000600000L);
+        later.getJSONArray("wifiAccessPoints").getJSONObject(0).put("signalStrength", -71);
+        assertTrue("时钟走动与信号抖动不是位移", RemoteLocationSampler.samePlace(base.toString(), later.toString()));
+
+        // validated() 按信号强度取前六个，边缘AP在第六第七名之间来回不代表设备动了。
+        JSONObject edge = new JSONObject(base.toString());
+        edge.getJSONArray("wifiAccessPoints").put(2, ap("00:11:22:33:44:09", -60));
+        assertTrue(RemoteLocationSampler.samePlace(base.toString(), edge.toString()));
+
+        // 整组BSSID换掉，或只剩一个重合，都算换了地方。
+        assertFalse(RemoteLocationSampler.samePlace(base.toString(), new JSONObject(base.toString())
+                .put("wifiAccessPoints", new JSONArray().put(ap("aa:bb:cc:dd:ee:01", -40))
+                        .put(ap("aa:bb:cc:dd:ee:02", -50))).toString()));
+        assertFalse(RemoteLocationSampler.samePlace(base.toString(), new JSONObject(base.toString())
+                .put("wifiAccessPoints", new JSONArray().put(ap("00:11:22:33:44:01", -40))
+                        .put(ap("aa:bb:cc:dd:ee:02", -50))).toString()));
+
+        // Wi-Fi不变但基站变了，同样算换了地方。
+        JSONObject cellA = new JSONObject(base.toString()).put("radioType", "lte")
+                .put("cellTowers", new JSONArray().put(RemoteLocationRadio.tower("lte", 123, 10, 505, 2, -70)));
+        JSONObject cellB = new JSONObject(base.toString()).put("radioType", "lte")
+                .put("cellTowers", new JSONArray().put(RemoteLocationRadio.tower("lte", 456, 10, 505, 2, -70)));
+        assertFalse(RemoteLocationSampler.samePlace(cellA.toString(), cellB.toString()));
+        assertFalse(RemoteLocationSampler.samePlace(cellA.toString(), base.toString()));
+        assertTrue(RemoteLocationSampler.samePlace(cellA.toString(),
+                new JSONObject(cellA.toString()).put("sampled_at_ms", 1800000600000L).toString()));
+
+        assertFalse("第一份观测必须上报", RemoteLocationSampler.samePlace(null, base.toString()));
+        assertFalse(RemoteLocationSampler.samePlace(base.toString(), null));
+        assertTrue(RemoteLocationSampler.samePlace(null, null));
+        assertFalse("读不出来的快照按变化处理", RemoteLocationSampler.samePlace(base.toString(), "not json"));
+    }
+
+    /** 桌机一直摆在原处：反复采样不得把十五分钟的报告节奏压成每轮一次。 */
+    @Test(timeout = 10000) public void stationaryRoundsWakeOnlyOnceNoMatterHowOftenTheyResample() throws Exception {
+        Clock clock = new Clock(); AtomicInteger wakes = new AtomicInteger(), rounds = new AtomicInteger();
+        try (RemoteLocationSampler sampler = new RemoteLocationSampler((window, includeRadio) -> {
+            if (!includeRadio) return new TelemetryCollector.LocationReading(null, "timeout", true);
+            JSONObject observation = new JSONObject(radio(clock));
+            int round = rounds.incrementAndGet();
+            JSONArray points = observation.getJSONArray("wifiAccessPoints");
+            for (int i = 0; i < points.length(); i++) points.getJSONObject(i).put("signalStrength", -45 - i - round % 5);
+            return new TelemetryCollector.LocationReading(null, "no_cached_location", true, observation.toString());
+        }, clock, wakes::incrementAndGet)) {
+            for (int round = 0; round < 12; round++) {
+                assertTrue(sampler.tick()); finish(sampler);
+                clock.advance(RemoteLocationSampler.INTERVAL_MS);
+            }
+            assertEquals(12, rounds.get());
+            assertEquals("静止设备只在第一份观测时唤醒一次", 1, wakes.get());
+        }
+    }
+
+    /** 真换了地方仍要立刻上报，不能等下一次常规报告。 */
+    @Test(timeout = 10000) public void movingToANewAccessPointSetWakesWithoutWaitingForTheNextReport() throws Exception {
+        Clock clock = new Clock(); AtomicInteger wakes = new AtomicInteger(), rounds = new AtomicInteger();
+        try (RemoteLocationSampler sampler = new RemoteLocationSampler((window, includeRadio) -> {
+            if (!includeRadio) return new TelemetryCollector.LocationReading(null, "timeout", true);
+            JSONObject observation = new JSONObject(radio(clock));
+            if (rounds.incrementAndGet() >= 3) observation.put("wifiAccessPoints", new JSONArray()
+                    .put(ap("aa:bb:cc:dd:ee:01", -42)).put(ap("aa:bb:cc:dd:ee:02", -52)));
+            return new TelemetryCollector.LocationReading(null, "no_cached_location", true, observation.toString());
+        }, clock, wakes::incrementAndGet)) {
+            for (int round = 0; round < 4; round++) {
+                assertTrue(sampler.tick()); finish(sampler);
+                assertEquals("第三轮换了整组AP才该再唤醒一次", round < 2 ? 1 : 2, wakes.get());
+                clock.advance(RemoteLocationSampler.INTERVAL_MS);
+            }
         }
     }
 }

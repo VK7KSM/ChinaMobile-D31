@@ -1922,8 +1922,8 @@
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationSampler.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationSampler.java",
-    "字节数": 17667,
-    "SHA256": "7939BC2015DF630D783324BF5EDF19ECEE9813D6F8CA2510E71879D1D8C81110"
+    "字节数": 20778,
+    "SHA256": "1DDC0A11696E37957B4300C58F24CB0BE8BCF215F44737972356F01ED1BDC22C"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationWifi.java",
@@ -3320,8 +3320,8 @@
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationCacheRecheckTest.java",
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationCacheRecheckTest.java",
-    "字节数": 28796,
-    "SHA256": "EBF7DD74537261AC6B6CEEB20CB37F10D81CE948919F5762407134E27C8FE384"
+    "字节数": 29103,
+    "SHA256": "B764198AE153E074DE9F620150A15AF3FAE14A76F17ECA05F0DF63DD43C08C93"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationRadioTest.java",
@@ -3332,8 +3332,8 @@
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationSamplerTest.java",
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationSamplerTest.java",
-    "字节数": 12411,
-    "SHA256": "2473DC24626E4D0BE140EA1CC6A441B6E2B47A9AA5B0940408D48425C23581C9"
+    "字节数": 18547,
+    "SHA256": "E3B64BA84A7138E0A0EC81E2176924F4382D6670DE0668F7854183485ADBF20C"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationWifiTest.java",

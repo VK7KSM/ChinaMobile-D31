@@ -92,7 +92,7 @@ public class RemoteLocationCacheRecheckTest {
             assertEquals("lte", after.getJSONObject("radio").getString("radioType"));
             assertEquals("passive_cache", after.getJSONObject("radio").getString("wifi_scan_result"));
             assertEquals(1, s.starts); assertEquals(4, s.sleeps); assertEquals(1, s.cacheReads); assertEquals(2, s.reads);
-            assertEquals(3, wakes.get()); assertFalse(sampler.tick());
+            assertEquals("基站、GPS、迟到Wi-Fi各是一次真结果", 3, wakes.get()); assertFalse(sampler.tick());
             String status = sampler.snapshot().getJSONObject("radio_cache_recheck").toString();
             assertFalse(status.contains("macAddress")); assertFalse(status.contains("00:11"));
             for (int i = 0; i < 100; i++) sampler.merge(after);
@@ -193,7 +193,7 @@ public class RemoteLocationCacheRecheckTest {
             sampler.tick(); finish(sampler);
             assertEquals("timeout", sampler.snapshot().getString("location_reason"));
             assertEquals(6, sampler.snapshot().getJSONObject("radio").getInt("wifi_count"));
-            assertEquals(3, wakes.get()); assertEquals(1, s.starts); assertEquals(1, s.cacheReads);
+            assertEquals("timeout不再空唤醒，只剩基站与迟到Wi-Fi两次", 2, wakes.get()); assertEquals(1, s.starts); assertEquals(1, s.cacheReads);
         }
     }
     @Test(timeout = 8000) public void unsuccessfulPassiveReadDoesNotEraseCellOrGpsOutcome() throws Exception {
@@ -384,6 +384,8 @@ public class RemoteLocationCacheRecheckTest {
                 return super.readCachedRadio();
             }
         };
+        // 第二次唤醒现在只在真拿到定位结果时发生；本测试验证的是迟到扫描不阻塞业务读取，与定位成败无关。
+        s.gpsFix = true;
         s.gpsMs = 0; s.gpsRelease.countDown(); CountDownLatch gpsWake = new CountDownLatch(1); AtomicInteger wakes = new AtomicInteger();
         try (RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock, () -> { if (wakes.incrementAndGet() == 2) gpsWake.countDown(); })) {
             sampler.tick(); assertTrue(gpsWake.await(2, TimeUnit.SECONDS));
@@ -407,7 +409,7 @@ public class RemoteLocationCacheRecheckTest {
         }
     }
     @Test(timeout = 8000) public void closeDuringGracePeriodCancelsDeferredRead() throws Exception {
-        Scenario s = new Scenario(); s.gpsMs = 0; s.gpsRelease.countDown();
+        Scenario s = new Scenario(); s.gpsFix = true; s.gpsMs = 0; s.gpsRelease.countDown();
         CountDownLatch gpsDone = new CountDownLatch(1); AtomicInteger wakes = new AtomicInteger();
         RemoteLocationSampler sampler = new RemoteLocationSampler(s, s.clock, () -> { if (wakes.incrementAndGet() == 2) gpsDone.countDown(); });
         try {

@@ -1,8 +1,12 @@
 package net.elfradio.d31bootstrap.telemetry;
 
 import android.content.Context;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /** 单轮无线观测和主动定位在独立线程运行；tick和报告合并不调用框架服务。 */
@@ -114,7 +118,7 @@ public final class RemoteLocationSampler implements AutoCloseable {
                 // 只提交本轮已准入的原观测；失败或时钟失稳不能让上一轮Wi-Fi无限续留。
                 JSONObject fallback = reportRadio(pendingRadio, pendingRadioWall, pendingRadioElapsed);
                 String next = fallback == null ? null : fallback.toString();
-                notify = !java.util.Objects.equals(radio, next);
+                notify = !samePlace(radio, next);
                 radio = next; radioWall = pendingRadioWall; radioElapsed = pendingRadioElapsed;
                 holdingRadio = false; pendingRadio = null;
             }
@@ -173,7 +177,7 @@ public final class RemoteLocationSampler implements AutoCloseable {
             if (latest != null && TelemetryCollector.invalidFix(latest.fix, limits, clock) == null
                     && (TelemetryCollector.invalidFix(reading.fix, limits, clock) != null
                     || ("gps".equals(latest.fix.provider) && !"gps".equals(reading.fix.provider)))) chosen = latest;
-            notify = latest == null || !same(latest, chosen);
+            notify = fixChanged(latest, chosen);
             latest = chosen;
             if (reading.radio != null) {
                 try {
@@ -204,7 +208,7 @@ public final class RemoteLocationSampler implements AutoCloseable {
                             }
                         }
                         String validated = observed.toString();
-                        notify |= !validated.equals(radio);
+                        notify |= !samePlace(radio, validated);
                         radio = validated; radioWall = nowWall; radioElapsed = nowElapsed;
                         holdingRadio = false; pendingRadio = null;
                     }
@@ -218,6 +222,63 @@ public final class RemoteLocationSampler implements AutoCloseable {
         if (notify && !isClosed()) {
             try { changed.run(); } catch (RuntimeException unavailable) { /* 唤醒失败不能泄漏定位服务。 */ }
         }
+    }
+
+    /**
+     * 只有真出现或真改变了定位结果才值得提前上报。
+     * 两次都没有定位结果时，reason 从 no_cached_location 变成 timeout 只是同一轮采样推进到下一阶段，
+     * 没有任何新的位置信息。旧实现把它当成变化，于是每轮采样都额外触发一次完整报告。
+     */
+    private static boolean fixChanged(TelemetryCollector.LocationReading previous, TelemetryCollector.LocationReading current) {
+        if (current == null) return false;
+        if (previous == null) return current.fix != null;
+        if (previous.fix == null && current.fix == null) return false;
+        return !same(previous, current);
+    }
+
+    /**
+     * 两次无线观测是否指向同一个地方。本机没有可用GPS时，这份快照就是位置本身，
+     * 所以它变了才值得提前上报；没变就等十五分钟的常规报告。
+     *
+     * 刻意不比较 sampled_at_ms 与 signalStrength：时钟走动和信号抖动不是位移。
+     * 旧实现逐字比较整份JSON，而里面就含本次采样时间戳，于是每轮必然判成「变了」。
+     *
+     * Wi-Fi 只看BSSID集合，并且允许边缘AP进出——validated()按信号强度取前六个，
+     * 弱AP在第六与第七名之间来回不代表设备动了；真正离开时整组BSSID会一起换掉。
+     */
+    static boolean samePlace(String previous, String current) {
+        if (previous == null || current == null) return previous == null && current == null;
+        try {
+            JSONObject a = new JSONObject(previous), b = new JSONObject(current);
+            if (!cellKeys(a).equals(cellKeys(b))) return false;
+            Set<String> wifiA = wifiKeys(a), wifiB = wifiKeys(b);
+            if (wifiA.isEmpty() || wifiB.isEmpty()) return wifiA.equals(wifiB);
+            Set<String> shared = new HashSet<String>(wifiA);
+            shared.retainAll(wifiB);
+            return shared.size() >= 2;
+        } catch (Exception unreadable) { return false; }
+    }
+
+    private static Set<String> wifiKeys(JSONObject observed) {
+        Set<String> keys = new TreeSet<String>();
+        JSONArray rows = observed.optJSONArray("wifiAccessPoints");
+        for (int i = 0; rows != null && i < rows.length(); i++) {
+            JSONObject row = rows.optJSONObject(i);
+            if (row != null) keys.add(row.optString("macAddress"));
+        }
+        return keys;
+    }
+
+    private static Set<String> cellKeys(JSONObject observed) {
+        Set<String> keys = new TreeSet<String>();
+        JSONArray rows = observed.optJSONArray("cellTowers");
+        for (int i = 0; rows != null && i < rows.length(); i++) {
+            JSONObject row = rows.optJSONObject(i);
+            if (row == null) continue;
+            keys.add(observed.optString("radioType") + ":" + row.optInt("mobileCountryCode") + ":"
+                    + row.optInt("mobileNetworkCode") + ":" + row.optInt("locationAreaCode") + ":" + row.optInt("cellId"));
+        }
+        return keys;
     }
 
     private static boolean same(TelemetryCollector.LocationReading a, TelemetryCollector.LocationReading b) {
