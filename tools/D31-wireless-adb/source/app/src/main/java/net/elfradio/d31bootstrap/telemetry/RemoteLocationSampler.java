@@ -252,7 +252,11 @@ public final class RemoteLocationSampler implements AutoCloseable {
             JSONObject a = new JSONObject(previous), b = new JSONObject(current);
             if (!cellKeys(a).equals(cellKeys(b))) return false;
             Set<String> wifiA = wifiKeys(a), wifiB = wifiKeys(b);
-            if (wifiA.isEmpty() || wifiB.isEmpty()) return wifiA.equals(wifiB);
+            if (wifiA.equals(wifiB)) return true;
+            if (wifiA.isEmpty() || wifiB.isEmpty()) return false;
+            // 「重合两个以上」这条只在集合本来就有两个以上时才讲得通。今天 validated() 少于两个AP
+            // 就整组丢弃，所以到这里不会只有一个；但那是另一个类里的一行，改了这里会静默退回
+            // 「每轮都判成换了地方」。上面那句完全相同即同地点，把这条正确性钉在本方法内。
             Set<String> shared = new HashSet<String>(wifiA);
             shared.retainAll(wifiB);
             return shared.size() >= 2;

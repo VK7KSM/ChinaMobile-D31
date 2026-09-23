@@ -210,6 +210,15 @@ public class RemoteLocationSamplerTest {
         assertTrue(RemoteLocationSampler.samePlace(cellA.toString(),
                 new JSONObject(cellA.toString()).put("sampled_at_ms", 1800000600000L).toString()));
 
+        // 集合完全相同就是同一地点，不依赖 validated() 的「少于两个AP整组丢弃」那条规则。
+        // 若哪天它改成允许单个AP，「重合两个以上」会把相同的单AP判成换了地方，退回每轮上报。
+        JSONObject single = new JSONObject(base.toString())
+                .put("wifiAccessPoints", new JSONArray().put(ap("00:11:22:33:44:01", -40)));
+        assertTrue("同一个AP不算换地方", RemoteLocationSampler.samePlace(single.toString(),
+                new JSONObject(single.toString()).put("sampled_at_ms", 1800000600000L).toString()));
+        assertFalse(RemoteLocationSampler.samePlace(single.toString(), new JSONObject(base.toString())
+                .put("wifiAccessPoints", new JSONArray().put(ap("aa:bb:cc:dd:ee:01", -40))).toString()));
+
         assertFalse("第一份观测必须上报", RemoteLocationSampler.samePlace(null, base.toString()));
         assertFalse(RemoteLocationSampler.samePlace(base.toString(), null));
         assertTrue(RemoteLocationSampler.samePlace(null, null));
