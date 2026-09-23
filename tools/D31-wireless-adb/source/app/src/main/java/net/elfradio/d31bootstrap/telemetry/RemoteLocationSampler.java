@@ -1,15 +1,17 @@
 package net.elfradio.d31bootstrap.telemetry;
 
 import android.content.Context;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import org.json.JSONArray;
 import org.json.JSONObject;
 
-/** 单轮无线观测和主动定位在独立线程运行；tick和报告合并不调用框架服务。 */
+/**
+ * 单轮无线观测和主动定位在独立线程运行；tick和报告合并不调用框架服务。
+ *
+ * 采样结果只等下一次常规报告带出去，不因为位置变了就提前上报。D31 没有可用的 GPS，
+ * 也没有陀螺仪，位置全部来自 Wi-Fi 与基站，本身就在十几米到公里量级漂移；
+ * 拿这种数据判断「设备动了」只会把漂移当成位移。位置在 D31 上仅供参考。
+ */
 public final class RemoteLocationSampler implements AutoCloseable {
     public static final long INTERVAL_MS = 300000, GPS_WINDOW_MS = 45000, FIX_AGE_MS = 300000;
     public interface Source {
@@ -18,7 +20,6 @@ public final class RemoteLocationSampler implements AutoCloseable {
     }
     private final Source source;
     private final TelemetryCollector.Clock clock;
-    private final Runnable changed;
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
         Thread thread = new Thread(r, "d31-location-sampler"); thread.setDaemon(true); return thread;
     });
@@ -32,7 +33,7 @@ public final class RemoteLocationSampler implements AutoCloseable {
     private String pendingRadio;
     private long pendingRadioWall, pendingRadioElapsed;
 
-    public RemoteLocationSampler(Context context, Runnable changed) {
+    public RemoteLocationSampler(Context context) {
         this(new Source() {
             public TelemetryCollector.LocationReading read(long window, boolean includeRadio) throws Exception {
                 return new AndroidTelemetryAccess(context, includeRadio).location(
@@ -42,15 +43,15 @@ public final class RemoteLocationSampler implements AutoCloseable {
                 return AppLocationCache.read(context, new TelemetryCollector.Limits(0, FIX_AGE_MS),
                         AndroidTelemetryAccess.clock(), true, false);
             }
-        }, AndroidTelemetryAccess.clock(), changed);
+        }, AndroidTelemetryAccess.clock());
     }
 
-    public RemoteLocationSampler(Source source, TelemetryCollector.Clock clock, Runnable changed) {
-        if (source == null || clock == null || changed == null) throw new IllegalArgumentException("MISSING_LOCATION_DEPENDENCY");
-        this.source = source; this.clock = clock; this.changed = changed;
+    public RemoteLocationSampler(Source source, TelemetryCollector.Clock clock) {
+        if (source == null || clock == null) throw new IllegalArgumentException("MISSING_LOCATION_DEPENDENCY");
+        this.source = source; this.clock = clock;
     }
 
-    /** 可每次核心tick调用。只投递一次任务；重报或唤醒不重置节流时间。 */
+    /** 可每次核心tick调用。只投递一次任务；重报不重置节流时间。 */
     public synchronized boolean tick() {
         if (closed || active || clock.elapsedRealtimeNanos() < nextNanos) return false;
         active = true;
@@ -111,19 +112,14 @@ public final class RemoteLocationSampler implements AutoCloseable {
         catch (Exception invalid) { return null; }
     }
 
-    private void finishRadioRound() {
-        boolean notify = false;
-        synchronized (this) {
-            if (holdingRadio) {
-                // 只提交本轮已准入的原观测；失败或时钟失稳不能让上一轮Wi-Fi无限续留。
-                JSONObject fallback = reportRadio(pendingRadio, pendingRadioWall, pendingRadioElapsed);
-                String next = fallback == null ? null : fallback.toString();
-                notify = !samePlace(radio, next);
-                radio = next; radioWall = pendingRadioWall; radioElapsed = pendingRadioElapsed;
-                holdingRadio = false; pendingRadio = null;
-            }
+    private synchronized void finishRadioRound() {
+        if (holdingRadio) {
+            // 只提交本轮已准入的原观测；失败或时钟失稳不能让上一轮Wi-Fi无限续留。
+            JSONObject fallback = reportRadio(pendingRadio, pendingRadioWall, pendingRadioElapsed);
+            radio = fallback == null ? null : fallback.toString();
+            radioWall = pendingRadioWall; radioElapsed = pendingRadioElapsed;
+            holdingRadio = false; pendingRadio = null;
         }
-        notifyChanged(notify);
     }
 
     private void recheckCachedRadio() throws InterruptedException {
@@ -168,131 +164,47 @@ public final class RemoteLocationSampler implements AutoCloseable {
         publish(reading, false);
     }
 
-    private void publish(TelemetryCollector.LocationReading reading, boolean radioOnly) {
-        boolean notify;
-        synchronized (this) {
-            if (closed || reading == null) return;
-            TelemetryCollector.Limits limits = new TelemetryCollector.Limits(0, FIX_AGE_MS);
-            TelemetryCollector.LocationReading chosen = radioOnly && latest != null ? latest : reading;
-            if (latest != null && TelemetryCollector.invalidFix(latest.fix, limits, clock) == null
-                    && (TelemetryCollector.invalidFix(reading.fix, limits, clock) != null
-                    || ("gps".equals(latest.fix.provider) && !"gps".equals(reading.fix.provider)))) chosen = latest;
-            notify = fixChanged(latest, chosen);
-            latest = chosen;
-            if (reading.radio != null) {
-                try {
-                    long nowWall = clock.wallTimeMillis(), nowElapsed = clock.elapsedRealtimeNanos();
-                    JSONObject observed = RemoteLocationRadio.validated(new JSONObject(reading.radio), nowWall);
-                    if (holdingRadio && !radioOnly && observed.getJSONArray("wifiAccessPoints").length() < 2
-                            && !"wifi_disabled".equals(observed.optString("wifi_reason"))
-                            && !"wifi_disabled".equals(observed.optString("wifi_scan_result"))
-                            && reportRadio(radio, radioWall, radioElapsed) != null) {
-                        pendingRadio = observed.toString(); pendingRadioWall = nowWall; pendingRadioElapsed = nowElapsed;
-                    } else {
-                        String previousRadio = holdingRadio ? pendingRadio : radio;
-                        long previousWall = holdingRadio ? pendingRadioWall : radioWall;
-                        long previousElapsed = holdingRadio ? pendingRadioElapsed : radioElapsed;
-                        if (radioOnly && previousRadio != null && observed.getJSONArray("cellTowers").length() == 0) {
-                            long elapsed = nowElapsed - previousElapsed, wall = nowWall - previousWall;
-                            if (elapsed >= 0 && wall >= 0 && Math.abs(wall - elapsed / 1000000L) <= 1000) {
-                                try {
-                                    // 旧小区重新经过120秒准入，不能借十五分钟报告有效期变成新观测。
-                                    JSONObject previous = RemoteLocationRadio.validated(new JSONObject(previousRadio), nowWall);
-                                    if (previous.getJSONArray("cellTowers").length() > 0) {
-                                        observed.put("cellTowers", previous.getJSONArray("cellTowers"))
-                                                .put("radioType", previous.getString("radioType"))
-                                                .put("cell_reason", previous.optString("cell_reason", "observed"))
-                                                .put("sampled_at_ms", Math.min(observed.getLong("sampled_at_ms"), previous.getLong("sampled_at_ms")));
-                                    }
-                                } catch (Exception rejectedOldCells) { /* 旧观测无效不影响已验证的新Wi-Fi。 */ }
-                            }
+    private synchronized void publish(TelemetryCollector.LocationReading reading, boolean radioOnly) {
+        if (closed || reading == null) return;
+        TelemetryCollector.Limits limits = new TelemetryCollector.Limits(0, FIX_AGE_MS);
+        TelemetryCollector.LocationReading chosen = radioOnly && latest != null ? latest : reading;
+        if (latest != null && TelemetryCollector.invalidFix(latest.fix, limits, clock) == null
+                && (TelemetryCollector.invalidFix(reading.fix, limits, clock) != null
+                || ("gps".equals(latest.fix.provider) && !"gps".equals(reading.fix.provider)))) chosen = latest;
+        latest = chosen;
+        if (reading.radio != null) {
+            try {
+                long nowWall = clock.wallTimeMillis(), nowElapsed = clock.elapsedRealtimeNanos();
+                JSONObject observed = RemoteLocationRadio.validated(new JSONObject(reading.radio), nowWall);
+                if (holdingRadio && !radioOnly && observed.getJSONArray("wifiAccessPoints").length() < 2
+                        && !"wifi_disabled".equals(observed.optString("wifi_reason"))
+                        && !"wifi_disabled".equals(observed.optString("wifi_scan_result"))
+                        && reportRadio(radio, radioWall, radioElapsed) != null) {
+                    pendingRadio = observed.toString(); pendingRadioWall = nowWall; pendingRadioElapsed = nowElapsed;
+                } else {
+                    String previousRadio = holdingRadio ? pendingRadio : radio;
+                    long previousWall = holdingRadio ? pendingRadioWall : radioWall;
+                    long previousElapsed = holdingRadio ? pendingRadioElapsed : radioElapsed;
+                    if (radioOnly && previousRadio != null && observed.getJSONArray("cellTowers").length() == 0) {
+                        long elapsed = nowElapsed - previousElapsed, wall = nowWall - previousWall;
+                        if (elapsed >= 0 && wall >= 0 && Math.abs(wall - elapsed / 1000000L) <= 1000) {
+                            try {
+                                // 旧小区重新经过120秒准入，不能借十五分钟报告有效期变成新观测。
+                                JSONObject previous = RemoteLocationRadio.validated(new JSONObject(previousRadio), nowWall);
+                                if (previous.getJSONArray("cellTowers").length() > 0) {
+                                    observed.put("cellTowers", previous.getJSONArray("cellTowers"))
+                                            .put("radioType", previous.getString("radioType"))
+                                            .put("cell_reason", previous.optString("cell_reason", "observed"))
+                                            .put("sampled_at_ms", Math.min(observed.getLong("sampled_at_ms"), previous.getLong("sampled_at_ms")));
+                                }
+                            } catch (Exception rejectedOldCells) { /* 旧观测无效不影响已验证的新Wi-Fi。 */ }
                         }
-                        String validated = observed.toString();
-                        notify |= !samePlace(radio, validated);
-                        radio = validated; radioWall = nowWall; radioElapsed = nowElapsed;
-                        holdingRadio = false; pendingRadio = null;
                     }
-                } catch (Exception rejected) { /* 无效无线数据不替代已有新鲜观测。 */ }
-            }
+                    radio = observed.toString(); radioWall = nowWall; radioElapsed = nowElapsed;
+                    holdingRadio = false; pendingRadio = null;
+                }
+            } catch (Exception rejected) { /* 无效无线数据不替代已有新鲜观测。 */ }
         }
-        notifyChanged(notify);
-    }
-
-    private void notifyChanged(boolean notify) {
-        if (notify && !isClosed()) {
-            try { changed.run(); } catch (RuntimeException unavailable) { /* 唤醒失败不能泄漏定位服务。 */ }
-        }
-    }
-
-    /**
-     * 只有真出现或真改变了定位结果才值得提前上报。
-     * 两次都没有定位结果时，reason 从 no_cached_location 变成 timeout 只是同一轮采样推进到下一阶段，
-     * 没有任何新的位置信息。旧实现把它当成变化，于是每轮采样都额外触发一次完整报告。
-     */
-    private static boolean fixChanged(TelemetryCollector.LocationReading previous, TelemetryCollector.LocationReading current) {
-        if (current == null) return false;
-        if (previous == null) return current.fix != null;
-        if (previous.fix == null && current.fix == null) return false;
-        return !same(previous, current);
-    }
-
-    /**
-     * 两次无线观测是否指向同一个地方。本机没有可用GPS时，这份快照就是位置本身，
-     * 所以它变了才值得提前上报；没变就等十五分钟的常规报告。
-     *
-     * 刻意不比较 sampled_at_ms 与 signalStrength：时钟走动和信号抖动不是位移。
-     * 旧实现逐字比较整份JSON，而里面就含本次采样时间戳，于是每轮必然判成「变了」。
-     *
-     * Wi-Fi 只看BSSID集合，并且允许边缘AP进出——validated()按信号强度取前六个，
-     * 弱AP在第六与第七名之间来回不代表设备动了；真正离开时整组BSSID会一起换掉。
-     */
-    static boolean samePlace(String previous, String current) {
-        if (previous == null || current == null) return previous == null && current == null;
-        try {
-            JSONObject a = new JSONObject(previous), b = new JSONObject(current);
-            if (!cellKeys(a).equals(cellKeys(b))) return false;
-            Set<String> wifiA = wifiKeys(a), wifiB = wifiKeys(b);
-            if (wifiA.equals(wifiB)) return true;
-            if (wifiA.isEmpty() || wifiB.isEmpty()) return false;
-            // 「重合两个以上」这条只在集合本来就有两个以上时才讲得通。今天 validated() 少于两个AP
-            // 就整组丢弃，所以到这里不会只有一个；但那是另一个类里的一行，改了这里会静默退回
-            // 「每轮都判成换了地方」。上面那句完全相同即同地点，把这条正确性钉在本方法内。
-            Set<String> shared = new HashSet<String>(wifiA);
-            shared.retainAll(wifiB);
-            return shared.size() >= 2;
-        } catch (Exception unreadable) { return false; }
-    }
-
-    private static Set<String> wifiKeys(JSONObject observed) {
-        Set<String> keys = new TreeSet<String>();
-        JSONArray rows = observed.optJSONArray("wifiAccessPoints");
-        for (int i = 0; rows != null && i < rows.length(); i++) {
-            JSONObject row = rows.optJSONObject(i);
-            if (row != null) keys.add(row.optString("macAddress"));
-        }
-        return keys;
-    }
-
-    private static Set<String> cellKeys(JSONObject observed) {
-        Set<String> keys = new TreeSet<String>();
-        JSONArray rows = observed.optJSONArray("cellTowers");
-        for (int i = 0; rows != null && i < rows.length(); i++) {
-            JSONObject row = rows.optJSONObject(i);
-            if (row == null) continue;
-            keys.add(observed.optString("radioType") + ":" + row.optInt("mobileCountryCode") + ":"
-                    + row.optInt("mobileNetworkCode") + ":" + row.optInt("locationAreaCode") + ":" + row.optInt("cellId"));
-        }
-        return keys;
-    }
-
-    private static boolean same(TelemetryCollector.LocationReading a, TelemetryCollector.LocationReading b) {
-        if (a == b) return true;
-        if (a.fix == null || b.fix == null) return a.fix == b.fix && a.reason.equals(b.reason)
-                && a.listenerReleased == b.listenerReleased;
-        return a.fix.sampledAtMs == b.fix.sampledAtMs && a.fix.elapsedNanos == b.fix.elapsedNanos
-                && a.fix.latitude == b.fix.latitude && a.fix.longitude == b.fix.longitude
-                && a.fix.provider.equals(b.fix.provider) && java.util.Objects.equals(a.fix.accuracyMetres, b.fix.accuracyMetres)
-                && a.fix.mock == b.fix.mock && a.listenerReleased == b.listenerReleased;
     }
 
     /** 仅合并新报告；调用方不得用此方法改写已冻结、待重传的报告。 */

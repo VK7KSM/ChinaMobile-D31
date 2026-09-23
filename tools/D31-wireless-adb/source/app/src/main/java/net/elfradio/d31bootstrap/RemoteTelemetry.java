@@ -22,9 +22,9 @@ final class RemoteTelemetry implements AutoCloseable {
     private TelemetryCollector.Sample latest;
     private RemoteLocationSampler location;
 
-    /** 初始化一次；回调由后台线程执行，主线应只置位并唤醒，不在回调内同步上报。 */
-    synchronized void enableLocation(android.content.Context context, Runnable wakeCallback) {
-        if (location == null) location = new RemoteLocationSampler(context, wakeCallback);
+    /** 初始化一次。采样结果只等下一次常规报告带出去，不回调、不提前唤醒上报。 */
+    synchronized void enableLocation(android.content.Context context) {
+        if (location == null) location = new RemoteLocationSampler(context);
     }
 
     synchronized void tickLocation() { if (location != null) location.tick(); }

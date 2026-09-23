@@ -404,8 +404,8 @@
   {
     "来源": "research/d31_adb_bootstrap/app/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/RemoteDaemon.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/RemoteDaemon.java",
-    "字节数": 41984,
-    "SHA256": "57920FB01FB9E7975554A8982FD7CE9A15DBE0041B204F551CD82AD27289DED2"
+    "字节数": 41962,
+    "SHA256": "3F277FA9830ED02AC38C6A7EA5AA28B8FCE697D00541DDFBC2E9606CC5F7759C"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/main/java/net/elfradio/d31bootstrap/RemoteDeployment.java",
@@ -698,8 +698,8 @@
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/RemoteTelemetry.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/RemoteTelemetry.java",
-    "字节数": 4170,
-    "SHA256": "6464824C739431E51C802E7E76BCAACA55FA34AE4F03E82CC98775ED2BC2A555"
+    "字节数": 4130,
+    "SHA256": "522408FB729067A30B0A4F11F597B0AAC1ACBA844EDC684E63A205ED577AEB30"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/RemoteTls.java",
@@ -1922,8 +1922,8 @@
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationSampler.java",
     "路径": "app/src/main/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationSampler.java",
-    "字节数": 21210,
-    "SHA256": "DAC805FA233DE59AD6585252F624D2D5AE09CE842729B49200996D1D1A730320"
+    "字节数": 16315,
+    "SHA256": "34FC51C7559869656046FACF6041429775EC81180CDD7CE152A391A08123D59E"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/full/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationWifi.java",
@@ -3320,8 +3320,8 @@
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationCacheRecheckTest.java",
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationCacheRecheckTest.java",
-    "字节数": 29103,
-    "SHA256": "B764198AE153E074DE9F620150A15AF3FAE14A76F17ECA05F0DF63DD43C08C93"
+    "字节数": 27807,
+    "SHA256": "D6B4DE79112E04A3D6E9E6C32518053E93695E671AD4639A465F4DF674B9E8AF"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationRadioTest.java",
@@ -3332,8 +3332,8 @@
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationSamplerTest.java",
     "路径": "app/src/test/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationSamplerTest.java",
-    "字节数": 19367,
-    "SHA256": "80FF1EB59FF377906BA98F10DAB9D12F87F9EBF6DBB25BF279EF68703442ECF4"
+    "字节数": 11920,
+    "SHA256": "57CDE037635F508787E49600EAFA2789AE7E5B665FA65AA8221FF7881D7D73D4"
   },
   {
     "来源": "research/d31/staging/b25-variants193-194-20260914/build/generated/remote-variants/testFull/java/net/elfradio/d31bootstrap/telemetry/RemoteLocationWifiTest.java",

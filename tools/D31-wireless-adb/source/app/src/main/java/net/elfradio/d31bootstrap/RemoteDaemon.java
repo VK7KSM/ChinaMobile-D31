@@ -200,7 +200,7 @@ public final class RemoteDaemon {
                     videoConfigCheckAt = SystemClock.elapsedRealtime() + 300000;
                 }
             }
-            telemetry.enableLocation(context(), () -> wake.set(true));
+            telemetry.enableLocation(context());
             if (media == null) media = new RemoteMediaSessions(context(), root, System.getenv("CLASSPATH"), () -> wake.set(true));
             if (visual == null) visual = new RemoteVisualMedia(context(), root, System.getenv("CLASSPATH"), () -> wake.set(true));
             if (desktop == null && DesktopAsset.packaged() && SystemClock.elapsedRealtime() >= desktopInitRetry) {
