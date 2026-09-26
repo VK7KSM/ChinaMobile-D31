@@ -112,6 +112,7 @@ namespace D31FlashTool
         public int AdbPort;
         public string Model;
         public string Fingerprint;
+        public string ProductDevice;
         public string Ethernet;
         public string EthernetAddress;
         public string Power;
@@ -121,6 +122,13 @@ namespace D31FlashTool
 
     internal static class PackageValidator
     {
+        internal static void ValidateDevicePlatform(string model, string device)
+        {
+            if (model != "hct6737t_66_m0" ||
+                (device != "hct6735_66_m0" && device != "hct6737t_66_m0"))
+                throw new InvalidOperationException("产品平台不受支持：model=" + model + "，device=" + device + "；需要D31平台，系统构建编号不限。");
+        }
+
         internal const long ExpectedPackageBytes = BuildConstants.OfficialPackageBytes;
         internal const string ExpectedFingerprint =
             "alps/full_hct6737t_66_m0/hct6737t_66_m0:6.0/MRA58K/1583081804:userdebug/test-keys";
@@ -426,7 +434,8 @@ namespace D31FlashTool
                 Serial = serial,
                 AdbPort = DedicatedAdbPort,
                 Model = RunAdb(adb, DedicatedAdbPort, serial, "shell getprop ro.product.model").Trim(),
-                Fingerprint = RunAdb(adb, DedicatedAdbPort, serial, "shell getprop ro.build.fingerprint").Trim()
+                Fingerprint = RunAdb(adb, DedicatedAdbPort, serial, "shell getprop ro.build.fingerprint").Trim(),
+                ProductDevice = RunAdb(adb, DedicatedAdbPort, serial, "shell getprop ro.product.device").Trim()
             };
             info.IsRoot = RunAdb(adb, DedicatedAdbPort, serial, "shell id").Contains("uid=0(root)");
             info.Ethernet = RunAdb(adb, DedicatedAdbPort, serial, "shell ip -4 addr show dev eth0").Trim();
@@ -435,10 +444,7 @@ namespace D31FlashTool
             info.TargetAddressIsEthernet = Regex.IsMatch(
                 info.Ethernet,
                 @"(?m)\binet\s+" + Regex.Escape(ip) + @"/");
-            if (info.Fingerprint != PackageValidator.ExpectedFingerprint)
-            {
-                throw new InvalidOperationException("D31构建指纹不匹配，禁止刷机：" + info.Fingerprint);
-            }
+            PackageValidator.ValidateDevicePlatform(info.Model, info.ProductDevice);
             string battery = RunAdb(adb, DedicatedAdbPort, serial, "shell dumpsys battery");
             Match level = Regex.Match(battery, @"(?m)^\s*level:\s*(\d+)");
             bool ac = Regex.IsMatch(battery, @"(?m)^\s*AC powered:\s*true");

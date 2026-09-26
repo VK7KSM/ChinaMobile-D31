@@ -94,13 +94,29 @@ class BackendFakeAdb
             result = mode == "full96-reserve-unknown" ? "UNKNOWN" : "D31_WINDOWS_RESERVED_V1";
         }
         else if (command.Contains("RemoteWindowsMaintenance release ")) result = "D31_WINDOWS_RELEASED_V1";
-        else if (command.EndsWith("getprop ro.build.fingerprint")) result = "alps/full_hct6737t_66_m0/hct6737t_66_m0:6.0/MRA58K/1583081804:userdebug/test-keys";
+        else if (command.EndsWith("getprop ro.product.model")) result = mode == "wrong-model" ? "Pixel_3" : "hct6737t_66_m0";
+        else if (command.EndsWith("getprop ro.product.device")) result = mode == "wrong-platform" ? "msm8909" : mode == "missing-platform" ? "" : "hct6735_66_m0";
+        else if (command.EndsWith("getprop ro.build.fingerprint")) result = !state.ContainsKey("rebooted") && mode == "third-party-build" ?
+            "alps/full_hct6737t_66_m0/hct6737t_66_m0:6.0/MRA58K/1657859068:userdebug/test-keys" :
+            state.ContainsKey("rebooted") && mode == "wrong-post-build" ? "third-party/not-installed" :
+            "alps/full_hct6737t_66_m0/hct6737t_66_m0:6.0/MRA58K/1583081804:userdebug/test-keys";
         else if (command.Contains("ip -4 addr show dev eth0")) result = "inet " + (mode == "wrong-network" ? "192.0.2.32" : "192.0.2.31") + "/24";
         else if (command.Contains("busybox 2>/dev/null")) result = "BusyBox v1.22.1";
+        else if (command.Contains("p=$(readlink -f")) {
+            string partition = Regex.Match(command, @"by-name/([a-z0-9]+)").Groups[1].Value;
+            string[] names = {"boot","recovery","logo","system","userdata","nvram","nvdata","protect1","protect2","proinfo","secro","seccfg","frp"};
+            long[] counts = {32768,32768,16384,3145728,26401792,2048,2048,2048,2048,2048,2048,2048,2048};
+            int index = Array.IndexOf(names,partition);
+            if (index < 0) throw new Exception("未知分区布局请求");
+            long start=2048; for(int i=0;i<index;i++) start+=counts[i];
+            if(mode == "overlap-layout" && partition == "recovery") start=2048;
+            result=mode == "missing-layout" ? "" : "/dev/block/" + (mode == "wrong-disk" ? "mmcblk1p" : "mmcblk0p") +
+                ((mode == "duplicate-layout" && partition == "recovery") ? 1 : index+1) + "|" + start + "|" + counts[index];
+        }
         else if (command.Contains("blockdev --getsize64")) {
             string partition = command.Substring(command.LastIndexOf('/') + 1);
-            var sizes = new Dictionary<string,string>{{"system","1610612736"},{"boot","16777216"},{"userdata","13517717504"},{"logo","8388608"}};
-            result = mode == "bad-logo" && partition == "logo" ? "1" : sizes[partition];
+            var sizes = new Dictionary<string,string>{{"system","1610612736"},{"boot","16777216"},{"recovery","16777216"},{"userdata","13517717504"},{"logo","8388608"}};
+            result = mode == "bad-" + partition + "-size" || (mode == "bad-logo" && partition == "logo") ? "1" : sizes[partition];
         }
         else if (command.Contains("busybox sha256sum")) {
             string path = command.Substring(command.IndexOf("busybox sha256sum ") + 18);
@@ -119,7 +135,7 @@ class BackendFakeAdb
                 result = (mode == "bad-installed" ? new string('0',64) : item["sha256"].ToString()) + "  " + path;
             }
         }
-        else if (command.Contains("then echo YES; else echo NO")) result = "YES";
+        else if (command.Contains("then echo YES; else echo NO")) result = mode == "missing-partition" ? "NO" : "YES";
         else if (command.Contains("mount | grep")) result = "/dev/block/cache /cache ext4 rw 0 0";
         else if (command.Contains("df /data")) result = mode == "no-space" ? "1M" : "10G";
         else if (command.Contains("D31_UPLOAD_V2|")) result = "";

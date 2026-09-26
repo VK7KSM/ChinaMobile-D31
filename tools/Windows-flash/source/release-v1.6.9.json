@@ -1,0 +1,13 @@
+{
+  "版本": "1.6.9",
+  "配套固件": "1.4.5",
+  "文件": "D31-Flash-Tool-v1.6.9.exe",
+  "字节数": 16140800,
+  "SHA256": "E9DAE22E2C00584CBBF512A3435161AB60B3BC490E3B75C2F93A046BC969880F",
+  "后端模拟通过项": 70,
+  "平台判断通过项": 12,
+  "备份准入通过项": 11,
+  "实际刷机验收": false,
+  "GitHub": "https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.9/D31-Flash-Tool-v1.6.9.exe",
+  "Cloudflare": "https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.9.exe"
+}

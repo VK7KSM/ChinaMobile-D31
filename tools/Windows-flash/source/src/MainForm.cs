@@ -575,6 +575,8 @@ namespace D31FlashTool
 
         private void ShowDevice(string address)
         {
+            if (device.Fingerprint != PackageValidator.ExpectedFingerprint)
+                AppendLog("提示：当前系统构建不同，允许继续；开始刷机前仍会核对分区布局及boot/Recovery兼容性。");
             deviceValue.Text = device.Model + " · " + device.Serial + " · ADB服务器端口" + device.AdbPort;
             buildValue.Text = device.Fingerprint;
             networkValue.Text = "目标=" + address +

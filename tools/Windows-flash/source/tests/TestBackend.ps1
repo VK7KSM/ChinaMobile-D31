@@ -67,8 +67,9 @@ try {
     $stream.Dispose()
     Run-Case 'same-size-corrupt' @('-PackagePath',$bad,'-PackagePreflightOnly') $false $false
     $base = @('-Serial','192.0.2.31:5555','-PackagePath',$Package,'-SkipBackup')
-    foreach($name in @('wrong-network','bad-logo','bad-boot','bad-recovery','no-space')) { Run-Case $name $base $false $false }
+    foreach($name in @('wrong-network','bad-logo','bad-boot','bad-recovery','no-space','wrong-model','wrong-platform','missing-platform','missing-partition','bad-system-size','bad-boot-size','bad-recovery-size','bad-userdata-size')) { Run-Case $name $base $false $false }
     Run-Case 'preflight' ($base + @('-PreflightOnly')) $true $false
+    foreach($name in @('overlap-layout','duplicate-layout','missing-layout','wrong-disk')) { Run-Case $name ($base + @('-PreflightOnly')) $false $false }
     foreach($name in @('repair-present','repair-read-failed','repair-unknown')) { Run-Case $name ($base + @('-DevicePreflightOnly')) $false $false }
     foreach($port in @('1','5654','65535')) { Run-Case ('port-' + $port) @('-Serial',("192.0.2.31:" + $port),'-DevicePreflightOnly') $true $false }
     foreach($serial in @('192.0.2.31:0','192.0.2.31:65536','192.0.2.31:abc','192.0.2.999:5654','192.0.2.31:5654;id')) {
@@ -81,6 +82,8 @@ try {
         'stock-pm-unavailable','stock-pm-inconsistent','stock-active-present')) { Run-Case $name $base $false $false }
     Run-Case 'missing-backup' @('-Serial','192.0.2.31:5555','-PackagePath',$Package) $false $false
     Run-Case 'success' $base $true $true
+    Run-Case 'third-party-build' $base $true $true
+    Run-Case 'wrong-post-build' $base $false $true
     Run-Case 'success-5654' @('-Serial','192.0.2.31:5654','-PackagePath',$Package,'-SkipBackup') $true $true
     foreach($name in @('legacy95','legacy-pm-absent','full96-success','full96-system')) { Run-Case $name $base $true $true }
     foreach($name in @('full96-reboot-failed','full96-command-mismatch','full96-command-remote-failed','full96-command-marker-missing')) { Run-Case $name $base $false $true }

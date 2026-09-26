@@ -20,6 +20,8 @@ $ByName = "/dev/block/platform/mtk-msdc.0/11230000.msdc0/by-name"
 $ExpectedSizes = @{
     system = 1610612736L
     boot = 16777216L
+    recovery = 16777216L
+    logo = 8388608L
     userdata = 13517717504L
 }
 $PrivatePartitions = @("nvram", "nvdata", "protect1", "protect2", "proinfo", "recovery", "secro", "seccfg", "frp")
@@ -30,6 +32,34 @@ $FinalRoot = Join-Path $OutputBase ("D31_本机急救_$Timestamp")
 $CardRoot = Join-Path $IncompleteRoot "需要抢救时复制到TF卡或U盘"
 $PrivateRoot = Join-Path $IncompleteRoot "禁止公开的本机私有备份"
 $SessionLog = Join-Path $IncompleteRoot "创建记录.txt"
+
+
+function Assert-PartitionLayout {
+    param([string[]]$Names)
+    $ranges = @()
+    foreach ($name in ($Names | Select-Object -Unique)) {
+        $command = 'p=$(readlink -f "__BYNAME__/__NAME__"); if [ -b "$p" ]; then n=${p##*/}; printf "%s|" "$p"; tr -d "\n" < /sys/class/block/$n/start; printf "|"; cat /sys/class/block/$n/size; fi'
+        $value = Get-DeviceValue ($command.Replace('__BYNAME__',$ByName).Replace('__NAME__',$name))
+        if ($value -cnotmatch '^(/dev/block/mmcblk0p[1-9][0-9]*)\|([0-9]+)\|([0-9]+)$') {
+            throw "分区映射无法确认：$name；尚未刷写"
+        }
+        $path = $Matches[1]
+        [long]$start = 0; [long]$sectors = 0
+        if (-not [long]::TryParse($Matches[2],[ref]$start) -or -not [long]::TryParse($Matches[3],[ref]$sectors) -or
+            $start -le 0 -or $sectors -le 0 -or $start -gt 4294967296L -or $sectors -gt 4294967296L) {
+            throw "分区范围无效：$name"
+        }
+        if ($ExpectedSizes.ContainsKey($name) -and $sectors * 512L -ne [long]$ExpectedSizes[$name]) {
+            throw "分区映射容量不匹配：$name"
+        }
+        foreach ($prior in $ranges) {
+            if ($prior.Path -ceq $path -or ($start -lt $prior.End -and ($start + $sectors) -gt $prior.Start)) {
+                throw "分区映射重复或重叠：$name 与 $($prior.Name)"
+            }
+        }
+        $ranges += [pscustomobject]@{Name=$name;Path=$path;Start=$start;End=($start+$sectors)}
+    }
+}
 
 function Write-Utf8 {
     param([string]$Path, [string[]]$Lines)
@@ -170,7 +200,14 @@ try {
     if (((Invoke-Adb -s $Serial get-state) -join "`n").Trim() -ne "device") { throw "D31 ADB状态不是device" }
     if ((Get-DeviceValue "id") -notmatch 'uid=0\(root\)') { throw "D31 ADB shell不是root" }
     $fingerprint = Get-DeviceValue "getprop ro.build.fingerprint"
-    if ($fingerprint -ne $ExpectedFingerprint) { throw "构建指纹不受当前刷机包支持：$fingerprint" }
+    $model = Get-DeviceValue "getprop ro.product.model"
+    $productDevice = Get-DeviceValue "getprop ro.product.device"
+    if ($model -cne 'hct6737t_66_m0' -or $productDevice -cnotin @('hct6735_66_m0','hct6737t_66_m0')) {
+        throw "产品平台不受支持：model=$model，device=$productDevice；需要D31平台，系统构建编号不限"
+    }
+    if ($fingerprint -cne $ExpectedFingerprint) {
+        Write-Host "提示：当前系统构建不同，允许备份；保留实际构建用于本机备份绑定，仍核对分区及Recovery。"
+    }
     $deviceIp = $Serial.Substring(0, $Serial.LastIndexOf(':'))
     if ((Get-DeviceValue "ip -4 addr show dev eth0") -notmatch "(?m)\binet\s+$([regex]::Escape($deviceIp))/") {
         throw "目标地址不属于eth0；创建急救包和刷机都只允许有线TCP ADB"
@@ -180,6 +217,7 @@ try {
     foreach ($name in $ExpectedSizes.Keys) {
         if ((Get-BlockSize $name) -ne [int64]$ExpectedSizes[$name]) { throw "$name 分区尺寸不匹配" }
     }
+    Assert-PartitionLayout @($ExpectedSizes.Keys + $PrivatePartitions)
     foreach ($name in $PrivatePartitions) {
         if ((Get-DeviceValue "if [ -e $ByName/$name ]; then echo YES; else echo NO; fi") -ne "YES") {
             throw "目标机缺少分区：$name"

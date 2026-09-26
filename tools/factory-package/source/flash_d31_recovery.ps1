@@ -33,6 +33,7 @@ $ByName = "/dev/block/platform/mtk-msdc.0/11230000.msdc0/by-name"
 $ExpectedSizes = @{
     system = 1610612736L
     boot = 16777216L
+    recovery = 16777216L
     userdata = 13517717504L
     logo = 8388608L
 }
@@ -97,6 +98,34 @@ function Assert-InstalledPayload {
         }
     }
     Write-Step "刷后$($files.Count)项载荷SHA-256全部匹配，包含应用、独立守护和Recovery激活文件。"
+}
+
+
+function Assert-PartitionLayout {
+    param([string[]]$Names)
+    $ranges = @()
+    foreach ($name in ($Names | Select-Object -Unique)) {
+        $command = 'p=$(readlink -f "__BYNAME__/__NAME__"); if [ -b "$p" ]; then n=${p##*/}; printf "%s|" "$p"; tr -d "\n" < /sys/class/block/$n/start; printf "|"; cat /sys/class/block/$n/size; fi'
+        $value = Get-DeviceValue ($command.Replace('__BYNAME__',$ByName).Replace('__NAME__',$name))
+        if ($value -cnotmatch '^(/dev/block/mmcblk0p[1-9][0-9]*)\|([0-9]+)\|([0-9]+)$') {
+            throw "分区映射无法确认：$name；尚未刷写"
+        }
+        $path = $Matches[1]
+        [long]$start = 0; [long]$sectors = 0
+        if (-not [long]::TryParse($Matches[2],[ref]$start) -or -not [long]::TryParse($Matches[3],[ref]$sectors) -or
+            $start -le 0 -or $sectors -le 0 -or $start -gt 4294967296L -or $sectors -gt 4294967296L) {
+            throw "分区范围无效：$name"
+        }
+        if ($ExpectedSizes.ContainsKey($name) -and $sectors * 512L -ne [long]$ExpectedSizes[$name]) {
+            throw "分区映射容量不匹配：$name"
+        }
+        foreach ($prior in $ranges) {
+            if ($prior.Path -ceq $path -or ($start -lt $prior.End -and ($start + $sectors) -gt $prior.Start)) {
+                throw "分区映射重复或重叠：$name 与 $($prior.Name)"
+            }
+        }
+        $ranges += [pscustomobject]@{Name=$name;Path=$path;Start=$start;End=($start+$sectors)}
+    }
 }
 
 function Write-Utf8 {
@@ -631,7 +660,14 @@ $identity = Get-DeviceValue "id"
 if ($identity -notmatch 'uid=0\(root\)') { throw "D31 ADB shell不是root：$identity" }
 Assert-NoActiveRepair
 $fingerprint = Get-DeviceValue "getprop ro.build.fingerprint"
-if ($fingerprint -ne $ExpectedFingerprint) { throw "构建指纹不匹配：$fingerprint" }
+$model = Get-DeviceValue "getprop ro.product.model"
+$productDevice = Get-DeviceValue "getprop ro.product.device"
+if ($model -cne 'hct6737t_66_m0' -or $productDevice -cnotin @('hct6735_66_m0','hct6737t_66_m0')) {
+    throw "产品平台不受支持：model=$model，device=$productDevice；需要D31平台，系统构建编号不限"
+}
+if ($fingerprint -cne $ExpectedFingerprint) {
+    Write-Host "提示：当前系统构建不同，允许继续；仍需通过分区布局及boot/Recovery兼容检查。当前构建：$fingerprint"
+}
 $ethernet = Get-DeviceValue "ip -4 addr show dev eth0"
 if ($ethernet -notmatch "(?m)\binet\s+$([regex]::Escape($DeviceIp))/") {
     if ($DevicePreflightOnly) {
@@ -648,15 +684,16 @@ foreach ($name in $ExpectedSizes.Keys) {
     $actual = Get-BlockSize $name
     if ($actual -ne [int64]$ExpectedSizes[$name]) { throw "$name分区尺寸不匹配：$actual" }
 }
+Assert-PartitionLayout @($ExpectedSizes.Keys + $RequiredBackupPartitions + $AdditionalBackupPartitions)
 if ((Get-RemoteSha256 "$ByName/boot") -ne $ApprovedPackage.bootSha256) {
-    throw '当前boot与固件批准基线不一致；本包不写boot，已在上传前拒绝'
+    throw '当前boot与固件1.4.5的兼容基线不同；该固件不写boot，需单独适配内核，不能仅放宽系统指纹后刷入。尚未上传或刷写。'
 }
 foreach ($name in @($RequiredBackupPartitions + $AdditionalBackupPartitions)) {
     $exists = Get-DeviceValue "if [ -e $ByName/$name ]; then echo YES; else echo NO; fi"
     if ($exists -ne "YES") { throw "目标机缺少分区：$name" }
 }
 if ((Get-RemoteSha256 "$ByName/recovery") -ne $ExpectedRecoveryHash) {
-    throw '当前Recovery与已验证基线不一致，已在上传前拒绝；此检查与是否备份无关'
+    throw '当前Recovery与固件签名及安装器的兼容基线不同，需单独适配Recovery。尚未上传或刷写；此检查与是否备份无关。'
 }
 $cacheMount = Get-DeviceValue "mount | grep ' /cache '"
 if ($cacheMount -notmatch '/cache') { throw "目标机/cache未挂载，不能安全写入Recovery命令" }
@@ -667,12 +704,12 @@ if ($availableBytes -lt ($ExpectedPackageBytes + 536870912L)) {
 }
 
 if ($DevicePreflightOnly) {
-    Write-Host "[3/3] 设备只读检查通过：root、目标构建、分区尺寸、Recovery入口和存储空间全部匹配。"
+    Write-Host "[3/3] 设备只读检查通过：root、产品平台、分区尺寸、boot/Recovery和存储空间全部匹配。"
     return
 }
 
 if ($PreflightOnly) {
-    Write-Host "只读准入检查通过：签名ZIP、root、有线地址、目标构建、分区尺寸、Recovery入口和存储空间全部匹配。"
+    Write-Host "只读准入检查通过：签名ZIP、root、有线地址、产品平台、分区尺寸、boot/Recovery和存储空间全部匹配。"
     return
 }
 

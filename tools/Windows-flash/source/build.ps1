@@ -15,5 +15,5 @@ param(
 $ErrorActionPreference = "Stop"
 
 $global:LASTEXITCODE = 0
-& (Join-Path $PSScriptRoot "build-v1.6.8.ps1") @PSBoundParameters
+& (Join-Path $PSScriptRoot "build-v1.6.9.ps1") @PSBoundParameters
 exit $LASTEXITCODE
