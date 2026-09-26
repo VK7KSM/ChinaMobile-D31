@@ -43,6 +43,7 @@ namespace D31FlashTool
         private bool adbPrepared;
         private bool toolReady;
         private bool preflightPassed;
+        private bool flashAfterPreflight;
         private bool flashAfterBackup;
         private bool recoveryTriggered;
         private string currentOperation;
@@ -432,13 +433,13 @@ namespace D31FlashTool
                 firmware = await loader();
                 packagePathValue.Text = Path.GetDirectoryName(firmware.PackagePath) ?? firmware.PackagePath;
                 AppendLog("刷机包已由用户明确选择或下载，并通过长度与SHA-256校验：" + firmware.PackagePath);
-                if (preflightPassed && device != null && device.TargetAddressIsEthernet)
+                if (device != null && device.TargetAddressIsEthernet)
                 {
-                    SetStatus("刷机包和设备只读检查均已通过。确认清空数据后即可开始刷机。", Color.FromArgb(2, 122, 72));
+                    SetStatus("刷机包已就绪。确认清空数据后即可开始，设备检查会自动执行。", Color.FromArgb(2, 122, 72));
                 }
                 else if (connectedSerial != null)
                 {
-                    SetStatus("刷机包已就绪。可继续检测D31并执行只读检查。", Color.FromArgb(2, 122, 72));
+                    SetStatus("刷机包已就绪。检测并连接D31的有线地址后即可开始。", Color.FromArgb(2, 122, 72));
                 }
                 else
                 {
@@ -613,17 +614,19 @@ namespace D31FlashTool
             }
         }
 
-        private async void StartPreflight()
+        private async void StartPreflight(bool continueToFlash = false)
         {
             if (device == null || IsBusy()) { return; }
-            if (!await CheckMaintenanceAsync()) { return; }
+            bool maintenanceClear = await CheckMaintenanceAsync();
+            packageBusy = false;
+            if (!maintenanceClear) { UpdateControls(); return; }
             preflightPassed = false;
             rescueDirectory = null;
-            flashAfterBackup = false;
+            flashAfterPreflight = continueToFlash;
+            if (!continueToFlash) { flashAfterBackup = false; eraseCheck.Checked = false; }
             recoveryTriggered = false;
-            eraseCheck.Checked = false;
             progress.Value = 0;
-            currentOperation = "只读检查";
+            currentOperation = continueToFlash ? "刷前自动检查" : "只读检查";
             SetStatus("正在检查root、构建、网络、分区尺寸、Recovery入口和空间。", Color.FromArgb(23, 92, 211));
             AppendLog("启动设备只读检查；不需要刷机包，不写设备分区、不重启设备。");
             StartPowerShell(Path.Combine(toolRoot, "flash_d31_recovery.ps1"), DeviceArguments() + " -DevicePreflightOnly");
@@ -632,7 +635,14 @@ namespace D31FlashTool
         private void StartAutomaticBackup()
         {
             if (device == null || firmware == null || !device.TargetAddressIsEthernet || !preflightPassed || IsBusy()) { return; }
-            Directory.CreateDirectory(backupRoot);
+            try { Directory.CreateDirectory(backupRoot); }
+            catch (Exception error)
+            {
+                CancelFlashSequence();
+                SetStatus("无法创建备份目录，刷机尚未开始：" + error.Message, Color.FromArgb(180, 35, 24));
+                UpdateControls();
+                return;
+            }
             rescueDirectory = null;
             progress.Value = 0;
             currentOperation = "自动备份原系统";
@@ -644,36 +654,48 @@ namespace D31FlashTool
 
         private void StartFlash()
         {
-            if (device == null || firmware == null || !device.TargetAddressIsEthernet || !preflightPassed || !eraseCheck.Checked || IsBusy()) { return; }
+            if (device == null || firmware == null || !device.TargetAddressIsEthernet || !eraseCheck.Checked || IsBusy()) { return; }
             bool createBackup = backupCheck.Checked;
             DialogResult answer = MessageBox.Show(
                 "目标设备：" + device.Model + " / " + device.Serial + "\r\n\r\n" +
                 (createBackup
                     ? "已选择备份：工具会先把原系统保存到电脑硬盘的D31备份目录，完成后自动继续刷机。\r\n\r\n"
                     : "已取消备份：刷机失败时将没有本机急救包可供恢复。\r\n\r\n") +
-                "工具随后会上传并校验签名ZIP，最后重启到原厂Recovery。\r\n" +
+                "工具会先自动检查设备，通过后按上述选择备份，再上传并校验签名ZIP，最后重启到原厂Recovery。\r\n" +
                 "Recovery会覆盖system及开机图片logo分区并清空userdata，保留boot。\r\n\r\n" +
-                "确认这是可承担风险的同构建备用D31，并立即开始吗？",
+                "确认目标D31并立即开始吗？",
                 "确认开始D31 Recovery刷机",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning,
                 MessageBoxDefaultButton.Button2);
             if (answer != DialogResult.Yes) { return; }
 
-            flashAfterBackup = createBackup;
-            if (createBackup)
-            {
-                StartAutomaticBackup();
-                return;
-            }
+            StartConfirmedFlash();
+        }
+
+        private void StartConfirmedFlash()
+        {
+            if (device == null || firmware == null || !device.TargetAddressIsEthernet || !eraseCheck.Checked || IsBusy()) { return; }
+            preflightPassed = false;
+            flashAfterBackup = backupCheck.Checked;
             rescueDirectory = null;
-            BeginFlashProcess();
+            StartPreflight(true);
+        }
+
+        private void CancelFlashSequence()
+        {
+            flashAfterPreflight = false;
+            flashAfterBackup = false;
+            preflightPassed = false;
+            eraseCheck.Checked = false;
         }
 
         private async void BeginFlashProcess()
         {
-            if (device == null || IsBusy()) { return; }
-            if (!await CheckMaintenanceAsync()) { return; }
+            if (device == null || firmware == null || !device.TargetAddressIsEthernet || !preflightPassed || !eraseCheck.Checked || IsBusy()) { return; }
+            bool maintenanceClear = await CheckMaintenanceAsync();
+            packageBusy = false;
+            if (!maintenanceClear) { UpdateControls(); return; }
             progress.Value = 0;
             recoveryTriggered = false;
             currentOperation = "完整Recovery刷机";
@@ -702,14 +724,11 @@ namespace D31FlashTool
             }
             catch (Exception error)
             {
-                preflightPassed = false;
-                eraseCheck.Checked = false;
-                flashAfterBackup = false;
+                CancelFlashSequence();
                 SetStatus(error.Message, Color.FromArgb(180, 35, 24));
                 AppendLog(error.Message);
                 return false;
             }
-            finally { packageBusy = false; UpdateControls(); }
         }
 
         private string DeviceArguments()
@@ -728,7 +747,9 @@ namespace D31FlashTool
         {
             if (!File.Exists(script))
             {
+                CancelFlashSequence();
                 SetStatus("缺少脚本：" + Path.GetFileName(script), Color.FromArgb(180, 35, 24));
+                UpdateControls();
                 return;
             }
             ProcessStartInfo start = new ProcessStartInfo();
@@ -744,37 +765,69 @@ namespace D31FlashTool
             start.RedirectStandardError = true;
             start.StandardOutputEncoding = Encoding.UTF8;
             start.StandardErrorEncoding = Encoding.UTF8;
-            runningProcess = new Process { StartInfo = start, EnableRaisingEvents = true };
-            runningProcess.OutputDataReceived += delegate(object sender, DataReceivedEventArgs eventArgs)
-            {
-                ReceiveLine(eventArgs.Data);
-            };
-            runningProcess.ErrorDataReceived += delegate(object sender, DataReceivedEventArgs eventArgs)
-            {
-                ReceiveLine(eventArgs.Data);
-            };
-            runningProcess.Exited += delegate(object sender, EventArgs eventArgs)
-            {
-                Process completed = (Process)sender;
-                completed.WaitForExit();
-                int exitCode = completed.ExitCode;
-                BeginInvoke((MethodInvoker)delegate { ProcessFinished(exitCode); });
-            };
+            runningProcess = new Process { StartInfo = start };
+            Process completed = runningProcess;
+            bool started = false;
             try
             {
                 runningProcess.Start();
-                runningProcess.BeginOutputReadLine();
-                runningProcess.BeginErrorReadLine();
+                started = true;
+                // 两条流统一使用后台同步读取，避免失败时切换读取模式。
+                Task<bool> output = Task.Run(delegate { return ReadBackendOutput(completed, false); });
+                Task<bool> error = Task.Run(delegate { return ReadBackendOutput(completed, true); });
+                Task.Run(delegate
+                {
+                    completed.WaitForExit();
+                    bool logsComplete = output.Result & error.Result;
+                    CompleteBackend(completed, logsComplete);
+                });
                 UpdateControls();
             }
             catch (Exception exception)
             {
-                AppendLog("无法启动PowerShell：" + exception.Message);
-                SetStatus("无法启动刷机后端。", Color.FromArgb(180, 35, 24));
-                runningProcess.Dispose();
-                runningProcess = null;
+                AppendLog("后端启动或日志读取异常：" + exception.Message);
+                CancelFlashSequence();
+                if (!started)
+                {
+                    runningProcess.Dispose();
+                    runningProcess = null;
+                    SetStatus("无法启动刷机后端。", Color.FromArgb(180, 35, 24));
+                }
+                else
+                {
+                    SetStatus("后端已运行但日志读取异常，等待退出；请勿重复刷机或断电。", Color.FromArgb(180, 35, 24));
+                    Task.Run(delegate { completed.WaitForExit(); CompleteBackend(completed, false); });
+                }
                 UpdateControls();
             }
+        }
+
+        private bool ReadBackendOutput(Process process, bool error)
+        {
+            try
+            {
+                StreamReader reader = error ? process.StandardError : process.StandardOutput;
+                string line;
+                while ((line = reader.ReadLine()) != null) { ReceiveLine(line); }
+                return true;
+            }
+            catch (Exception) { return false; }
+        }
+
+        private void CompleteBackend(Process completed, bool logsComplete)
+        {
+            int exitCode = completed.ExitCode;
+            BeginInvoke((MethodInvoker)delegate
+            {
+                if (!Object.ReferenceEquals(runningProcess, completed)) { return; }
+                if (!logsComplete)
+                {
+                    CancelFlashSequence();
+                    AppendLog("后端已经退出，但日志读取不完整；不会自动继续下一步。");
+                    if (currentOperation == "完整Recovery刷机") { recoveryTriggered = true; }
+                }
+                ProcessFinished(completed, logsComplete ? exitCode : -1);
+            });
         }
 
         private void ReceiveLine(string line)
@@ -803,11 +856,28 @@ namespace D31FlashTool
             });
         }
 
-        private void ProcessFinished(int exitCode)
+        private void ProcessFinished(Process completed, int exitCode)
         {
+            if (!Object.ReferenceEquals(runningProcess, completed)) { return; }
             string completedOperation = currentOperation;
             if (runningProcess != null) { runningProcess.Dispose(); runningProcess = null; }
-            if (completedOperation == "只读检查")
+            if (completedOperation == "刷前自动检查")
+            {
+                bool proceed = flashAfterPreflight && exitCode == 0 && preflightPassed &&
+                    device != null && firmware != null && device.TargetAddressIsEthernet && eraseCheck.Checked;
+                flashAfterPreflight = false;
+                if (proceed)
+                {
+                    AppendLog("刷前自动检查通过，继续" + (flashAfterBackup ? "备份原系统。" : "刷机。"));
+                    if (flashAfterBackup) { StartAutomaticBackup(); }
+                    else { BeginFlashProcess(); }
+                    return;
+                }
+                CancelFlashSequence();
+                SetStatus("刷前自动检查未通过，未开始备份或刷机。请查看日志。", Color.FromArgb(180, 35, 24));
+                AppendLog("刷前自动检查退出码：" + exitCode + "；必须同时取得完整通过标记才会继续。");
+            }
+            else if (completedOperation == "只读检查")
             {
                 if (exitCode == 0 && preflightPassed)
                 {
@@ -833,7 +903,7 @@ namespace D31FlashTool
                     string reason = exitCode == 0
                         ? "后端退出码为0，但界面没有收到完整的通过标记"
                         : "退出码：" + exitCode;
-                    SetStatus("只读检查未通过，开始刷机仍保持锁定。", Color.FromArgb(180, 35, 24));
+                    SetStatus("只读检查未通过，请查看日志；开始刷机时会重新自动检查。", Color.FromArgb(180, 35, 24));
                     AppendLog("只读检查失败或证据不完整，" + reason + "。请保留日志并重新检查。");
                 }
             }
@@ -853,7 +923,7 @@ namespace D31FlashTool
                 }
                 else
                 {
-                    flashAfterBackup = false;
+                    CancelFlashSequence();
                     rescueDirectory = null;
                     SetStatus("电脑硬盘备份失败，刷机尚未开始。可重试，或取消备份后继续。", Color.FromArgb(180, 35, 24));
                     AppendLog("备份后端退出码：" + exitCode + "；未取得完整创建通过标记，未启动刷机。");
@@ -938,6 +1008,7 @@ namespace D31FlashTool
         {
             device = null;
             preflightPassed = false;
+            flashAfterPreflight = false;
             rescueDirectory = null;
             flashAfterBackup = false;
             recoveryTriggered = false;
@@ -962,14 +1033,14 @@ namespace D31FlashTool
             openBackupsButton.Enabled = !busy;
             backupCheck.Enabled = !busy;
             eraseCheck.Enabled = !busy && firmware != null && device != null &&
-                device.TargetAddressIsEthernet && preflightPassed;
+                device.TargetAddressIsEthernet;
             flashButton.Enabled = !busy && firmware != null && device != null &&
-                device.TargetAddressIsEthernet && preflightPassed && eraseCheck.Checked;
+                device.TargetAddressIsEthernet && eraseCheck.Checked;
         }
 
         private bool IsBusy()
         {
-            return packageBusy || (runningProcess != null && !runningProcess.HasExited);
+            return packageBusy || runningProcess != null;
         }
 
         private void SetStatus(string text, Color color)

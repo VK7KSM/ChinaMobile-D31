@@ -104,24 +104,31 @@ function Assert-InstalledPayload {
 function Assert-PartitionLayout {
     param([string[]]$Names)
     $ranges = @()
+    # Windows 旧式原生传参会剥离双引号；仅在该模式转义，保留设备 shell 的引用语义。
+    $nativeMode = Get-Variable PSNativeCommandArgumentPassing -ErrorAction SilentlyContinue
+    $legacyWindows = $env:OS -eq 'Windows_NT' -and ($null -eq $nativeMode -or $nativeMode.Value -eq 'Legacy')
     foreach ($name in ($Names | Select-Object -Unique)) {
         $command = 'p=$(readlink -f "__BYNAME__/__NAME__"); if [ -b "$p" ]; then n=${p##*/}; printf "%s|" "$p"; tr -d "\n" < /sys/class/block/$n/start; printf "|"; cat /sys/class/block/$n/size; fi'
-        $value = Get-DeviceValue ($command.Replace('__BYNAME__',$ByName).Replace('__NAME__',$name))
+        $command = $command.Replace('__BYNAME__',$ByName).Replace('__NAME__',$name)
+        if ($legacyWindows) { $command = $command.Replace('"','\"') }
+        $rawValue = (Invoke-Adb -s $Serial shell $command) -join "`n"
+        $value = $rawValue.Trim()
+        $diagnostic = '原始返回值=' + (ConvertTo-Json -InputObject $rawValue -Compress)
         if ($value -cnotmatch '^(/dev/block/mmcblk0p[1-9][0-9]*)\|([0-9]+)\|([0-9]+)$') {
-            throw "分区映射无法确认：$name；尚未刷写"
+            throw "分区映射无法确认：$name；尚未刷写；$diagnostic"
         }
         $path = $Matches[1]
         [long]$start = 0; [long]$sectors = 0
         if (-not [long]::TryParse($Matches[2],[ref]$start) -or -not [long]::TryParse($Matches[3],[ref]$sectors) -or
             $start -le 0 -or $sectors -le 0 -or $start -gt 4294967296L -or $sectors -gt 4294967296L) {
-            throw "分区范围无效：$name"
+            throw "分区范围无效：$name；$diagnostic"
         }
         if ($ExpectedSizes.ContainsKey($name) -and $sectors * 512L -ne [long]$ExpectedSizes[$name]) {
-            throw "分区映射容量不匹配：$name"
+            throw "分区映射容量不匹配：$name；$diagnostic"
         }
         foreach ($prior in $ranges) {
             if ($prior.Path -ceq $path -or ($start -lt $prior.End -and ($start + $sectors) -gt $prior.Start)) {
-                throw "分区映射重复或重叠：$name 与 $($prior.Name)"
+                throw "分区映射重复或重叠：$name 与 $($prior.Name)；$diagnostic"
             }
         }
         $ranges += [pscustomobject]@{Name=$name;Path=$path;Start=$start;End=($start+$sectors)}
