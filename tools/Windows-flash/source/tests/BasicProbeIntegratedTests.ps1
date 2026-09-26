@@ -3,7 +3,7 @@ param(
     [Parameter(Mandatory=$true)][string]$Executable,
     [Parameter(Mandatory=$true)][string]$MetadataPath,
     [Parameter(Mandatory=$true)][string]$OutputDirectory,
-    [ValidateSet('1.6.7','1.6.8','1.6.9','1.6.10')][string]$ExpectedToolVersion='1.6.7'
+    [ValidateSet('1.6.7','1.6.8','1.6.9','1.6.10','1.6.11')][string]$ExpectedToolVersion='1.6.7'
 )
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../tools/BasicProbe.Common.psm1') -Force

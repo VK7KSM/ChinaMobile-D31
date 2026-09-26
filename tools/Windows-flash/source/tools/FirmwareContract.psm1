@@ -1,11 +1,21 @@
 ﻿function Read-ApprovedFirmwareContract {
     param([string]$ApprovedPackagePath, [string]$InstalledFilesPath, [switch]$Release,
-        [ValidateSet('1.4.4','1.4.5')][string]$ExpectedReleaseVersion='1.4.4')
+        [ValidateSet('1.4.4','1.4.5','1.4.6')][string]$ExpectedReleaseVersion='1.4.4')
     $approved = Get-Content -Raw -LiteralPath $ApprovedPackagePath -Encoding UTF8 | ConvertFrom-Json
     if ($approved.version -notmatch '^\d+\.\d+\.\d+$' -or $approved.fileName -cne ("D31_SVP3390_Factory_Flash_v"+$approved.version+"_testkey.zip") -or
         [string]$approved.bytes -notmatch '^[1-9][0-9]{0,11}$' -or $approved.sha256 -notmatch '^[a-fA-F0-9]{64}$' -or
         $approved.bootSha256 -notmatch '^[a-fA-F0-9]{64}$') { throw '固件批准合同无效' }
     if ($Release -and $approved.version -cne $ExpectedReleaseVersion) { throw "正式构建只接受已批准$ExpectedReleaseVersion，不能使用其它固件代替" }
+    $replaceBootRecovery = $false
+    if ($null -ne $approved.PSObject.Properties['replaceBootRecovery']) {
+        if ($approved.replaceBootRecovery -isnot [bool]) { throw 'replaceBootRecovery必须是布尔值' }
+        $replaceBootRecovery = $approved.replaceBootRecovery
+    }
+    if ($approved.version -ceq '1.4.6') {
+        if (-not $replaceBootRecovery -or $approved.recoverySha256 -notmatch '^[a-fA-F0-9]{64}$') {
+            throw '1.4.6必须明确批准覆盖boot/Recovery并绑定目标Recovery摘要'
+        }
+    } elseif ($replaceBootRecovery) { throw '仅1.4.6允许覆盖boot/Recovery' }
     $github = 'https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v'+$approved.version+'/'+$approved.fileName
     $cdn = 'https://cdn.elfradio.net/d31/'+$approved.fileName
     if ([version]$approved.version -ge [version]'1.4.4') {
@@ -18,7 +28,7 @@
             [string]$remote.versionCode -notmatch '^[1-9][0-9]{0,8}$' -or [int]$remote.versionCode -lt 96 -or
             $remote.versionName -notmatch '^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$' -or $remote.sha256 -notmatch '^[a-fA-F0-9]{64}$') { throw '完整系统APK合同无效' }
     } elseif ($approved.version -cne '1.4.3') { throw '未支持的旧固件合同' }
-    return [pscustomobject]@{Approval=$approved;GitHubUrl=$github;CloudflareUrl=$cdn}
+    return [pscustomobject]@{Approval=$approved;GitHubUrl=$github;CloudflareUrl=$cdn;ReplaceBootRecovery=$replaceBootRecovery}
 }
 function Assert-FirmwareNativePayload {
     param([string]$FullApk, [string]$InstalledFilesPath)

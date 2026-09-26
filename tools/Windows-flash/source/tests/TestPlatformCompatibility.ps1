@@ -1,4 +1,4 @@
-﻿param([Parameter(Mandatory=$true)][string]$OutputDirectory)
+﻿param([Parameter(Mandatory=$true)][string]$OutputDirectory, [string]$ConstantsPath)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if (Test-Path -LiteralPath $OutputDirectory) { throw '测试目录已存在，禁止覆盖' }
@@ -6,9 +6,14 @@ $null = New-Item -ItemType Directory -Path $OutputDirectory
 $OutputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
 $root = Split-Path -Parent $PSScriptRoot
 $backup = Join-Path $root 'scripts/create_d31_rescue.ps1'
-$constants = Join-Path $root 'obj-v1.6.10/BuildConstants.g.cs'
-if (-not (Test-Path -LiteralPath $constants)) { $constants = Join-Path $root 'obj-v1.6.9/BuildConstants.g.cs' }
-if (-not (Test-Path -LiteralPath $constants)) { $constants = Join-Path $root 'src/BuildConstants.g.cs' }
+if ($ConstantsPath) {
+    $constants = (Resolve-Path -LiteralPath $ConstantsPath -ErrorAction Stop).Path
+} else {
+    $constants = Join-Path $root 'obj-v1.6.11/BuildConstants.g.cs'
+    if (-not (Test-Path -LiteralPath $constants)) { $constants = Join-Path $root 'obj-v1.6.10/BuildConstants.g.cs' }
+    if (-not (Test-Path -LiteralPath $constants)) { $constants = Join-Path $root 'obj-v1.6.9/BuildConstants.g.cs' }
+    if (-not (Test-Path -LiteralPath $constants)) { $constants = Join-Path $root 'src/BuildConstants.g.cs' }
+}
 $testSource = Join-Path $PSScriptRoot 'PlatformCompatibilityTests.cs'
 $reportPath = Join-Path $OutputDirectory 'platform-compatibility-results.json'
 $results = New-Object 'System.Collections.Generic.List[object]'

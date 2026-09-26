@@ -9,6 +9,9 @@
 #include <sys/ioctl.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+#ifdef D31_PACKAGE_146
+#include <sys/sysmacros.h>
+#endif
 #include <sys/types.h>
 #include <sys/xattr.h>
 #include <unistd.h>
@@ -19,6 +22,10 @@
 #define RECOVERY_BLOCK "/dev/block/platform/mtk-msdc.0/11230000.msdc0/by-name/recovery"
 #define DATA_BLOCK "/dev/block/platform/mtk-msdc.0/11230000.msdc0/by-name/userdata"
 #define LOGO_BLOCK "/dev/block/platform/mtk-msdc.0/11230000.msdc0/by-name/logo"
+#ifdef D31_PACKAGE_146
+#define CACHE_BLOCK "/dev/block/platform/mtk-msdc.0/11230000.msdc0/by-name/cache"
+#define EXPECTED_CACHE_SIZE 419430400ULL
+#endif
 #define EXPECTED_LOGO_SIZE 8388608ULL
 #define EXPECTED_SYSTEM_SIZE 1610612736ULL
 #define EXPECTED_BOOT_SIZE 16777216ULL
@@ -182,6 +189,7 @@ static void ui_error(const char *step) {
     ui_print(message);
 }
 
+#ifndef D31_PACKAGE_146
 static int block_size_matches(const char *path, uint64_t expected) {
     int fd = open(path, O_RDONLY | O_CLOEXEC);
     uint64_t size = 0;
@@ -193,6 +201,7 @@ static int block_size_matches(const char *path, uint64_t expected) {
     close(fd);
     return size == expected ? 0 : -1;
 }
+#endif
 
 static int file_contains(const char *path, const char *needle) {
     int fd = open(path, O_RDONLY | O_CLOEXEC);
@@ -205,6 +214,129 @@ static int file_contains(const char *path, const char *needle) {
     buffer[count] = '\0';
     return strstr(buffer, needle) != NULL ? 0 : -1;
 }
+
+#ifdef D31_PACKAGE_146
+static int property_equals(const char *key, const char *value) {
+    FILE *file = fopen("/default.prop", "r");
+    char line[1024];
+    size_t key_length = strlen(key);
+    int matches = 0, result = 0;
+    if (file == NULL) return -1;
+    while (fgets(line, sizeof(line), file) != NULL) {
+        if (strchr(line, '\n') == NULL && !feof(file)) {
+            result = -1;
+            break;
+        }
+        line[strcspn(line, "\r\n")] = '\0';
+        if (strncmp(line, key, key_length) != 0 || line[key_length] != '=') continue;
+        if (++matches != 1 || strcmp(line + key_length + 1, value) != 0) result = -1;
+    }
+    if (ferror(file)) result = -1;
+    fclose(file);
+    return result == 0 && matches == 1 ? 0 : -1;
+}
+
+static int validate_platform_146(void) {
+    /* 取自原厂Recovery属性；构建日期、版本及指纹均不参与硬件准入。 */
+    return property_equals("ro.board.platform", "mt6737t") == 0 &&
+           property_equals("ro.mediatek.platform", "MT6737T") == 0 &&
+           property_equals("ro.product.name", "full_hct6737t_66_m0") == 0 &&
+           property_equals("ro.product.device", "hct6735_66_m0") == 0 ? 0 : -1;
+}
+
+static int read_sysfs_number(const char *path, uint64_t *value) {
+    FILE *file = fopen(path, "r");
+    char buffer[64], *end;
+    unsigned long long parsed;
+    if (file == NULL) return -1;
+    if (fgets(buffer, sizeof(buffer), file) == NULL || fgetc(file) != EOF || ferror(file)) {
+        fclose(file);
+        return -1;
+    }
+    fclose(file);
+    if (buffer[0] < '0' || buffer[0] > '9') return -1;
+    errno = 0;
+    parsed = strtoull(buffer, &end, 10);
+    if (errno != 0 || (*end != '\0' && strcmp(end, "\n") != 0)) return -1;
+    *value = (uint64_t)parsed;
+    return 0;
+}
+
+static int validate_layout_146(void) {
+    static const struct {
+        const char *path;
+        unsigned int partition;
+        uint64_t size;
+    } targets[] = {
+        {BOOT_BLOCK, 7, EXPECTED_BOOT_SIZE},
+        {RECOVERY_BLOCK, 8, EXPECTED_RECOVERY_SIZE},
+        {LOGO_BLOCK, 9, EXPECTED_LOGO_SIZE},
+        {SYSTEM_BLOCK, 21, EXPECTED_SYSTEM_SIZE},
+        {DATA_BLOCK, 23, EXPECTED_DATA_SIZE},
+        {CACHE_BLOCK, 22, EXPECTED_CACHE_SIZE},
+    };
+    uint64_t starts[24], sizes[24], disk_size, number;
+    char path[128], resolved[4096];
+    unsigned int i, j, partitions = 0;
+    struct dirent *item;
+    DIR *directory;
+    if (read_sysfs_number("/sys/block/mmcblk0/size", &disk_size) != 0) return -1;
+    directory = opendir("/sys/block/mmcblk0");
+    if (directory == NULL) return -1;
+    while ((item = readdir(directory)) != NULL) {
+        char *end;
+        unsigned long index;
+        if (strncmp(item->d_name, "mmcblk0p", 8) != 0) continue;
+        errno = 0;
+        index = strtoul(item->d_name + 8, &end, 10);
+        if (errno != 0 || *end != '\0' || index < 1 || index > 24) {
+            closedir(directory);
+            return -1;
+        }
+        ++partitions;
+    }
+    closedir(directory);
+    if (partitions != 24) return -1;
+    for (i = 0; i < 24; ++i) {
+        snprintf(path, sizeof(path), "/sys/block/mmcblk0/mmcblk0p%u/partition", i + 1);
+        if (read_sysfs_number(path, &number) != 0 || number != i + 1) return -1;
+        snprintf(path, sizeof(path), "/sys/block/mmcblk0/mmcblk0p%u/start", i + 1);
+        if (read_sysfs_number(path, &starts[i]) != 0) return -1;
+        snprintf(path, sizeof(path), "/sys/block/mmcblk0/mmcblk0p%u/size", i + 1);
+        if (read_sysfs_number(path, &sizes[i]) != 0 || starts[i] == 0 || sizes[i] == 0 ||
+            starts[i] >= disk_size || sizes[i] > disk_size - starts[i]) return -1;
+        /* 包含所有非目标分区，防止目标范围侵入身份、校准或引导分区。 */
+        for (j = 0; j < i; ++j) {
+            if (starts[i] < starts[j] + sizes[j] && starts[j] < starts[i] + sizes[i]) return -1;
+        }
+    }
+    for (i = 0; i < sizeof(targets) / sizeof(targets[0]); ++i) {
+        struct stat status;
+        FILE *file;
+        unsigned int device_major, device_minor;
+        int fd, fields;
+        char trailing;
+        uint64_t bytes = 0;
+        snprintf(path, sizeof(path), "/dev/block/mmcblk0p%u", targets[i].partition);
+        if (realpath(targets[i].path, resolved) == NULL || strcmp(path, resolved) != 0 ||
+            sizes[targets[i].partition - 1] != targets[i].size / 512) return -1;
+        snprintf(path, sizeof(path), "/sys/block/mmcblk0/mmcblk0p%u/dev", targets[i].partition);
+        file = fopen(path, "r");
+        if (file == NULL) return -1;
+        fields = fscanf(file, "%u:%u %c", &device_major, &device_minor, &trailing);
+        fclose(file);
+        if (fields != 2) return -1;
+        fd = open(targets[i].path, O_RDONLY | O_CLOEXEC);
+        if (fd < 0) return -1;
+        int valid = fstat(fd, &status) == 0 && S_ISBLK(status.st_mode) &&
+                    major(status.st_rdev) == device_major && minor(status.st_rdev) == device_minor &&
+                    ioctl(fd, BLKGETSIZE64, &bytes) == 0 && bytes == targets[i].size;
+        close(fd);
+        if (!valid) return -1;
+    }
+    return 0;
+}
+#endif
 
 static int find_zip_entry(int zip_fd, const char *wanted, ZipEntry *entry) {
     unsigned char header[30];
@@ -270,6 +402,23 @@ static int copy_stored_entry(int zip_fd, const ZipEntry *entry, int output) {
     }
     return (uint32_t)crc == entry->crc32_value ? 0 : -1;
 }
+
+#ifdef D31_PACKAGE_146
+static int validate_android_image_146(int zip_fd, const char *name, uint64_t size) {
+    ZipEntry entry;
+    unsigned char magic[8];
+    int check, result;
+    if (find_zip_entry(zip_fd, name, &entry) != 0 || entry.uncompressed_size != size ||
+        entry.compressed_size != size ||
+        lseek(zip_fd, (off_t)entry.data_offset, SEEK_SET) < 0 ||
+        read_all(zip_fd, magic, sizeof(magic)) != 0 || memcmp(magic, "ANDROID!", 8) != 0) return -1;
+    check = open("/dev/null", O_WRONLY | O_CLOEXEC);
+    if (check < 0) return -1;
+    result = copy_stored_entry(zip_fd, &entry, check);
+    close(check);
+    return result;
+}
+#endif
 
 static int verify_stored_block(int zip_fd, const char *entry_name, const char *block,
                               uint64_t expected_size) {
@@ -409,6 +558,97 @@ static int wipe_directory_contents(const char *path) {
     return 0;
 }
 
+#ifdef D31_PACKAGE_146
+static int open_verified_cache_146(int zip_fd, const char *package_path) {
+    struct stat block_status, directory_status, zip_status;
+    char resolved[4096], line[16384];
+    int block_fd, cache_fd, matches = 0, valid = 1;
+    FILE *mounts;
+    if (realpath(package_path, resolved) == NULL || strcmp(resolved, "/cache") == 0 ||
+        strncmp(resolved, "/cache/", 7) == 0) return -1;
+    block_fd = open(CACHE_BLOCK, O_RDONLY | O_CLOEXEC);
+    if (block_fd < 0) return -1;
+    valid = fstat(block_fd, &block_status) == 0 && S_ISBLK(block_status.st_mode);
+    close(block_fd);
+    if (!valid || fstat(zip_fd, &zip_status) != 0 || zip_status.st_dev == block_status.st_rdev) return -1;
+    cache_fd = open("/cache", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (cache_fd < 0) return -1;
+    if (fstat(cache_fd, &directory_status) != 0 || directory_status.st_dev != block_status.st_rdev) {
+        close(cache_fd);
+        return -1;
+    }
+    mounts = fopen("/proc/self/mountinfo", "r");
+    if (mounts == NULL) { close(cache_fd); return -1; }
+    while (fgets(line, sizeof(line), mounts) != NULL) {
+        unsigned int device_major, device_minor;
+        char root[4096], point[4096], options[256], type[64], source[4096];
+        char *separator;
+        if (strchr(line, '\n') == NULL ||
+            sscanf(line, "%*u %*u %u:%u %4095s %4095s %255s", &device_major, &device_minor,
+                   root, point, options) != 5) { valid = 0; break; }
+        /* 禁止子挂载及bind子树，删除范围必须完全落在cache文件系统内。 */
+        if (strncmp(point, "/cache/", 7) == 0) { valid = 0; break; }
+        if (strcmp(point, "/cache") != 0) continue;
+        separator = strstr(line, " - ");
+        if (++matches != 1 || strcmp(root, "/") != 0 ||
+            makedev(device_major, device_minor) != block_status.st_rdev ||
+            (strcmp(options, "rw") != 0 && strncmp(options, "rw,", 3) != 0) ||
+            separator == NULL || sscanf(separator + 3, "%63s %4095s", type, source) != 2 ||
+            strcmp(type, "ext4") != 0 || realpath(source, resolved) == NULL ||
+            strcmp(resolved, "/dev/block/mmcblk0p22") != 0) { valid = 0; break; }
+    }
+    if (ferror(mounts)) valid = 0;
+    fclose(mounts);
+    if (!valid || matches != 1) { close(cache_fd); return -1; }
+    return cache_fd;
+}
+
+static int clear_cache_directory_146(int fd, dev_t device, int top_level) {
+    int copy = dup(fd);
+    DIR *directory;
+    struct dirent *item;
+    int result = 0;
+    if (copy < 0) return -1;
+    directory = fdopendir(copy);
+    if (directory == NULL) { close(copy); return -1; }
+    for (;;) {
+        struct stat status;
+        errno = 0;
+        item = readdir(directory);
+        if (item == NULL) { if (errno != 0) result = -1; break; }
+        if (strcmp(item->d_name, ".") == 0 || strcmp(item->d_name, "..") == 0) continue;
+        if (fstatat(fd, item->d_name, &status, AT_SYMLINK_NOFOLLOW) != 0 || status.st_dev != device) {
+            result = -1; break;
+        }
+        if (top_level && strcmp(item->d_name, "recovery") == 0) {
+            if (!S_ISDIR(status.st_mode)) { result = -1; break; }
+            continue;
+        }
+        if (S_ISDIR(status.st_mode)) {
+            int child = openat(fd, item->d_name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+            if (child < 0) { result = -1; break; }
+            struct stat opened;
+            int removed = fstat(child, &opened) == 0 && opened.st_dev == device &&
+                          opened.st_ino == status.st_ino && clear_cache_directory_146(child, device, 0) == 0;
+            if (close(child) != 0) removed = 0;
+            if (!removed || unlinkat(fd, item->d_name, AT_REMOVEDIR) != 0) { result = -1; break; }
+        } else if (unlinkat(fd, item->d_name, 0) != 0) { result = -1; break; }
+    }
+    if (closedir(directory) != 0) result = -1;
+    if (result == 0 && fsync(fd) != 0) result = -1;
+    return result;
+}
+
+static int clear_cache_146(int zip_fd, const char *package_path) {
+    int fd = open_verified_cache_146(zip_fd, package_path);
+    struct stat status;
+    if (fd < 0) return -1;
+    int result = fstat(fd, &status) == 0 ? clear_cache_directory_146(fd, status.st_dev, 1) : -1;
+    if (close(fd) != 0) result = -1;
+    return result;
+}
+#endif
+
 static int mount_partition(const char *block, const char *mount_point, unsigned long flags) {
     mkdir(mount_point, 0755);
     if (mount(block, mount_point, "ext4", flags, "") == 0) return 0;
@@ -449,21 +689,30 @@ static int extract_payload_file(int zip_fd, const PayloadFile *payload) {
     return 0;
 }
 
-static int flash_logo(int zip_fd) {
+static int flash_stored_block(int zip_fd, const char *name, const char *block,
+                              uint64_t size, int skip_identical) {
     ZipEntry entry;
-    if (find_zip_entry(zip_fd, "payload/logo.img", &entry) != 0 ||
-        entry.uncompressed_size != EXPECTED_LOGO_SIZE) return -1;
+    if (find_zip_entry(zip_fd, name, &entry) != 0 || entry.uncompressed_size != size) return -1;
     int check = open("/dev/null", O_WRONLY | O_CLOEXEC);
     if (check < 0) return -1;
     int result = copy_stored_entry(zip_fd, &entry, check);
     close(check);
     if (result != 0) return -1;
-    int fd = open(LOGO_BLOCK, O_WRONLY | O_CLOEXEC);
+    if (skip_identical && verify_stored_block(zip_fd, name, block, size) == 0) return 0;
+    int fd = open(block, O_WRONLY | O_CLOEXEC);
     if (fd < 0) return -1;
     result = copy_stored_entry(zip_fd, &entry, fd);
     if (fsync(fd) != 0) result = -1;
+#ifdef D31_PACKAGE_146
+    if (close(fd) != 0) result = -1;
+#else
     close(fd);
-    return result == 0 ? verify_stored_block(zip_fd, "payload/logo.img", LOGO_BLOCK, EXPECTED_LOGO_SIZE) : -1;
+#endif
+    return result == 0 ? verify_stored_block(zip_fd, name, block, size) : -1;
+}
+
+static int flash_logo(int zip_fd) {
+    return flash_stored_block(zip_fd, "payload/logo.img", LOGO_BLOCK, EXPECTED_LOGO_SIZE, 0);
 }
 
 static int prepare_clean_data(int zip_fd) {
@@ -594,12 +843,25 @@ int main(int argc, char **argv) {
     if (errno != 0 || end == argv[2] || *end != '\0' || parsed_fd < 0) return 3;
     output_fd = (int)parsed_fd;
 
-#ifdef D31_PACKAGE_145
+#if defined(D31_PACKAGE_146)
+    ui_print("D31完整刷机包 v1.4.6");
+#elif defined(D31_PACKAGE_145)
     ui_print("D31完整刷机包 v1.4.5");
 #else
     ui_print("D31完整刷机包 v1.4.4");
 #endif
     ui_print("将清除全部用户数据、账号和软件配置");
+#ifdef D31_PACKAGE_146
+    ui_print("将迁移boot和Recovery；不写入身份、校准、NVRAM、preloader、lk或分区表");
+    if (validate_platform_146() != 0) {
+        ui_print("拒绝：不是已批准的MT6737T D31平台");
+        return 10;
+    }
+    if (validate_layout_146() != 0) {
+        ui_print("拒绝：块设备映射、分区尺寸或非重叠检查失败");
+        return 11;
+    }
+#else
     ui_print("不会写入boot、Recovery、设备身份、校准或NVRAM分区");
 
     if (file_contains("/default.prop", EXPECTED_FINGERPRINT) != 0) {
@@ -614,6 +876,7 @@ int main(int argc, char **argv) {
         ui_print("拒绝：目标分区尺寸不匹配");
         return 11;
     }
+#endif
     zip_fd = open(argv[3], O_RDONLY | O_CLOEXEC);
     if (zip_fd < 0 || validate_required_entries(zip_fd) != 0) {
         ui_error("刷机包项目预检");
@@ -621,6 +884,21 @@ int main(int argc, char **argv) {
         return 12;
     }
 
+#ifdef D31_PACKAGE_146
+    /* 两个镜像均完整预读成功后，才允许开始任何分区或用户数据改写。 */
+    if (validate_android_image_146(zip_fd, "payload/boot.img", EXPECTED_BOOT_SIZE) != 0 ||
+        validate_android_image_146(zip_fd, "payload/recovery.img", EXPECTED_RECOVERY_SIZE) != 0) {
+        ui_print("拒绝：boot或Recovery载荷长度、Android头或完整CRC校验失败");
+        close(zip_fd);
+        return 13;
+    }
+    if (clear_cache_146(zip_fd, argv[3]) != 0) {
+        ui_error("核验或清除cache失败；需真实可写cache挂载，安装包不得位于cache");
+        close(zip_fd);
+        return 26;
+    }
+    ui_print("已清除cache旧缓存，仅保留recovery日志目录；未格式化分区");
+#else
     if (verify_stored_block(zip_fd, "payload/boot.img", BOOT_BLOCK, EXPECTED_BOOT_SIZE) != 0) {
         ui_print("拒绝：现有boot与基线不一致；本包不修复或写入boot");
         close(zip_fd);
@@ -633,6 +911,7 @@ int main(int argc, char **argv) {
         return 14;
     }
     ui_print("Recovery逐字校验通过，仅保留原件，不写入");
+#endif
     ui_print("预检通过，开始写入system分区");
     umount2("/system", MNT_DETACH);
     if (flash_gzip_system(zip_fd) != 0) {
@@ -661,6 +940,20 @@ int main(int argc, char **argv) {
         return 23;
     }
 
+#ifdef D31_PACKAGE_146
+    if (flash_stored_block(zip_fd, "payload/boot.img", BOOT_BLOCK, EXPECTED_BOOT_SIZE, 1) != 0) {
+        ui_error("写入或回读boot失败；请留在Recovery使用电脑备份恢复，勿重启系统");
+        close(zip_fd);
+        return 24;
+    }
+    ui_print("boot逐字回读通过");
+    if (flash_stored_block(zip_fd, "payload/recovery.img", RECOVERY_BLOCK, EXPECTED_RECOVERY_SIZE, 1) != 0) {
+        ui_error("写入或回读Recovery失败；请留在当前Recovery修复，勿重启");
+        close(zip_fd);
+        return 25;
+    }
+    ui_print("Recovery逐字回读通过");
+#endif
     close(zip_fd);
     sync();
     ui_print("刷机完成：所有软件均为未配置状态");

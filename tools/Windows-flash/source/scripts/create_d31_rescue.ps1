@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Parameter(Mandatory = $true)][string]$Serial,
     [int]$AdbPort = 5042,
     [Parameter(Mandatory = $true)][string]$OutputBase
@@ -25,7 +25,7 @@ $ExpectedSizes = @{
     userdata = 13517717504L
 }
 $PrivatePartitions = @("nvram", "nvdata", "protect1", "protect2", "proinfo", "recovery", "secro", "seccfg", "frp")
-$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$Timestamp = (Get-Date -Format "yyyyMMdd_HHmmss") + '-' + [guid]::NewGuid().ToString('N')
 $RemoteRoot = "/data/local/tmp/d31-rescue-$Timestamp"
 $IncompleteRoot = Join-Path $OutputBase ("D31_本机急救_$Timestamp-未完成")
 $FinalRoot = Join-Path $OutputBase ("D31_本机急救_$Timestamp")
@@ -37,13 +37,9 @@ $SessionLog = Join-Path $IncompleteRoot "创建记录.txt"
 function Assert-PartitionLayout {
     param([string[]]$Names)
     $ranges = @()
-    # Windows 旧式原生传参会剥离双引号；仅在该模式转义，保留设备 shell 的引用语义。
-    $nativeMode = Get-Variable PSNativeCommandArgumentPassing -ErrorAction SilentlyContinue
-    $legacyWindows = $env:OS -eq 'Windows_NT' -and ($null -eq $nativeMode -or $nativeMode.Value -eq 'Legacy')
     foreach ($name in ($Names | Select-Object -Unique)) {
         $command = 'p=$(readlink -f "__BYNAME__/__NAME__"); if [ -b "$p" ]; then n=${p##*/}; printf "%s|" "$p"; tr -d "\n" < /sys/class/block/$n/start; printf "|"; cat /sys/class/block/$n/size; fi'
         $command = $command.Replace('__BYNAME__',$ByName).Replace('__NAME__',$name)
-        if ($legacyWindows) { $command = $command.Replace('"','\"') }
         $rawValue = (Invoke-Adb -s $Serial shell $command) -join "`n"
         $value = $rawValue.Trim()
         $diagnostic = '原始返回值=' + (ConvertTo-Json -InputObject $rawValue -Compress)
@@ -84,24 +80,70 @@ function Add-Log {
 function Invoke-Adb {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
     $previousErrorAction = $ErrorActionPreference
+    $nativeMode = Get-Variable PSNativeCommandArgumentPassing -ErrorAction SilentlyContinue
+    $nativeArguments = $Arguments
+    if ($env:OS -eq 'Windows_NT' -and ($null -eq $nativeMode -or $nativeMode.Value -eq 'Legacy')) {
+        $nativeArguments = @($Arguments | ForEach-Object { $_.Replace('"','\"') })
+    }
     try {
-        $ErrorActionPreference = "Continue"
-        $output = & $Adb -P $AdbPort @Arguments 2>&1
+        $ErrorActionPreference = 'Continue'
+        $output = & $Adb -P $AdbPort @nativeArguments 2>&1
         $exitCode = $LASTEXITCODE
-    } finally {
-        $ErrorActionPreference = $previousErrorAction
-    }
-    Add-Log ("ADB " + ($Arguments -join " "))
+    } finally { $ErrorActionPreference = $previousErrorAction }
+    Add-Log ('ADB ' + ($Arguments -join ' '))
     if ($output) { Add-Log ($output -join [Environment]::NewLine) }
-    if ($exitCode -ne 0) {
-        throw "ADB命令失败：adb -P $AdbPort $($Arguments -join ' ')`n$($output -join [Environment]::NewLine)"
-    }
+    if ($exitCode -ne 0) { throw "ADB命令失败：$($output -join [Environment]::NewLine)" }
     return $output
+}
+
+function Invoke-AdbOnce {
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+    # 备份命令只发一次；超时保留设备临时原像，不在finally清理或重试。
+    $quoted = foreach ($argument in (@('-P', [string]$AdbPort) + $Arguments)) {
+        '"' + [regex]::Replace([regex]::Replace($argument, '(\\*)"', '$1$1\"'), '(\\+)$', '$1$1') + '"'
+    }
+    $start = New-Object System.Diagnostics.ProcessStartInfo
+    $start.FileName = $Adb
+    $start.Arguments = $quoted -join ' '
+    $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    $start.StandardOutputEncoding = [Text.Encoding]::UTF8
+    $start.StandardErrorEncoding = [Text.Encoding]::UTF8
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $start
+    Add-Log ('单次ADB ' + ($Arguments -join ' '))
+    try {
+        if (-not $process.Start()) { throw '无法启动备份ADB操作' }
+        $stdout = $process.StandardOutput.ReadToEndAsync()
+        $stderr = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit(1800000)) {
+            try { $process.Kill() } catch { }
+            throw '备份ADB超时，保留原像和状态，禁止自动重发'
+        }
+        $output = $stdout.GetAwaiter().GetResult()
+        $errorText = $stderr.GetAwaiter().GetResult()
+        Add-Log ($output + $errorText)
+        if ($process.ExitCode -ne 0) { throw "备份ADB失败：$errorText" }
+        return $output
+    } finally { $process.Dispose() }
 }
 
 function Get-DeviceValue {
     param([string]$Command)
     return ((Invoke-Adb -s $Serial shell $Command) -join "`n").Trim()
+}
+
+function Get-CheckedDeviceValue {
+    param([string]$Command)
+    $prefix = 'D31_RESCUE_EXIT_' + [guid]::NewGuid().ToString('N') + '_'
+    $wrapped = '( set -e; test $(id -u) = 0; ' + $Command + ' ); d31_rescue_exit=$?; echo; echo ' + $prefix + '$d31_rescue_exit'
+    $text = ((Invoke-AdbOnce -s $Serial shell $wrapped) -join "`n").Replace("`r", '')
+    $match = [regex]::Match($text, '(?s)\A(?<body>.*)\n' + [regex]::Escape($prefix) + '(?<code>[0-9]{1,3})\n?\z')
+    if (-not $match.Success -or [regex]::Matches($text,[regex]::Escape($prefix)).Count -ne 1 -or
+        [int]$match.Groups['code'].Value -ne 0) { throw '备份操作回执未确认，保留现场，禁止自动重发' }
+    return $match.Groups['body'].Value.Trim()
 }
 
 function Convert-AndroidSizeToBytes {
@@ -173,7 +215,7 @@ function Get-GzipRawInfo {
 
 function Pull-VerifiedFile {
     param([string]$RemotePath, [string]$LocalPath, [int64]$ExpectedBytes, [string]$ExpectedHash)
-    Invoke-Adb -s $Serial pull $RemotePath $LocalPath | Write-Host
+    Invoke-AdbOnce -s $Serial pull $RemotePath $LocalPath | Write-Host
     $item = Get-Item -LiteralPath $LocalPath
     $hash = (Get-FileHash -LiteralPath $LocalPath -Algorithm SHA256).Hash
     if ($item.Length -ne $ExpectedBytes -or $hash -ne $ExpectedHash) {
@@ -190,7 +232,12 @@ if ((Get-FileHash -LiteralPath $RestoreLauncher -Algorithm SHA256).Hash -ne $Exp
     (Get-FileHash -LiteralPath $TestLauncher -Algorithm SHA256).Hash -ne $ExpectedTestLauncherHash) {
     throw "工具包中的D31急救入口损坏或版本不匹配"
 }
-if ($Serial -notmatch '^\d{1,3}(\.\d{1,3}){3}:5555$') { throw "目标ADB地址格式不正确：$Serial" }
+if ($Serial -notmatch '^(\d{1,3}(?:\.\d{1,3}){3}):([1-9][0-9]{0,4})$' -or $AdbPort -ne 5042) {
+    throw 'D31必须指定完整IPv4与实际ADB端口，并使用电脑ADB端口5042'
+}
+if ([int]$Matches[2] -gt 65535 -or @($Matches[1].Split('.') | Where-Object { [int]$_ -gt 255 }).Count) {
+    throw 'D31的IP或端口超出有效范围'
+}
 if ((Test-Path -LiteralPath $IncompleteRoot) -or (Test-Path -LiteralPath $FinalRoot)) {
     throw "本次急救输出目录已经存在，拒绝覆盖"
 }
@@ -220,7 +267,7 @@ try {
         throw "目标地址不属于eth0；创建急救包和刷机都只允许有线TCP ADB"
     }
 
-    Write-Host "[2/9] 核对分区布局和原厂Recovery信任基线。"
+    Write-Host "[2/9] 核对分区布局并记录当前Recovery信任状态。"
     foreach ($name in $ExpectedSizes.Keys) {
         if ((Get-BlockSize $name) -ne [int64]$ExpectedSizes[$name]) { throw "$name 分区尺寸不匹配" }
     }
@@ -231,8 +278,10 @@ try {
         }
     }
     $recoveryHash = Get-RemoteSha256 "$ByName/recovery"
+    $recoveryEntryStatus = 'stock-baseline'
     if ($recoveryHash -ne $ExpectedRecoveryHash) {
-        throw "目标机Recovery与已验证版本不同，无法保证接受急救入口签名；已拒绝刷机。Recovery SHA-256=$recoveryHash"
+        $recoveryEntryStatus = 'raw-only-unverified'
+        Write-Host '当前Recovery不同于原厂基线，继续保存原始备份；尚未验证其接受原厂签名TF急救入口的能力。'
     }
     $proinfoHash = Get-RemoteSha256 "$ByName/proinfo"
 
@@ -242,31 +291,33 @@ try {
     if ($availableBytes -lt 2GB) {
         throw "D31的/data可用空间不足2GiB，无法安全生成原始system压缩镜像"
     }
-    Get-DeviceValue "rm -rf $RemoteRoot; mkdir -p $RemoteRoot" | Out-Null
+    Get-CheckedDeviceValue "umask 077; mkdir '$RemoteRoot'" | Out-Null
     $systemRawHash = Get-RemoteSha256 "$ByName/system"
 
     Write-Host "[4/9] 在目标机只读压缩原始system分区。此步骤可能耗时较长。"
     $remoteSystem = "$RemoteRoot/$([IO.Path]::GetFileName('D31_RESCUE_SYSTEM.img.gz'))"
-    Get-DeviceValue "busybox gzip -1 -c $ByName/system > $remoteSystem; sync" | Out-Null
+    Get-CheckedDeviceValue "busybox gzip -1 -c $ByName/system > $remoteSystem; sync" | Out-Null
     $systemGzipBytes = Get-RemoteFileSize $remoteSystem
     $systemGzipHash = Get-RemoteSha256 $remoteSystem
     $localSystem = Join-Path $CardRoot "D31_RESCUE_SYSTEM.img.gz"
     Pull-VerifiedFile $remoteSystem $localSystem $systemGzipBytes $systemGzipHash
-    Get-DeviceValue "rm -f $remoteSystem" | Out-Null
     $rawInfo = Get-GzipRawInfo $localSystem
     if ($rawInfo.Bytes -ne [int64]$ExpectedSizes.system -or $rawInfo.Sha256 -ne $systemRawHash) {
         throw "电脑端完整解压回验的system长度或SHA-256不一致"
     }
+    Get-CheckedDeviceValue "rm -f $remoteSystem" | Out-Null
 
     Write-Host "[5/9] 备份并双端校验原始boot分区。"
     $remoteBoot = "$RemoteRoot/D31_RESCUE_BOOT.img"
-    Get-DeviceValue "busybox dd if=$ByName/boot of=$remoteBoot bs=4M; sync" | Out-Null
+    $sourceBootHash = Get-RemoteSha256 "$ByName/boot"
+    Get-CheckedDeviceValue "busybox dd if=$ByName/boot of=$remoteBoot bs=4M; sync" | Out-Null
     $bootBytes = Get-RemoteFileSize $remoteBoot
     $bootHash = Get-RemoteSha256 $remoteBoot
     if ($bootBytes -ne [int64]$ExpectedSizes.boot) { throw "boot备份长度不匹配" }
     $localBoot = Join-Path $CardRoot "D31_RESCUE_BOOT.img"
     Pull-VerifiedFile $remoteBoot $localBoot $bootBytes $bootHash
-    Get-DeviceValue "rm -f $remoteBoot" | Out-Null
+    if ($bootHash -ne $sourceBootHash -or (Get-RemoteSha256 "$ByName/boot") -ne $sourceBootHash) { throw 'boot源分区与备份不一致' }
+    Get-CheckedDeviceValue "rm -f $remoteBoot" | Out-Null
 
     Write-Host "[6/9] 独立保存本机身份、校准和Recovery分区。"
     $privateManifest = New-Object System.Collections.Generic.List[string]
@@ -274,11 +325,17 @@ try {
     foreach ($name in $PrivatePartitions) {
         $remote = "$RemoteRoot/$name.img"
         $local = Join-Path $PrivateRoot "$name.img"
-        Get-DeviceValue "busybox dd if=$ByName/$name of=$remote bs=4M; sync" | Out-Null
+        $sourceHash = Get-RemoteSha256 "$ByName/$name"
+        $sourceBytes = Get-BlockSize $name
+        Get-CheckedDeviceValue "busybox dd if=$ByName/$name of=$remote bs=4M; sync" | Out-Null
         $bytes = Get-RemoteFileSize $remote
         $hash = Get-RemoteSha256 $remote
         Pull-VerifiedFile $remote $local $bytes $hash
-        Get-DeviceValue "rm -f $remote" | Out-Null
+        if ($bytes -ne $sourceBytes -or $hash -ne $sourceHash -or (Get-RemoteSha256 "$ByName/$name") -ne $sourceHash -or
+            ($name -eq 'recovery' -and $hash -ne $recoveryHash) -or ($name -eq 'proinfo' -and $hash -ne $proinfoHash)) {
+            throw "$name 源分区与备份不一致"
+        }
+        Get-CheckedDeviceValue "rm -f $remote" | Out-Null
         $privateManifest.Add("$name`t$bytes`t$hash")
         Write-Utf8 (Join-Path $PrivateRoot "私有备份清单.tsv") $privateManifest
     }
@@ -292,6 +349,7 @@ try {
         "boot_partition_bytes=$($ExpectedSizes.boot)",
         "userdata_partition_bytes=$($ExpectedSizes.userdata)",
         "recovery_sha256=$recoveryHash",
+        "recovery_entry_status=$recoveryEntryStatus",
         "proinfo_sha256=$proinfoHash",
         "system_gzip_bytes=$systemGzipBytes",
         "system_gzip_sha256=$systemGzipHash",
@@ -309,10 +367,13 @@ try {
         "这套文件只适用于创建它的这一台D31，禁止上传、分享或用于另一台设备。",
         "它保存的是第一次刷机前该机自己的system和boot，不包含userdata、账号、密码、通信录或SIP配置。",
         "整套备份已经保存在电脑硬盘。正常刷机不需要插入U盘或TF卡。",
+        "Recovery入口状态：$recoveryEntryStatus；原始备份完整性与签名入口接受能力是两项独立结论。",
+        "若状态为raw-only-unverified，当前第三方Recovery可能拒绝原厂签名入口；本备份不是已验证可直接卡刷的急救包。",
+        "本清单保留备份时的真实target_fingerprint和Recovery绑定；迁移后不得伪造它们绕过恢复检查。原系统和Recovery的恢复需要另行核验工程恢复路径。",
         "D31_RESCUE_TEST.zip只做完整读取和绑定校验，不写任何分区；它是可选测试，不是刷机前提。",
         "D31_RESCUE_UPDATE.zip会恢复原始system和boot，并清空userdata。",
         "",
-        "刷成无法启动后的恢复：",
+        "仅在原厂签名信任及本机绑定均满足时，采用下列恢复步骤：",
         "1. 将TF卡或U盘格式化为FAT32。不要使用NTFS。",
         "2. 把本目录连同全部文件原样复制到介质，文件必须保持在同一目录。",
         "3. 保持D31稳定供电，插入介质并进入原厂Recovery。",
@@ -345,13 +406,11 @@ try {
         "私有备份目录=禁止公开的本机私有备份",
         "创建时间=$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
     )
-    Get-DeviceValue "rm -rf $RemoteRoot" | Out-Null
+    Get-CheckedDeviceValue "rm -rf $RemoteRoot" | Out-Null
     Move-Item -LiteralPath $IncompleteRoot -Destination $FinalRoot
     $FinalCardRoot = Join-Path $FinalRoot "需要抢救时复制到TF卡或U盘"
     Write-Host "D31本机急救包创建通过：$FinalCardRoot"
 } catch {
     Add-Log ("失败：" + $_.Exception.Message)
     throw
-} finally {
-    try { Get-DeviceValue "rm -rf $RemoteRoot" | Out-Null } catch { }
 }

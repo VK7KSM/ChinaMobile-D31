@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$Serial,
     [int]$AdbPort = 5042,
     [string]$PackagePath,
@@ -27,6 +27,15 @@ $ExpectedPackageHash = [string]$ApprovedPackage.sha256
 if ($ExpectedPackageBytes -le 0 -or $ExpectedPackageHash -notmatch '^[0-9A-Fa-f]{64}$' -or
     $ApprovedPackage.bootSha256 -notmatch '^[0-9A-Fa-f]{64}$' -or $ApprovedPackage.version -notmatch '^\d+\.\d+\.\d+$') {
     throw '内置固件清单无效，拒绝继续'
+}
+$ReplaceBootRecovery = $false
+if ($null -ne $ApprovedPackage.PSObject.Properties['replaceBootRecovery']) {
+    if ($ApprovedPackage.replaceBootRecovery -isnot [bool]) { throw 'replaceBootRecovery必须是布尔值' }
+    $ReplaceBootRecovery = $ApprovedPackage.replaceBootRecovery
+}
+if ($ReplaceBootRecovery -and ([version]$ApprovedPackage.version -lt [version]'1.4.6' -or
+    $ApprovedPackage.recoverySha256 -notmatch '^[0-9A-Fa-f]{64}$')) {
+    throw '覆盖boot/Recovery合同要求固件至少1.4.6及有效目标Recovery哈希'
 }
 $ExpectedFingerprint = "alps/full_hct6737t_66_m0/hct6737t_66_m0:6.0/MRA58K/1583081804:userdebug/test-keys"
 $ByName = "/dev/block/platform/mtk-msdc.0/11230000.msdc0/by-name"
@@ -104,13 +113,9 @@ function Assert-InstalledPayload {
 function Assert-PartitionLayout {
     param([string[]]$Names)
     $ranges = @()
-    # Windows 旧式原生传参会剥离双引号；仅在该模式转义，保留设备 shell 的引用语义。
-    $nativeMode = Get-Variable PSNativeCommandArgumentPassing -ErrorAction SilentlyContinue
-    $legacyWindows = $env:OS -eq 'Windows_NT' -and ($null -eq $nativeMode -or $nativeMode.Value -eq 'Legacy')
     foreach ($name in ($Names | Select-Object -Unique)) {
         $command = 'p=$(readlink -f "__BYNAME__/__NAME__"); if [ -b "$p" ]; then n=${p##*/}; printf "%s|" "$p"; tr -d "\n" < /sys/class/block/$n/start; printf "|"; cat /sys/class/block/$n/size; fi'
         $command = $command.Replace('__BYNAME__',$ByName).Replace('__NAME__',$name)
-        if ($legacyWindows) { $command = $command.Replace('"','\"') }
         $rawValue = (Invoke-Adb -s $Serial shell $command) -join "`n"
         $value = $rawValue.Trim()
         $diagnostic = '原始返回值=' + (ConvertTo-Json -InputObject $rawValue -Compress)
@@ -159,10 +164,16 @@ function Write-Step {
 function Invoke-Adb {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
     $previousErrorAction = $ErrorActionPreference
+    # 所有普通ADB命令统一保留shell引号，调用方不得再做局部转义。
+    $nativeMode = Get-Variable PSNativeCommandArgumentPassing -ErrorAction SilentlyContinue
+    $nativeArguments = $Arguments
+    if ($env:OS -eq 'Windows_NT' -and ($null -eq $nativeMode -or $nativeMode.Value -eq 'Legacy')) {
+        $nativeArguments = @($Arguments | ForEach-Object { $_.Replace('"','\"') })
+    }
     try {
         # ADB会把成功传输进度写入stderr，不能让Windows PowerShell 5.1把它当成脚本异常。
         $ErrorActionPreference = "Continue"
-        $output = & $Adb -P $AdbPort @Arguments 2>&1
+        $output = & $Adb -P $AdbPort @nativeArguments 2>&1
         $exitCode = $LASTEXITCODE
     } finally {
         $ErrorActionPreference = $previousErrorAction
@@ -178,9 +189,14 @@ function Invoke-Adb {
 function Invoke-AdbOptional {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
     $previousErrorAction = $ErrorActionPreference
+    $nativeMode = Get-Variable PSNativeCommandArgumentPassing -ErrorAction SilentlyContinue
+    $nativeArguments = $Arguments
+    if ($env:OS -eq 'Windows_NT' -and ($null -eq $nativeMode -or $nativeMode.Value -eq 'Legacy')) {
+        $nativeArguments = @($Arguments | ForEach-Object { $_.Replace('"','\"') })
+    }
     try {
         $ErrorActionPreference = "SilentlyContinue"
-        $output = & $Adb -P $AdbPort @Arguments 2>&1
+        $output = & $Adb -P $AdbPort @nativeArguments 2>&1
         $exitCode = $LASTEXITCODE
     } finally {
         $ErrorActionPreference = $previousErrorAction
@@ -194,11 +210,12 @@ function Get-DeviceValue {
 }
 
 function Get-CheckedDeviceValue {
-    param([string]$Command)
+    param([string]$Command, [switch]$Once)
     # 旧ADB可能吞掉远端退出码；关键交接须有本次唯一结束标记。
     $prefix = 'D31_RECOVERY_EXIT_' + [guid]::NewGuid().ToString('N') + '_'
     $wrapped = '( ' + $Command + ' ); d31_recovery_exit=$?; echo; echo ' + $prefix + '$d31_recovery_exit'
-    $raw = (Invoke-Adb -s $Serial shell $wrapped) -join "`n"
+    $raw = if ($Once) { (Invoke-AdbOnce @('-s', $Serial, 'shell', $wrapped)) -join "`n" }
+        else { (Invoke-Adb -s $Serial shell $wrapped) -join "`n" }
     $text = $raw.Replace("`r", '')
     $match = [regex]::Match($text, '(?s)\A(?<body>.*)\n' + [regex]::Escape($prefix) + '(?<code>[0-9]{1,3})\n?\z')
     if (-not $match.Success -or [regex]::Matches($text, [regex]::Escape($prefix)).Count -ne 1 -or
@@ -238,9 +255,20 @@ function Assert-LegacyFlashDeployment {
     $current = ($packageState -split 'Hidden system packages:', 2)[0]
     $versions = [regex]::Matches($current, '(?m)^\s*versionCode=([0-9]+)\b')
     if ($versions.Count -ne 1 -or [int64]$versions[0].Groups[1].Value -lt 1 -or
-        [int64]$versions[0].Groups[1].Value -ge 96 -or
         ($null -ne $Health.version_code -and [string]$Health.version_code -ne $versions[0].Groups[1].Value)) {
         throw 'PM版本或health不能证明真实旧版，禁止绕过维护'
+    }
+    if ([int64]$versions[0].Groups[1].Value -ge 96) {
+        # 版本号不能区分basic/full；仅接受已核对源码和制品的基础版，摘要不符即关闭。
+        $names = [regex]::Matches($current, '(?m)^\s*versionName=([^\s]+)\s*$')
+        if ([int64]$versions[0].Groups[1].Value -ne 193 -or $names.Count -ne 1 -or
+            $names[0].Groups[1].Value -cne '1.34.18-candidate-basic' -or
+            $null -ne $Health.version_code) { throw '未能证明批准基础版，禁止绕过维护' }
+        $apk = $path.Substring('package:'.Length)
+        $identity = Get-CheckedDeviceValue "test -f '$apk' && test ! -L '$apk' && busybox sha256sum '$apk'"
+        if ($identity -cnotmatch ('(?i)^C7E7665937B2895905CAF3B7A71DA6F65FA311DF601BEB771E767C34924D20A3\s+' + [regex]::Escape($apk) + '$')) {
+            throw '已安装基础版APK不属于批准制品，禁止绕过维护'
+        }
     }
 }
 
@@ -259,7 +287,7 @@ function Enter-FlashMaintenance {
     if ($apk -notmatch '^/data/local/d31-remote/releases/[a-f0-9]{64}/remote\.apk$' -and $apk -ne '/system/priv-app/D31ElfRemote/D31ElfRemote.apk') { throw '维护载荷路径无效' }
     $id = [guid]::NewGuid().ToString('N')
     $prefix = "CLASSPATH='$apk' /system/bin/app_process /system/bin net.elfradio.d31bootstrap.RemoteWindowsMaintenance"
-    if ((Get-CheckedDeviceValue "$prefix reserve $id") -ne 'D31_WINDOWS_RESERVED_V1') { throw '未取得Windows刷机维护预留' }
+    if ((Get-CheckedDeviceValue "$prefix reserve $id" -Once:$ReplaceBootRecovery) -ne 'D31_WINDOWS_RESERVED_V1') { throw '未取得Windows刷机维护预留' }
     return @{ Prefix=$prefix; Id=$id }
 }
 
@@ -364,6 +392,131 @@ function Get-RemoteSha256 {
         throw "无法解析设备端SHA-256：$line"
     }
     return $Matches[1].ToUpperInvariant()
+}
+
+function Invoke-AdbOnce {
+    [CmdletBinding()]
+    param([string[]]$Arguments, [int]$TimeoutSeconds = 180)
+    # 单次子进程，不借用可重试上传通道；超时只能结束本地等待，不能推断远端已停止。
+    if ($AdbPort -ne 5042 -or $Arguments.Count -lt 3 -or $Arguments[0] -cne '-s' -or
+        $Arguments[1] -cne $Serial) { throw '单次ADB操作必须绑定5042和完整Serial' }
+    $quoted = foreach ($argument in (@('-P', [string]$AdbPort) + $Arguments)) {
+        '"' + [regex]::Replace([regex]::Replace($argument, '(\\*)"', '$1$1\"'), '(\\+)$', '$1$1') + '"'
+    }
+    $start = New-Object System.Diagnostics.ProcessStartInfo
+    $start.FileName = $Adb
+    $start.Arguments = $quoted -join ' '
+    $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    $start.StandardOutputEncoding = [Text.Encoding]::UTF8
+    $start.StandardErrorEncoding = [Text.Encoding]::UTF8
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $start
+    Add-SessionLog ('单次ADB ' + ($Arguments -join ' '))
+    try {
+        if (-not $process.Start()) { throw '无法启动单次ADB操作' }
+        $stdout = $process.StandardOutput.ReadToEndAsync()
+        $stderr = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+            try { $process.Kill() } catch { }
+            throw 'ADB操作超时，远端结果不确定；保留原像和状态，禁止重启及自动重发'
+        }
+        $output = $stdout.GetAwaiter().GetResult()
+        $errorText = $stderr.GetAwaiter().GetResult()
+        Add-SessionLog ($output + $errorText)
+        if ($process.ExitCode -ne 0) { throw "单次ADB失败，禁止自动重发：$errorText" }
+        return $output
+    } finally { $process.Dispose() }
+}
+
+function Save-MigrationState {
+    param($State, [string]$Path, [string]$Phase)
+    $State.phase = $Phase
+    $State.updatedLocal = Get-Date -Format 'o'
+    Write-Utf8 $Path @($State | ConvertTo-Json -Depth 6)
+}
+
+function Backup-BootRecovery {
+    param([string]$Directory, $State, [string]$StatePath)
+    Save-MigrationState $State $StatePath '备份进行中'
+    $remoteRoot = $State.remoteRoot
+    $null = Get-CheckedDeviceValue "set -e; test `$(id -u) = 0; umask 077; mkdir '$remoteRoot'" -Once
+    foreach ($name in @('boot','recovery')) {
+        $before = Get-RemoteSha256 "$ByName/$name"
+        $remote = "$remoteRoot/original-$name.img"
+        $local = Join-Path $Directory "original-$name.img"
+        $null = Get-CheckedDeviceValue "set -e; test `$(id -u) = 0; busybox dd if='$ByName/$name' of='$remote' bs=4M; sync" -Once
+        $remoteHash = Get-RemoteSha256 $remote
+        $null = Invoke-AdbOnce @('-s', $Serial, 'pull', $remote, $local)
+        if (-not (Test-Path -LiteralPath $local -PathType Leaf) -or
+            (Get-Item -LiteralPath $local).Length -ne [long]$ExpectedSizes[$name] -or
+            (Get-FileHash -LiteralPath $local).Hash -ne $remoteHash -or $remoteHash -ne $before -or
+            (Get-RemoteSha256 "$ByName/$name") -ne $before) {
+            throw "$name 原像备份缺失、损坏或源分区变化；禁止写入Recovery"
+        }
+        $State.backups[$name] = @{ file="original-$name.img"; bytes=[long]$ExpectedSizes[$name]; sha256=$before }
+        Save-MigrationState $State $StatePath "已核验$name 原像"
+    }
+    Save-MigrationState $State $StatePath '最小备份已核验'
+}
+
+function Get-ApprovedRecoveryImage {
+    param([string]$Directory)
+    # 整包再次绑定批准摘要，避免上传期间本地文件被替换。
+    if ((Get-Item -LiteralPath $Package).Length -ne $ExpectedPackageBytes -or
+        (Get-FileHash -LiteralPath $Package).Hash -ne $ExpectedPackageHash) { throw '批准ZIP已变化' }
+    Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
+    $zip = [IO.Compression.ZipFile]::OpenRead($Package)
+    $path = Join-Path $Directory 'target-recovery.img'
+    try {
+        $entries = @($zip.Entries | Where-Object { $_.FullName -ceq 'payload/recovery.img' })
+        if ($entries.Count -ne 1 -or $entries[0].Length -ne [long]$ExpectedSizes.recovery) {
+            throw '批准ZIP的Recovery条目缺失、重复或容量不符'
+        }
+        $source = $entries[0].Open()
+        $target = [IO.File]::Open($path, [IO.FileMode]::CreateNew)
+        try { $source.CopyTo($target) } finally { $target.Dispose(); $source.Dispose() }
+    } finally { $zip.Dispose() }
+    $stream = [IO.File]::OpenRead($path)
+    try {
+        $magic = New-Object byte[] 8
+        if ($stream.Read($magic,0,8) -ne 8 -or [Text.Encoding]::ASCII.GetString($magic) -cne 'ANDROID!' -or
+            $stream.Length -ne [long]$ExpectedSizes.recovery) { throw '目标Recovery的Android magic或容量不符' }
+    } finally { $stream.Dispose() }
+    if ((Get-FileHash -LiteralPath $path).Hash -ne $ApprovedPackage.recoverySha256) { throw '目标Recovery镜像哈希不符' }
+    return $path
+}
+
+function Install-ApprovedRecovery {
+    param([string]$Directory, $State, [string]$StatePath)
+    foreach ($name in @('boot','recovery')) {
+        $backup = $State.backups[$name]
+        $path = Join-Path $Directory "original-$name.img"
+        if (-not $backup -or -not (Test-Path -LiteralPath $path -PathType Leaf) -or
+            (Get-Item -LiteralPath $path).Length -ne [long]$ExpectedSizes[$name] -or
+            (Get-FileHash -LiteralPath $path).Hash -ne $backup.sha256 -or
+            (Get-RemoteSha256 "$ByName/$name") -ne $backup.sha256) { throw '最小备份缺失、损坏或当前分区已变化' }
+    }
+    $image = Get-ApprovedRecoveryImage $Directory
+    if ($State.backups.recovery.sha256 -eq $ApprovedPackage.recoverySha256) {
+        Save-MigrationState $State $StatePath '当前Recovery已为目标镜像'
+        return
+    }
+    $remote = $State.remoteRoot + '/target-recovery.img'
+    Save-MigrationState $State $StatePath '上传目标Recovery'
+    $null = Invoke-AdbOnce @('-s', $Serial, 'push', $image, $remote)
+    if ((Get-DeviceValue "stat -c %s $remote") -ne [string]$ExpectedSizes.recovery -or
+        (Get-RemoteSha256 $remote) -ne $ApprovedPackage.recoverySha256) { throw '上传Recovery的长度或哈希不符' }
+    Save-MigrationState $State $StatePath 'Recovery写入已发起，结果待确认，禁止自动重写'
+    Write-Step 'D31_PARTITION_WRITE_BEGIN_V1 recovery'
+    [Console]::Out.Flush()
+    $null = Get-CheckedDeviceValue "set -e; test `$(id -u) = 0; test `$(blockdev --getsize64 '$ByName/recovery') = $($ExpectedSizes.recovery); busybox dd if='$remote' of='$ByName/recovery' bs=4M; sync" -Once
+    $State.recoveryReadbackSha256 = Get-RemoteSha256 "$ByName/recovery"
+    Save-MigrationState $State $StatePath 'Recovery写入已回执，回读待判定'
+    if ($State.recoveryReadbackSha256 -ne $ApprovedPackage.recoverySha256) { throw 'Recovery写后回读哈希不符，禁止重启' }
+    Save-MigrationState $State $StatePath '目标Recovery写入及回读已核验'
 }
 
 function New-LocalUploadChunk {
@@ -544,6 +697,12 @@ function Assert-RescueDirectory {
     if ($manifest.format -ne "D31_RESCUE_V1" -or $manifest.target_fingerprint -ne $Fingerprint) {
         throw "本机急救包的格式或目标构建不匹配"
     }
+    if ($manifest.recovery_entry_status -and $manifest.recovery_entry_status -cnotin @('stock-baseline','raw-only-unverified')) {
+        throw '本机急救包Recovery入口状态无效'
+    }
+    if ($manifest.recovery_entry_status -eq 'stock-baseline' -and $manifest.recovery_sha256 -ne $ExpectedRecoveryHash) {
+        throw '本机急救包错误声称原厂Recovery信任基线'
+    }
     foreach ($name in @("system_partition_bytes", "boot_partition_bytes", "userdata_partition_bytes", "system_gzip_bytes")) {
         [int64]$value = 0
         if (-not [int64]::TryParse($manifest[$name], [ref]$value)) { throw "本机急救清单字段无效：$name" }
@@ -572,6 +731,9 @@ function Assert-RescueDirectory {
     if ((Get-FileHash -LiteralPath $restorePath -Algorithm SHA256).Hash -ne $ExpectedRescueRestoreHash -or
         (Get-FileHash -LiteralPath $testPath -Algorithm SHA256).Hash -ne $ExpectedRescueTestHash) {
         throw "本机急救包中的签名Recovery入口不是本工具批准的版本"
+    }
+    if ($manifest.recovery_sha256 -ne $ExpectedRecoveryHash) {
+        Write-Host '原始备份完整性通过；当前Recovery对原厂签名入口的接受能力未验证，不能保证TF卡急救可用。'
     }
     Write-Host "本机急救包独立复核通过：$resolved"
     return $resolved
@@ -692,14 +854,16 @@ foreach ($name in $ExpectedSizes.Keys) {
     if ($actual -ne [int64]$ExpectedSizes[$name]) { throw "$name分区尺寸不匹配：$actual" }
 }
 Assert-PartitionLayout @($ExpectedSizes.Keys + $RequiredBackupPartitions + $AdditionalBackupPartitions)
-if ((Get-RemoteSha256 "$ByName/boot") -ne $ApprovedPackage.bootSha256) {
+$currentBootHash = Get-RemoteSha256 "$ByName/boot"
+if (-not $ReplaceBootRecovery -and $currentBootHash -ne $ApprovedPackage.bootSha256) {
     throw '当前boot与固件1.4.5的兼容基线不同；该固件不写boot，需单独适配内核，不能仅放宽系统指纹后刷入。尚未上传或刷写。'
 }
 foreach ($name in @($RequiredBackupPartitions + $AdditionalBackupPartitions)) {
     $exists = Get-DeviceValue "if [ -e $ByName/$name ]; then echo YES; else echo NO; fi"
     if ($exists -ne "YES") { throw "目标机缺少分区：$name" }
 }
-if ((Get-RemoteSha256 "$ByName/recovery") -ne $ExpectedRecoveryHash) {
+$currentRecoveryHash = Get-RemoteSha256 "$ByName/recovery"
+if (-not $ReplaceBootRecovery -and $currentRecoveryHash -ne $ExpectedRecoveryHash) {
     throw '当前Recovery与固件签名及安装器的兼容基线不同，需单独适配Recovery。尚未上传或刷写；此检查与是否备份无关。'
 }
 $cacheMount = Get-DeviceValue "mount | grep ' /cache '"
@@ -711,12 +875,12 @@ if ($availableBytes -lt ($ExpectedPackageBytes + 536870912L)) {
 }
 
 if ($DevicePreflightOnly) {
-    Write-Host "[3/3] 设备只读检查通过：root、产品平台、分区尺寸、boot/Recovery和存储空间全部匹配。"
+    Write-Host "[3/3] 设备只读检查通过：root、产品平台、分区布局、容量、boot/Recovery哈希格式和存储空间通过当前合同。"
     return
 }
 
 if ($PreflightOnly) {
-    Write-Host "只读准入检查通过：签名ZIP、root、有线地址、产品平台、分区尺寸、boot/Recovery和存储空间全部匹配。"
+    Write-Host "只读准入检查通过：签名ZIP、root、有线地址、产品平台、分区布局、容量、boot/Recovery哈希格式和存储空间通过当前合同。"
     return
 }
 
@@ -728,8 +892,9 @@ if ($SkipBackup) {
 }
 
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$logRoot = Join-Path (Join-Path $PackageRoot 'logs') "D31_recovery_flash_$timestamp"
-New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
+$operationId = [guid]::NewGuid().ToString('N')
+$logRoot = Join-Path (Join-Path $PackageRoot 'logs') "D31_recovery_flash_${timestamp}_$operationId"
+New-Item -ItemType Directory -Path $logRoot | Out-Null
 $SessionLog = Join-Path $logRoot "刷机记录.txt"
 Write-Utf8 $SessionLog @("D31 Recovery刷机记录", "目标：$Serial", "开始时间：$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
 Write-Utf8 (Join-Path $logRoot "设备属性.txt") @((Get-DeviceValue "getprop") -split "`n")
@@ -752,12 +917,40 @@ Write-Step "[7/8] 写入Recovery安装命令并重启；从此步骤开始会清
 $flashMaintenance = Enter-FlashMaintenance
 $recoveryCommand = "set -e; mkdir -p /cache/recovery; printf '%s\n' '--update_package=$RemotePackage' '--locale=zh_CN' > /cache/recovery/command; chmod 0600 /cache/recovery/command; cat /cache/recovery/command; sync"
 try {
-$commandResult = Get-CheckedDeviceValue $recoveryCommand
+if ($ReplaceBootRecovery) {
+    $migrationState = @{ operationId=$operationId; phase='准备'; updatedLocal=''; targetFingerprint=$fingerprint;
+        remoteRoot="/data/local/tmp/d31-migration-$operationId"; backups=@{}; maintenance=$flashMaintenance;
+        packageSha256=$ExpectedPackageHash; bootSha256=$ApprovedPackage.bootSha256; recoverySha256=$ApprovedPackage.recoverySha256 }
+    $migrationStatePath = Join-Path $logRoot 'migration-state.json'
+    Write-Step "自动保存当前boot和Recovery原像到电脑：$logRoot；跳过完整系统备份不影响此保护步骤。"
+    Backup-BootRecovery $logRoot $migrationState $migrationStatePath
+    Install-ApprovedRecovery $logRoot $migrationState $migrationStatePath
+    $oldRecoveryState = Get-CheckedDeviceValue 'for n in command last_log log last_install; do echo D31_OLD_RECOVERY_$n; if [ -f /cache/recovery/$n ]; then cat /cache/recovery/$n || exit 1; fi; done'
+    Write-Utf8 (Join-Path $logRoot '旧Recovery命令与日志.txt') @($oldRecoveryState)
+    $recoveryCommand = "set -e; test `$(id -u) = 0; mkdir -p /cache/recovery; rm -f /cache/recovery/command /cache/recovery/last_log /cache/recovery/log /cache/recovery/last_install; printf '%s\n' '--update_package=$RemotePackage' '--locale=zh_CN' > /cache/recovery/command; chmod 0600 /cache/recovery/command; cat /cache/recovery/command; sync"
+}
+$commandResult = Get-CheckedDeviceValue $recoveryCommand -Once:$ReplaceBootRecovery
 if ($commandResult -notmatch [regex]::Escape("--update_package=$RemotePackage")) {
     throw "Recovery命令回读不一致，尚未重启"
 }
-Invoke-Adb -s $Serial reboot recovery | Out-Null
+if ($ReplaceBootRecovery) {
+    Save-MigrationState $migrationState $migrationStatePath '安装命令已核验，准备重启目标Recovery'
+    try {
+        $null = Invoke-AdbOnce @('-s', $Serial, 'reboot', 'recovery')
+        Save-MigrationState $migrationState $migrationStatePath '重启请求已发送，等待安装及启动验收'
+    } catch {
+        # 重启会主动断开ADB；没有回执不能证明失败，也不能据此重发。
+        $migrationState.rebootUncertain = $_.Exception.Message
+        Save-MigrationState $migrationState $migrationStatePath '重启结果不确定，继续等待安装及启动验收，禁止重发'
+        Write-Step '重启请求已尝试一次但ADB结果不确定；继续等待Recovery安装和Android启动，尚未判定成功，不自动重发。'
+    }
+} else { Invoke-Adb -s $Serial reboot recovery | Out-Null }
 } catch {
+    if ($ReplaceBootRecovery -and $migrationState) {
+        $migrationState.failure = $_.Exception.Message
+        Save-MigrationState $migrationState $migrationStatePath ($migrationState.phase + '；已停止，保留现场')
+        Write-Step "迁移未完成；原像、状态和日志保留在$logRoot。不得自动重写或重启。"
+    }
     if ($flashMaintenance) {
         Write-Step 'Recovery交接结果不确定，保留本次维护预留。先核对设备与Recovery命令，再用日志中的原编号处理；禁止盲目重复刷写。'
     }
@@ -765,9 +958,15 @@ Invoke-Adb -s $Serial reboot recovery | Out-Null
 }
 
 Write-Step "[8/8] 等待Recovery安装和D31首次启动，最长30分钟。"
+try {
 Wait-ForAndroid
+if ($ReplaceBootRecovery) { Save-MigrationState $migrationState $migrationStatePath '已返回Android，正在核验本次安装结果' }
 $postFingerprint = Get-DeviceValue "getprop ro.build.fingerprint"
 if ($postFingerprint -ne $ExpectedFingerprint) { throw "首次启动后的构建指纹异常：$postFingerprint" }
+if ($ReplaceBootRecovery -and ((Get-RemoteSha256 "$ByName/boot") -ne $ApprovedPackage.bootSha256 -or
+    (Get-RemoteSha256 "$ByName/recovery") -ne $ApprovedPackage.recoverySha256)) {
+    throw '首次启动后的boot/Recovery不符合批准目标镜像'
+}
 Assert-InstalledPayload
 foreach ($packageName in @("org.mozilla.firefox", "org.videolan.vlc", "com.loudtalks", "org.telegram.messenger.web", "net.thunderbird.android", "me.zhanghai.android.files", "net.elfradio.d31bootstrap", "net.elfradio.d31zelloguard", "net.elfradio.d31phone.debug", "net.elfradio.d31system")) {
     $verify = Get-DeviceValue "pm path $packageName"
@@ -815,4 +1014,17 @@ if ($SkipBackup) {
 } else {
     Write-Step "原系统备份保存在电脑硬盘：$RescueDirectory"
 }
+if ($ReplaceBootRecovery) {
+    Save-MigrationState $migrationState $migrationStatePath '迁移及首次启动核验完成'
+    Write-Step "当前boot/Recovery最小原像备份保存在电脑：$logRoot"
+}
 Write-Step "刷机记录：$logRoot"
+} catch {
+    if ($ReplaceBootRecovery) {
+        $migrationState.failure = $_.Exception.Message
+        Save-MigrationState $migrationState $migrationStatePath '刷后验收失败，保留原像及维护预留，禁止自动重刷'
+        Write-Step "刷后验收失败，原像和状态保留在$logRoot；禁止自动重刷或恢复旧备份。"
+        if ($flashMaintenance) { Write-Step '刷后验收失败，保留本次维护预留；未完成最终验收，不自动释放。' }
+    }
+    throw
+}

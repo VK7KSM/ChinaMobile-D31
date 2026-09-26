@@ -33,7 +33,10 @@ try {
         @('legacy-active-present',$false,$false), @('legacy-version-mismatch',$false,$false),
         @('health-invalid',$false,$false), @('full96-no-protocol',$false,$false),
         @('full96-bad-path',$false,$false), @('full96-reserve-failed',$false,$false),
-        @('full96-reserve-unknown',$false,$false)
+        @('full96-reserve-unknown',$false,$false),
+        @('basic193-approved',$true,$false), @('basic193-bad-hash',$false,$false),
+        @('basic193-wrong-code',$false,$false), @('basic193-wrong-name',$false,$false),
+        @('basic193-modern',$false,$false), @('basic193-health',$false,$false), @('basic193-missing-receipt',$false,$false)
     )) {
         $env:D31_TEST_CASE = $case[0]
         $env:D31_TEST_TRANSCRIPT = Join-Path $OutputDirectory ($case[0]+'.commands.txt')

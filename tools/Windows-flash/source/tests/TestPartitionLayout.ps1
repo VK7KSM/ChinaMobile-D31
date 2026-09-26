@@ -38,6 +38,12 @@ $env:D31_LAYOUT_DISTRO = $WslDistribution
 $env:D31_LAYOUT_FIXTURE = Join-Path $PSScriptRoot 'PartitionLayoutFixture.sh'
 function Add-SessionLog { param([string]$Text) }
 function Add-Log { param([string]$Text) }
+function Invoke-UnescapedLegacyAdb([string]$Command) {
+    $arguments=@('-s',$Serial,'shell',$Command)
+    $output=& $Adb -P $AdbPort @arguments 2>&1
+    if($LASTEXITCODE){throw ($output -join "`n")}
+    return ($output -join "`n").Trim()
+}
 function Read-Ast([string]$Path) {
     $tokens=$null; $errors=$null
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($Path,[ref]$tokens,[ref]$errors)
@@ -75,7 +81,7 @@ try {
         }
         $legacy = $legacy.Replace('__BYNAME__',$ByName).Replace('__NAME__','recovery')
         $legacyError = ''
-        try { $legacyValue = Get-DeviceValue $legacy } catch { $legacyError = $_.Exception.Message }
+        try { $legacyValue = Invoke-UnescapedLegacyAdb $legacy } catch { $legacyError = $_.Exception.Message }
         $received = [IO.File]::ReadAllText($env:D31_LAYOUT_TRANSCRIPT + '.received.sh')
         if ($isLegacy) {
             Assert-True ($received -ceq $legacy.Replace('"','')) '未复现旧式原生传参剥离双引号'
@@ -91,7 +97,7 @@ try {
         if ($isLegacy) {
             $env:D31_LAYOUT_TRANSCRIPT = Join-Path $OutputDirectory ($label + '-legacy-tr')
             $printfOnly = $legacy.Replace('printf "%s|"', "printf '%s|'").Replace('printf "|"', "printf '|'")
-            $trValue = Get-DeviceValue $printfOnly
+            $trValue = Invoke-UnescapedLegacyAdb $printfOnly
             Assert-True ($trValue -ceq "/dev/block/mmcblk0p2|34816`n|32768") '未复现 tr 丢失引用后保留换行'
             $results += [pscustomobject]@{source=$label;case='legacy-tr';passed=$true;error=$trValue}
             Write-Output "通过：$label 原 tr 片段未删除换行已复现"

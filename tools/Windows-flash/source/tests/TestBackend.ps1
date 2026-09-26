@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$RuntimeRoot, [Parameter(Mandatory=$true)][string]$Package, [Parameter(Mandatory=$true)][string]$OutputDirectory)
+﻿param([Parameter(Mandatory=$true)][string]$RuntimeRoot, [Parameter(Mandatory=$true)][string]$Package, [Parameter(Mandatory=$true)][string]$OutputDirectory)
 $ErrorActionPreference = 'Stop'
 $powershell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
 $csc = "$env:SystemRoot\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
@@ -11,6 +11,8 @@ foreach ($name in @('flash_d31_recovery.ps1','approved-package.json','installed-
 & $csc /nologo /reference:System.Web.Extensions.dll ("/out:" + (Join-Path $sandbox 'tools/adb.exe')) (Join-Path $PSScriptRoot 'BackendFakeAdb.cs')
 if ($LASTEXITCODE) { throw '模拟ADB编译失败' }
 $backend = Join-Path $sandbox 'flash_d31_recovery.ps1'
+$contract = Get-Content -Raw (Join-Path $sandbox 'approved-package.json') | ConvertFrom-Json
+$replacement = $contract.replaceBootRecovery -eq $true
 # 只在隔离副本替换HTTP传输并跳过真实等待；启动恢复时序由TestPostBoot单独验证。
 $backendText = [IO.File]::ReadAllText($backend)
 $tokens=$null; $parseErrors=$null
@@ -41,7 +43,8 @@ function Run-Case([string]$Name, [string[]]$Arguments, [bool]$Pass, [bool]$MayRe
     if ($commands -match '/cache/recovery/command') {
         $guards = [regex]::Matches($commands, 'D31_MAINTENANCE_ABSENT_V1')
         if ($guards.Count -ne 2 -or $guards[1].Index -gt $commands.IndexOf('mkdir -p /cache/recovery')) { throw "未在写入前复核维护状态：$Name" }
-        if ($commands.LastIndexOf('busybox sha256sum /data/local/tmp/') -gt $guards[1].Index) { throw "维护末门早于上传校验：$Name" }
+        $zipCheck = 'busybox sha256sum /data/local/tmp/D31-factory-v' + $contract.version + '.zip'
+        if ($commands.LastIndexOf($zipCheck) -gt $guards[1].Index) { throw "维护末门早于上传校验：$Name" }
     }
     if ($Name -eq 'repair-late' -and ([regex]::Matches($commands, 'D31_MAINTENANCE_ABSENT_V1').Count -ne 2 -or $commands -notmatch 'busybox sha256sum /data/local/tmp/')) { throw '未模拟上传后的修复竞争' }
     if ($Name -in @('success','legacy95') -and $commands -match 'RemoteWindowsMaintenance') { throw '旧设备不应调用新维护协议' }
@@ -50,7 +53,24 @@ function Run-Case([string]$Name, [string[]]$Arguments, [bool]$Pass, [bool]$MayRe
         if (-not $reserve.Success -or $reserve.Index -gt $commands.IndexOf('mkdir -p /cache/recovery')) { throw "未先取得预留：$Name" }
         $release = [regex]::Match($commands, 'RemoteWindowsMaintenance release ([a-f0-9]{32})')
         if ($release.Success) { throw 'Recovery交接后不应自动释放跨步骤预留' }
-        if (-not $Pass -and ($output -join "`n") -notmatch '保留本次维护预留') { throw "交接失败未明确保留预留：$Name" }
+        if (-not $Pass) {
+            if(($output -join "`n") -notmatch '保留本次维护预留'){throw "交接失败未明确保留预留：$Name"}
+            if($replacement -and $Name -eq 'full96-reboot-failed'){
+                if(($output -join "`n") -notmatch '重启请求已尝试一次但ADB结果不确定' -or
+                    ($output -join "`n") -notmatch '首次启动后的boot/Recovery不符合批准目标镜像' -or
+                    [regex]::Matches($commands,'\breboot recovery').Count -ne 1 -or
+                    $commands.LastIndexOf('getprop sys.boot_completed') -lt $commands.IndexOf('reboot recovery')){
+                    throw '重启不确定没有继续等待和验收，或自动重发了重启'
+                }
+                $log=Get-ChildItem (Join-Path $sandbox 'logs') -Directory | Sort-Object CreationTimeUtc | Select-Object -Last 1
+                $migration=Get-Content (Join-Path $log.FullName 'migration-state.json') -Raw | ConvertFrom-Json
+                if($migration.failure -notmatch '首次启动后的boot/Recovery不符合批准目标镜像' -or
+                    $migration.maintenance.Id -cne $reserve.Groups[1].Value -or -not $migration.rebootUncertain){throw '刷后失败或维护预留未完整持久化'}
+                foreach($partitionName in @('boot','recovery')){
+                    if((Get-FileHash (Join-Path $log.FullName ("original-$partitionName.img"))).Hash -ne $migration.backups.$partitionName.sha256){throw '刷后失败未保留完整原像'}
+                }
+            }
+        }
         if ($Name -in @('full96-command-mismatch','full96-command-remote-failed','full96-command-marker-missing') -and $commands -match 'reboot recovery') { throw '回读或设备退出未确认仍触发重启' }
     }
     if ($Name -eq 'success' -and ($commands -notmatch 'reboot recovery' -or ($output -join "`n") -notmatch '完整Recovery刷机和首次启动验证全部完成')) { throw '完整模拟流程未完成' }
@@ -67,7 +87,11 @@ try {
     $stream.Dispose()
     Run-Case 'same-size-corrupt' @('-PackagePath',$bad,'-PackagePreflightOnly') $false $false
     $base = @('-Serial','192.0.2.31:5555','-PackagePath',$Package,'-SkipBackup')
-    foreach($name in @('wrong-network','bad-logo','bad-boot','bad-recovery','no-space','wrong-model','wrong-platform','missing-platform','missing-partition','bad-system-size','bad-boot-size','bad-recovery-size','bad-userdata-size')) { Run-Case $name $base $false $false }
+    foreach($name in @('wrong-network','bad-logo','no-space','wrong-model','wrong-platform','missing-platform','missing-partition','bad-system-size','bad-boot-size','bad-recovery-size','bad-userdata-size')) { Run-Case $name $base $false $false }
+    foreach($name in @('bad-boot','bad-recovery')) {
+        if ($replacement) { Run-Case $name ($base + @('-DevicePreflightOnly')) $true $false }
+        else { Run-Case $name $base $false $false }
+    }
     Run-Case 'preflight' ($base + @('-PreflightOnly')) $true $false
     foreach($name in @('overlap-layout','duplicate-layout','missing-layout','wrong-disk')) { Run-Case $name ($base + @('-PreflightOnly')) $false $false }
     foreach($name in @('repair-present','repair-read-failed','repair-unknown')) { Run-Case $name ($base + @('-DevicePreflightOnly')) $false $false }

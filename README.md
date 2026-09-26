@@ -84,21 +84,21 @@
 
 ### GitHub
 
-- [D31-Flash-Tool-v1.6.10.exe](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.10/D31-Flash-Tool-v1.6.10.exe)：16143872字节，单文件Windows刷机工具，内置基础193。
-- [D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.5/D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip)：1725713383字节，配套固件刷机包。
+- [D31-Flash-Tool-v1.6.11.exe](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.11/D31-Flash-Tool-v1.6.11.exe)：16162304字节，单文件Windows刷机工具，内置基础193。
+- [D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.6/D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip)：1725719086字节，配套固件刷机包。
 
 ### Cloudflare R2镜像
 
-- [D31-Flash-Tool-v1.6.10.exe](https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.10.exe)
-- [D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip)
+- [D31-Flash-Tool-v1.6.11.exe](https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.11.exe)
+- [D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip)
 
 源码：[Windows刷机工具](tools/Windows-flash/README.md)、[macOS刷机工具](tools/macOS-flash/README.md)、[固件安装器与启动初始化](tools/factory-package/README.md)、[无线ADB与独立系统支持](tools/D31-wireless-adb/README.md)、[短信客户端](tools/D31-Messages/README.md)。
 
 ### SHA-256
 
 ```text
-780134ACF29FD899D4C5267661360B8BCDD4C512D0DEBBF683B6575F8FB8C213  D31-Flash-Tool-v1.6.10.exe
-E74EFFC90A36EA9C7149532A7FFA7D556A448462324410BE7AA689DAF583CFC1  D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip
+AF119B060139BAC3E4BDF4DA352BF63ECCBD6335C800569E67E96C378C4BC8CC  D31-Flash-Tool-v1.6.11.exe
+1BF50A5D00CE1571340EA3C1ADEAECA0067D502E7AD8E4E7A1C4DB4C7B7CD92B  D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip
 ```
 
 ## 刷机前提：启用ADB
@@ -121,28 +121,28 @@ D31的两个USB-A口目前只证明是主机口，不能当作USB设备接口连
 
 ## 正式刷机流程
 
-请配套使用1.6.10工具和1.4.5固件。最终签名ZIP、2853路径全树及48项持久安装映射已通过独立离线审核，见[逐项复核](docs/D31-v1.4.5逐项复核.md)；尚未完成1.4.5清data首次启动及整机实刷回归，不能将离线制品通过当作完整刷机通过。
+请配套使用1.6.11工具和1.4.6固件。此次改为完整覆盖boot和Recovery，系统与应用载荷逐项保持1.4.5基线；离线验证不能代替目标设备实刷及首次启动验收，见[完整刷机说明](docs/D31-v1.4.6完整刷机说明.md)。
 
 ![D31 Windows刷机与备份工具](images/d31-flash-tool-v1.6.0.png)
 
-1. 下载`D31-Flash-Tool-v1.6.10.exe`，不需要解压，运行依赖和基础APK已内置。
-2. 双击`D31-Flash-Tool-v1.6.10.exe`。
+1. 下载`D31-Flash-Tool-v1.6.11.exe`，不需要解压，运行依赖和基础APK已内置。
+2. 双击`D31-Flash-Tool-v1.6.11.exe`。
 3. 填写D31的IP地址并点击“连接ADB”，由工具检测端口；也可填写已知的`IP:port`。IP不是自动发现结果；有多台D31时，填写哪台的IP就连接哪台。连接成功后工具立即识别设备，“检测D31”用于刷新状态，“断开ADB”用于断开当前设备并切换到另一台。
 4. “只读检查”是可选的独立检查入口，不是开始刷机的前置点击步骤。它不需要刷机包，不修改或重启D31；Wi-Fi可以用于连接和只读检查，正式刷机使用有线地址。
 5. 点击“选择刷机包”选择已经下载的官方ZIP，或点击“GitHub高速下载”或“Cloudflare高速下载”。GitHub公开Release下载不需要账号或Token；GitHub最多使用8个连接，Cloudflare最多使用16个连接。并发数只是上限，不是强制连接数；源站不支持或限制多连接时，工具会保留断点并自动改用单连接继续下载。
 6. 等待固件的固定长度和内置SHA-256全部通过。设备连接与刷机包选择可以任意先后。
 7. 插好网线，并确认工具连接的是D31有线`eth0`的IP。已识别有线设备并校验好刷机包后，就可以勾选清空数据确认框；勾选后“开始刷机”可用，无需先手动检查。
-8. “刷机前自动备份原系统到电脑硬盘”默认勾选，可以取消。该选择只决定自动检查通过后是否备份，不影响开始按钮。备份保存到电脑的`D31备份`目录，正常刷机不需要U盘或TF卡。
-9. 点击“开始刷机”并确认目标后，工具自动执行设备检查、可选备份、固件传输校验、Recovery刷机和刷后验收。检查或备份失败立即停止；单独“只读检查”不会触发刷机。Recovery触发后不要断电、乱按实体键或关闭窗口，不要让电脑休眠或关机。若刷后一直显示原厂桌面、U盘打不开或反复出现无响应，请保留日志。
+8. “刷机前自动备份原系统到电脑硬盘”默认勾选，可以取消。该选择只决定是否备份完整系统，不影响开始按钮；boot和Recovery两个小备份仍会自动保存到电脑。备份保存到电脑的`D31备份`目录，正常刷机不需要U盘或TF卡。
+9. 工具将自动保存boot/Recovery原像，在必要时先写入配套Recovery并回读，再完成整机刷写。点击“开始刷机”并确认目标后，工具自动执行设备检查、可选备份、固件传输校验、Recovery刷机和刷后验收。检查或备份失败立即停止；单独“只读检查”不会触发刷机。分区写入开始后不要断电、乱按实体键或关闭窗口，不要让电脑休眠或关机。若刷后一直显示原厂桌面、U盘打不开或反复出现无响应，请保留日志。
 
 ## 刷机失败变砖抢救教程
 
 卡在“中国移动”或“系统正在启动”、桌面不断重启、ADB连不上时，先用刷机工具恢复管理连接，不要反复拔电或直接恢复出厂。**恢复ADB不等于自动修好系统**，但连上后才能继续检查日志、定位故障和修复。
 
-### 使用刷机工具1.6.10恢复ADB
+### 使用刷机工具1.6.11恢复ADB
 
 1. 保持D31通电，将电脑和D31接入同一个有线局域网。这一步不需要互联网，也不需要先下载刷机包。
-2. 运行`D31-Flash-Tool-v1.6.10.exe`，填写故障D31的**有线IPv4地址**，点击“断开ADB”右侧的“设备急救”。即使ADB尚未连接，也可以打开这个窗口。
+2. 运行`D31-Flash-Tool-v1.6.11.exe`，填写故障D31的**有线IPv4地址**，点击“断开ADB”右侧的“设备急救”。即使ADB尚未连接，也可以打开这个窗口。
 3. 核对急救窗口顶部的IP。局域网有多台D31时，不要填错设备。
 
 ![D31设备急救入口与操作窗口](images/d31-rescue-workflow-v1.6.0.png)
@@ -180,13 +180,13 @@ uptool要求电脑与D31处于同一有线二层网络，不能用普通互联�
 
 ### 使用边界与风险
 
-- 本轮仅更新Windows工具1.6.10，配套固件保持1.4.5。安装器保留清空data、写入system和独立logo图片分区的既定范围，不写boot或Recovery；保留独立8765守护和音量加恢复入口。1.4.5清data首次启动及整机实刷回归尚未完成，具体检查见[逐项复核](docs/D31-v1.4.5逐项复核.md)。
+- 本轮Windows工具1.6.11配套固件1.4.6，覆盖boot、Recovery、system和logo，清空data及旧系统缓存，保留本机身份和校准、独立8765守护及音量加激活入口。第三方系统设备实刷及首次启动仍待验收，见[完整刷机说明](docs/D31-v1.4.6完整刷机说明.md)。
 - 8765和原厂uptool均不能保证处理引导器或内核无法启动的故障。详细验收范围见[Windows设备急救说明](docs/D31-Windows工具急救.md)。
 - 开发版8765及本机原厂uptool允许无密码root命令执行，只应在可信维护网络使用，不要将5555或8765开放到公网。uptool使用原始以太网帧，普通TCP/UDP端口过滤不能证明已阻断它。[完整风险与防护说明](docs/D31-uptool指令与安全说明.md)。
 
 ### 第三方系统刷入兼容性
 
-Windows工具1.6.10允许D31当前系统构建编号与开发基线不同，设备识别、刷前备份和刷前检查不再仅因完整指纹不同而拒绝。仍核对产品平台、真实分区映射与容量，以及boot/Recovery兼容性。若第三方系统改过boot或Recovery，需要单独适配；配套固件1.4.5不会覆盖这两个分区。详见[1.6.10兼容性说明](docs/D31-Windows工具1.6.10兼容性说明.md)。
+Windows工具1.6.11允许同平台D31使用不同构建及不同旧boot/Recovery，通过实际分区映射和容量检查后，写入1.4.6包内配套镜像。旧系统内容不再是必须匹配的基线。无需恢复原厂系统后再刷；取消完整系统备份时仍会自动保存boot/Recovery小备份，详见[完整刷机说明](docs/D31-v1.4.6完整刷机说明.md)。
 
 ## 最后声明
 

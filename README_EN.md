@@ -80,25 +80,25 @@ I found this brand-new D31 on Xianyu for only RMB 220, and a lightly used D22 fo
 
 ## Downloads
 
-Windows工具1.6.10不再因当前系统完整构建指纹不同而拒绝D31。仍核对产品平台、分区映射和容量，以及boot/Recovery兼容性；固件1.4.5不写这两个分区。[兼容范围与验收说明](docs/D31-Windows工具1.6.10兼容性说明.md)。
+Windows工具1.6.11配套1.4.6完整固件，覆盖boot、Recovery、system及logo并清空userdata，不再要求旧boot或Recovery摘要一致。身份和校准数据保留。[完整刷机说明](docs/D31-v1.4.6完整刷机说明.md)。
 
 ### GitHub
 
-- [D31-Flash-Tool-v1.6.10.exe](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.10/D31-Flash-Tool-v1.6.10.exe)：16143872字节。
-- [D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.5/D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip)：1725713383字节。
+- [D31-Flash-Tool-v1.6.11.exe](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.11/D31-Flash-Tool-v1.6.11.exe)：16162304字节。
+- [D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip](https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.6/D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip)：1725719086字节。
 
 ### Cloudflare R2 mirror
 
-- [D31-Flash-Tool-v1.6.10.exe](https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.10.exe)
-- [D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip)
+- [D31-Flash-Tool-v1.6.11.exe](https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.11.exe)
+- [D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip](https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip)
 
 源码：[Windows刷机工具](tools/Windows-flash/README.md)、[固件安装器与启动初始化](tools/factory-package/README.md)、[无线ADB与独立系统支持](tools/D31-wireless-adb/README.md)、[短信客户端](tools/D31-Messages/README.md)。
 
 ### SHA-256
 
 ```text
-780134ACF29FD899D4C5267661360B8BCDD4C512D0DEBBF683B6575F8FB8C213  D31-Flash-Tool-v1.6.10.exe
-E74EFFC90A36EA9C7149532A7FFA7D556A448462324410BE7AA689DAF583CFC1  D31_SVP3390_Factory_Flash_v1.4.5_testkey.zip
+AF119B060139BAC3E4BDF4DA352BF63ECCBD6335C800569E67E96C378C4BC8CC  D31-Flash-Tool-v1.6.11.exe
+1BF50A5D00CE1571340EA3C1ADEAECA0067D502E7AD8E4E7A1C4DB4C7B7CD92B  D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip
 ```
 
 ## Preparing a factory D31
@@ -117,28 +117,28 @@ The two USB-A sockets are known to operate as host ports. They cannot currently 
 
 ## Flashing procedure
 
-[1.6.10工具配套1.4.5固件：签名ZIP、2853路径全树及48项持久安装映射独立离线审核](docs/D31-v1.4.5逐项复核.md)。1.4.5清data首次启动及整机实刷回归尚未完成。
+[1.6.11工具配套1.4.6固件：写入范围、顺序和验收边界](docs/D31-v1.4.6完整刷机说明.md)。本次系统及应用载荷与1.4.5保持相同，第三方系统实刷及首次启动仍待验收。
 
 ![D31 Windows Flash and Backup Tool](images/d31-flash-tool-v1.6.0.png)
 
-1. 下载`D31-Flash-Tool-v1.6.10.exe`，不需要解压，运行依赖和基础193已内置。
-2. 运行`D31-Flash-Tool-v1.6.10.exe`。
+1. 下载`D31-Flash-Tool-v1.6.11.exe`，不需要解压，运行依赖和基础193已内置。
+2. 运行`D31-Flash-Tool-v1.6.11.exe`。
 3. 填写目标D31的IP并点击“连接ADB”，由工具检测端口；也接受显式`IP:port`。IP不会自动发现。连接后识别设备，“检测D31”刷新状态，“断开ADB”用于切换设备。
 4. “只读检查”是可选的独立检查入口，不是开始刷机的前置点击步骤。它不需要刷机包，不修改或重启D31；Wi-Fi可以用于连接和只读检查，正式刷机使用有线地址。
 5. Select Choose firmware package to use a ZIP already downloaded to the PC, or select GitHub accelerated download or Cloudflare accelerated download. Public GitHub Release downloads do not require an account or token. GitHub uses up to eight connections and Cloudflare uses up to sixteen; these are upper limits rather than mandatory connection counts. If the host rejects or limits segmented transfers, the utility preserves the partial download and automatically continues in single-connection compatibility mode.
 6. 等待固件固定长度及内置SHA-256验证通过；连接设备、只读检查、选择固件可以任意先后。
 7. 已识别D31有线`eth0`地址并校验好刷机包后，就可以勾选清空数据确认框；勾选后“开始刷机”可用，无需先手动检查。
-8. “刷机前自动备份原系统到电脑硬盘”默认勾选，可以取消。该选择只决定自动检查通过后是否备份，不影响开始按钮。备份保存到电脑的`D31备份`目录，正常刷机不需要U盘或TF卡。
-9. 点击“开始刷机”并确认目标后，自动执行设备检查、可选备份、传输校验、Recovery刷机和刷后验收。检查或备份失败立即停止；单独“只读检查”不会触发刷机。Recovery触发后不要断电、按实体键、关闭窗口或让电脑休眠。刷后一直停在原厂桌面、U盘打不开或反复无响应均不属于正常结果，请保留日志。
+8. “刷机前自动备份原系统到电脑硬盘”默认勾选，可以取消。该选择只决定是否备份完整系统，不影响开始按钮；boot和Recovery两个小备份仍会自动保存到电脑。备份保存到电脑的`D31备份`目录，正常刷机不需要U盘或TF卡。
+9. 工具将自动保存boot/Recovery原像，在必要时先写入配套Recovery并回读，再完成整机刷写。点击“开始刷机”并确认目标后，自动执行设备检查、可选备份、传输校验、Recovery刷机和刷后验收。检查或备份失败立即停止；单独“只读检查”不会触发刷机。分区写入开始后不要断电、按实体键、关闭窗口或让电脑休眠。刷后一直停在原厂桌面、U盘打不开或反复无响应均不属于正常结果，请保留日志。
 
 ## Recovering from a failed flash
 
 If the D31 is stuck at the China Mobile logo or “Starting apps,” keeps restarting its launcher, or will not accept ADB connections, use the Windows tool to restore management access first. Do not repeatedly disconnect power or jump straight to a factory reset. **Restoring ADB does not repair the system by itself**; it lets you collect diagnostics and address the fault.
 
-### Windows工具1.6.10恢复ADB
+### Windows工具1.6.11恢复ADB
 
 1. Leave the D31 powered on and connect it and the PC to the same wired LAN. Internet access and a downloaded firmware package are not required.
-2. 运行`D31-Flash-Tool-v1.6.10.exe`，填写故障D31的有线IPv4，点击“设备急救”；ADB未连接也能打开。
+2. 运行`D31-Flash-Tool-v1.6.11.exe`，填写故障D31的有线IPv4，点击“设备急救”；ADB未连接也能打开。
 3. Check the IP at the top of the rescue window. If you have several D31 phones, make sure you have selected the right one.
 
 ![D31 Device rescue button and window](images/d31-rescue-workflow-v1.6.0.png)
@@ -174,7 +174,7 @@ Third-party tools or scripts can also call uptool. Manual use is an alternative 
 
 ### Limits and security
 
-- [1.4.4固件、1.6.7工具：更新内容、data清除、system与logo写入；boot及Recovery不写](docs/D31-v1.4.4逐项复核.md)
+- [1.4.6完整固件、1.6.11工具：覆盖boot、Recovery、system及logo，清空data和旧系统缓存，保留设备身份和校准](docs/D31-v1.4.6完整刷机说明.md)。第三方系统实刷及首次启动仍待验收。
 - Neither rescue channel guarantees recovery when the bootloader or kernel cannot start. See the [Windows rescue guide](docs/D31-Windows工具急救.md) for the test scope.
 - The development probe and the tested factory uptool service allow root commands without a password. Use a trusted maintenance network and do not expose ports 5555 or 8765 to the Internet. uptool uses raw Ethernet frames, so ordinary TCP/UDP filtering does not establish that it is blocked. See the [security guidance](docs/D31-uptool指令与安全说明.md).
 

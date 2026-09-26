@@ -23,12 +23,59 @@ internal static class FlashWorkflowTests
     static void Check(bool ok, string name) { if (!ok) throw new Exception(name); results.Add("通过：" + name); }
     static CheckBox Erase(MainForm f) { return (CheckBox)Get(f, "eraseCheck"); }
     static Button Flash(MainForm f) { return (Button)Get(f, "flashButton"); }
+    static void TestPartitionGuard(string root)
+    {
+        using (var f = new MainForm(root, root))
+        {
+            IntPtr handle = f.Handle;
+            Set(f, "currentOperation", "完整Recovery刷机");
+            foreach (string line in new[] { "[6/8] 上传完成", "前缀 D31_PARTITION_WRITE_BEGIN_V1 recovery",
+                "D31_PARTITION_WRITE_BEGIN_V1 recovery 后缀", "D31_PARTITION_WRITE_BEGIN_V1 Recovery" })
+            {
+                Call(f, "ReceiveLine", line); Application.DoEvents();
+                Check(!(bool)Get(f, "partitionWriteMayHaveStarted") && !(bool)Get(f, "recoveryTriggered"), "不能把普通日志当成写前标记：" + line);
+            }
+            Check(!((string)Call(f, "FlashFailureStatus")).Contains("尚未"), "无标记不能断言未写分区");
+            Call(f, "ReceiveLine", "D31_PARTITION_WRITE_BEGIN_V1 recovery");
+            Check((bool)Get(f, "partitionWriteMayHaveStarted") && !(bool)Get(f, "recoveryTriggered"), "界面队列未处理且未到第7步时已设置分区保护");
+            Application.DoEvents();
+            Check(((Label)Get(f, "statusLabel")).Text.Contains("分区可能已修改"), "写前标记立即更新风险提示");
+            Check(((string)Call(f, "FlashFailureStatus")).Contains("分区可能已修改"), "写Recovery后失败不再误报未写分区");
+            Check(((string)Call(f, "FlashSafetyWarning")).Contains("migration-state.json"), "写入风险提示包含迁移恢复记录");
+            Call(f, "ReceiveLine", "[2/8] 重复进度"); Application.DoEvents();
+            Check((bool)Get(f, "partitionWriteMayHaveStarted"), "晚到进度不会清除分区保护");
+            Call(f, "ResetDevice");
+            Check(!(bool)Get(f, "partitionWriteMayHaveStarted"), "重新选择设备清除旧分区保护");
+            Set(f, "currentOperation", "只读检查");
+            Call(f, "ReceiveLine", "D31_PARTITION_WRITE_BEGIN_V1 recovery"); Application.DoEvents();
+            Check(!(bool)Get(f, "partitionWriteMayHaveStarted"), "只读流程不接受写前标记");
+            Set(f, "currentOperation", "完整Recovery刷机");
+            Call(f, "ReceiveLine", "[7/8] 旧版Recovery交接"); Application.DoEvents();
+            Check((bool)Get(f, "recoveryTriggered") && !(bool)Get(f, "partitionWriteMayHaveStarted"), "旧后端仍保留第7步交接保护");
+            Check(((string)Call(f, "FlashSafetyWarning")).Contains("交接"), "旧交接阶段不谎称已经重启");
+        }
+        string notice = MainForm.FlashPartitionNotice("D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip");
+        Check(notice.Contains("覆盖boot、Recovery、system") && notice.Contains("取消原系统备份也不会跳过") && !notice.Contains("保留boot"), "146确认提示说明完整迁移和强制最小备份");
+        foreach (string version in new[] { "1.4.3", "1.4.4", "1.4.5" })
+            Check(MainForm.FlashPartitionNotice("D31_SVP3390_Factory_Flash_v" + version + "_testkey.zip").Contains("保留boot及现有Recovery"), "旧固件保留行为提示：" + version);
+    }
     static void Wait(MainForm f)
     {
         var timer = Stopwatch.StartNew();
         while ((bool)Call(f, "IsBusy"))
         {
             if (Flash(f).Enabled || Erase(f).Enabled) throw new Exception("执行期间确认框或刷机按钮被错误开放");
+            string root = (string)Get(f, "toolRoot");
+            if (File.ReadAllText(Path.Combine(root, "mode.txt")) == "partition-write" && (bool)Get(f, "partitionWriteMayHaveStarted"))
+            {
+                string ack = Path.Combine(root, "ui-guard-ready.txt");
+                if (!File.Exists(ack))
+                {
+                    Check(!(bool)Get(f, "recoveryTriggered"), "真实子进程写前标记在第7步之前触发保护");
+                    Check(!((Button)Get(f, "disconnectButton")).Enabled && !((CheckBox)Get(f, "backupCheck")).Enabled, "写分区时禁止断开或变更流程");
+                    File.WriteAllText(ack, "界面已进入保护状态");
+                }
+            }
             Application.DoEvents(); Thread.Sleep(10);
             if (timer.ElapsedMilliseconds > 30000) throw new Exception("流程超时：" + Get(f, "currentOperation"));
         }
@@ -51,7 +98,8 @@ internal static class FlashWorkflowTests
         {
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
             Application.EnableVisualStyles();
-            string[] cases = {"backup", "skip", "preflight-fail", "no-marker", "backup-fail", "backup-no-marker", "readonly", "maintenance-fail", "missing-script", "backup-directory-fail"};
+            TestPartitionGuard(args[0]);
+            string[] cases = {"backup", "skip", "partition-write", "flash-prepare-fail", "preflight-fail", "no-marker", "backup-fail", "backup-no-marker", "readonly", "maintenance-fail", "missing-script", "backup-directory-fail"};
             foreach (string mode in cases)
             {
                 string root = Path.Combine(args[0], mode);
@@ -109,11 +157,18 @@ internal static class FlashWorkflowTests
                     Wait(f);
                     string tracePath = Path.Combine(root, "trace.txt");
                     string trace = File.Exists(tracePath) ? File.ReadAllText(tracePath) : "";
-                    string expected = mode == "backup" ? "检查\n备份\n刷机有备份\n" : mode == "skip" ? "检查\n刷机无备份\n" :
+                    string expected = mode == "backup" || mode == "partition-write" || mode == "flash-prepare-fail" ? "检查\n备份\n刷机有备份\n" : mode == "skip" ? "检查\n刷机无备份\n" :
                         mode.StartsWith("backup-") && mode != "backup-directory-fail" ? "检查\n备份\n" :
                         mode == "maintenance-fail" || mode == "missing-script" ? "" : "检查\n";
                     Check(trace == expected, mode + "：实际后端调用次序正确，失败不会继续");
                     Check(!(bool)Get(f, "flashAfterPreflight") && !(bool)Get(f, "flashAfterBackup"), mode + "：没有残留自动继续意图");
+                    if (mode == "partition-write")
+                    {
+                        Check(File.Exists(Path.Combine(root, "ui-guard-ready.txt")), "写前标记确实经过实际进程输出读取路径");
+                        Check(!(bool)Get(f, "partitionWriteMayHaveStarted"), "完成后清除本次保护状态");
+                    }
+                    if (mode == "flash-prepare-fail")
+                        Check(((Label)Get(f, "statusLabel")).Text.Contains("未收到") && !((Label)Get(f, "statusLabel")).Text.Contains("尚未"), "实际准备失败不谎称未写分区");
                     if (mode == "preflight-fail" || mode == "no-marker" || mode == "backup-fail")
                     {
                         File.WriteAllText(Path.Combine(root, "mode.txt"), "readonly");

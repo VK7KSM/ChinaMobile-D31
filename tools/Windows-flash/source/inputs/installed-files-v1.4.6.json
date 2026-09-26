@@ -1,0 +1,344 @@
+[
+  {
+    "path": "/data/app/com.loudtalks-1/base.apk",
+    "sha256": "86D6BCE8E696C1D4E19DC60D69AF4E4A2A4E117CC46FAD1A29160EFC450AF5DA",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 1000
+  },
+  {
+    "path": "/data/app/com.loudtalks-1/oat/arm64/base.odex",
+    "sha256": "573DAD1D22E75290F54EED0D2A902C320ED7768982B8D6CE87C54B359D85097D",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 39999
+  },
+  {
+    "path": "/data/app/me.zhanghai.android.files-2/base.apk",
+    "sha256": "E2C2A94E38AE87065983E33179306386CAAA1FBC244E8D90DBFD4E0BB84713C8",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 1000
+  },
+  {
+    "path": "/data/app/me.zhanghai.android.files-2/oat/arm64/base.odex",
+    "sha256": "25846E037723588FB076310E2EDDFDD235678C4F75EB99DD8A2D7568123F9BBB",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 39999
+  },
+  {
+    "path": "/data/app/net.elfradio.d31phone.debug-1/base.apk",
+    "sha256": "49300FC626B5493F490013414CBCD0B9FB8DCA31729B2E36DA1328906D75F6EF",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 1000
+  },
+  {
+    "path": "/data/app/net.elfradio.d31phone.debug-1/oat/arm64/base.odex",
+    "sha256": "FA193B2648016248453EE13D669DBE321DFDD0F8021409EDD6325CDBF6FE3C0D",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 39999
+  },
+  {
+    "path": "/data/app/net.elfradio.d31system-1/base.apk",
+    "sha256": "1A0DFB6F65A862875A6BE68B768CB38AD89978C83202AD7ECE3890CC79EDF79E",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 1000
+  },
+  {
+    "path": "/data/app/net.elfradio.d31zelloguard-2/base.apk",
+    "sha256": "85242B4BE0AC8E165DFAA473343542C3C4A9714DDF5D2EABD997F6545FC80946",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 1000
+  },
+  {
+    "path": "/data/app/net.elfradio.d31zelloguard-2/oat/arm64/base.odex",
+    "sha256": "3A714CD9FF813786E518B83747FB72C8DA9483304213EE801E78A00A4BA22C10",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 39999
+  },
+  {
+    "path": "/data/app/net.thunderbird.android-1/base.apk",
+    "sha256": "4A1875BB1CF4293C468048E56A91D16818653F7D6E646642DFF7486DFBF0732D",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 1000
+  },
+  {
+    "path": "/data/app/net.thunderbird.android-1/oat/arm64/base.odex",
+    "sha256": "AD9866F4676DDE297EEEAF969C4DCDF5E35428BF3B2FB3F59D238A6CC2F66AB6",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 39999
+  },
+  {
+    "path": "/data/app/org.mozilla.firefox-2/base.apk",
+    "sha256": "F5FE6A300CC5FC5286EF5EFCD65DADDC1166B1C74A6F5F7873381D48A01E2A9C",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 1000
+  },
+  {
+    "path": "/data/app/org.mozilla.firefox-2/oat/arm64/base.odex",
+    "sha256": "6FD9B0124C69CF3109DD954538B18EE9B01B61393042E3BCD2A765781F4DFD19",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 39999
+  },
+  {
+    "path": "/data/app/org.telegram.messenger.web-1/base.apk",
+    "sha256": "F5E1192725772960CC94B83E54FFD8939F876B2B6E5F21D4A8537EB6FCBA50E6",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 1000
+  },
+  {
+    "path": "/data/app/org.telegram.messenger.web-1/oat/arm64/base.odex",
+    "sha256": "4BCAC61896E3176921FFED56C57E581833C4983FFB6D7ECFD22B8AB879059852",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 39999
+  },
+  {
+    "path": "/data/app/org.videolan.vlc-1/base.apk",
+    "sha256": "BEA9EA0CDECFD8F461EF305D2AFE5D1AC1459CFB9156ACCE2F615788A486DE74",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 1000
+  },
+  {
+    "path": "/data/app/org.videolan.vlc-1/oat/arm64/base.odex",
+    "sha256": "C6F9095F08773CCA5154F81C5D5E7DCF9093D9073FCEAD41AEDC75DE8166D116",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 39999
+  },
+  {
+    "path": "/data/local/d31-patches/apply-home-patch.sh",
+    "sha256": "501304545C83F7B88FD28DC47045E2090FDB01CFA2A15258C394A060FDEE8A21",
+    "mode": "0750",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-patches/config-tab",
+    "sha256": "2D3892FDEFAF94DC94DFBFA3358079DA5E40E5B0AC209BEE9F90B6CB5E5F24BB",
+    "mode": "0644",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-patches/getnumber-cellular-labels-v1-unsigned.apk",
+    "sha256": "3B69433F5C56DD253F1E0EE5E323ECFD5859C7DBECD9B6F19332F78E15205FA8",
+    "mode": "0644",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-patches/imscc-firefox-telegram-messages-wrapper-v3.apk",
+    "sha256": "966C005E5416AEEE2F0CD44B690915EF2465079BA5E32F968501182802FB1678",
+    "mode": "0644",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-patches/libvsip-tls12-dns-transport-v2.so",
+    "sha256": "DEFA367EE93F4759FBB7B4DEBB9C5E4648BC71695DE1F02975014F256596BE37",
+    "mode": "0644",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-patches/nexui-v8-ethernet-gate.apk",
+    "sha256": "7CDF23A34CBFC008E7A00E4D1255640E93DD0233AC7A44148DD21E85F0C9CD4E",
+    "mode": "0644",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-recovery-entry/enabled",
+    "sha256": "E056A35DB086947E2F5969D747F0A7517BFF00C7FFFF1F9E7B47B72BFAC9D948",
+    "mode": "0600",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-recovery-entry/gate.sh",
+    "sha256": "F841D6866EB103953FDAEA0D8FD371DC62F117DBE9D7F19E70790F950FC5B3EA",
+    "mode": "0700",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-recovery-entry/persistent.sh",
+    "sha256": "2D494DF0F49EDA10EF4EA9CC821C05DD72401A1A3CAFE824958CF96FD61EAB57",
+    "mode": "0700",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-recovery-entry/volume-watch",
+    "sha256": "C87672777990570EBC518EDC2A0646DCB72F9896CE82EA4230699224D80AD4A9",
+    "mode": "0700",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-remote/runtime/updates/enabled",
+    "sha256": "409576AA00B4D53E407ECE75B8066511AE4D45F8FE16E3383196731666780237",
+    "mode": "0600",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-rescue/daemon.apk",
+    "sha256": "2B52229010CFD4E704BE9EB386C4D0157FF73DF055AFBE961B8B848F8029A97F",
+    "mode": "0700",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-rescue/enabled",
+    "sha256": "FE096A06D67909206CCB28FE0AF9157FBC4A4F22E4B174EF3FAEABEAA80852C8",
+    "mode": "0600",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-rescue/start.sh",
+    "sha256": "E7981120D1C44563CFA4914DE952B7F3C415C91604A4EE6B81865793BF2641B1",
+    "mode": "0700",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-startup-curtain/curtain.jar",
+    "sha256": "E9CC1602F910141550E7FCBD9A936039FCAC841BA5FF0DAF176E20D0B832ECF6",
+    "mode": "0700",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-startup-curtain/frame.jpg",
+    "sha256": "2D9598F65F78E935D10F569939596E3A72CB58951152BBEE9A19332A4A96D86C",
+    "mode": "0600",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-startup-handover/cellular-enabled",
+    "sha256": "E056A35DB086947E2F5969D747F0A7517BFF00C7FFFF1F9E7B47B72BFAC9D948",
+    "mode": "0600",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-startup-handover/handover.jar",
+    "sha256": "D4513C3108452DD1DBD0C8AFB05BB4F7567BF68E0EEDEF5AD4139FF877FB6E13",
+    "mode": "0700",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-startup-handover/init-package-restrictions.xml",
+    "sha256": "D573D17073F1085545DC7DB9A499523140B98A38766ADADDF3AED9F50FA1E865",
+    "mode": "0600",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-startup-handover/init-runtime-permissions.xml",
+    "sha256": "7F74C2CDB8F95D93396FCB1FA153CAF225B3236C35C1D2E6A51D460F08181249",
+    "mode": "0600",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-startup-handover/start.sh",
+    "sha256": "35A9963961DC7E30C9D9BE2B0E5EBF37783582C8DB78D5CA2F799F577DA6E615",
+    "mode": "0700",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-system-support/guard",
+    "sha256": "EAABB6FCC96435327EA7D415E49A1A1BF216E6369C809368402E5E9F8A6457A8",
+    "mode": "0700",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-system-support/start.sh",
+    "sha256": "12B040A1B32F48197A72B5D595FE59457735BE2738AE1F12B1C206FDB51F527B",
+    "mode": "0700",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/local/d31-system-support/state.jar",
+    "sha256": "8CEBAB4336F395CCFB2E77F80521DED9380D9548E6984EE7FC3DA8B79B848C2C",
+    "mode": "0700",
+    "uid": 0,
+    "gid": 0
+  },
+  {
+    "path": "/data/system/devices/keylayout/tca8418.kl",
+    "sha256": "0F695970FB51D229BC5928EECC8D0D21FC9A3815CA8F71C5066AB45B81AAEAC2",
+    "mode": "0644",
+    "uid": 1000,
+    "gid": 1000
+  },
+  {
+    "path": "/system/bin/d31-elfremote-start",
+    "sha256": "B9AABE5CE66B8938F123811C0DCF30B49B47C4D6B9472996EA27F20EE239224D",
+    "mode": "0755",
+    "uid": 0,
+    "gid": 0,
+    "selinux": "u:object_r:system_file:s0"
+  },
+  {
+    "path": "/system/bin/install-recovery.sh",
+    "sha256": "34E990C3A0CF0884DAF80AD880AF360EE1867A14EDB036DE04F7B3CB41EC8456",
+    "mode": "0750",
+    "uid": 0,
+    "gid": 0,
+    "selinux": "u:object_r:install_recovery_exec:s0"
+  },
+  {
+    "path": "/system/etc/d31-elfremote.system",
+    "sha256": "4355A46B19D348DC2F57C046F8EF63D4538EBB936000F3C9EE954A27460DD865",
+    "mode": "0644",
+    "uid": 0,
+    "gid": 0,
+    "selinux": "u:object_r:system_file:s0"
+  },
+  {
+    "path": "/system/priv-app/D31ElfRemote/D31ElfRemote.apk",
+    "sha256": "55E70AA54E97B6C42539DB044BC13BCC6A72A4791BFC73FEA9BF45AAD16D93BF",
+    "mode": "0644",
+    "uid": 0,
+    "gid": 0,
+    "selinux": "u:object_r:system_file:s0"
+  },
+  {
+    "path": "/system/priv-app/D31ElfRemote/lib/arm/libjingle_peerconnection_so.so",
+    "sha256": "976AD84FF585EB7121FF7D800A172E60995F634D59A64A7F913E4DAC8907B08E",
+    "mode": "0644",
+    "uid": 0,
+    "gid": 0,
+    "selinux": "u:object_r:system_file:s0"
+  },
+  {
+    "path": "/system/vendor/starnet/launcher/config/config-tab",
+    "sha256": "2D3892FDEFAF94DC94DFBFA3358079DA5E40E5B0AC209BEE9F90B6CB5E5F24BB",
+    "mode": "0644",
+    "uid": 0,
+    "gid": 0,
+    "selinux": "u:object_r:system_file:s0"
+  }
+]

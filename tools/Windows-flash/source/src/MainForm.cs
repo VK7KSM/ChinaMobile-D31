@@ -46,6 +46,7 @@ namespace D31FlashTool
         private bool flashAfterPreflight;
         private bool flashAfterBackup;
         private bool recoveryTriggered;
+        private volatile bool partitionWriteMayHaveStarted;
         private string currentOperation;
         private string rescueDirectory;
         private string connectedSerial;
@@ -265,7 +266,7 @@ namespace D31FlashTool
             Controls.Add(log);
             Label footer = new Label
             {
-                Text = "Recovery触发后请勿断电、关闭窗口或让电脑休眠。",
+                Text = "分区写入或Recovery交接开始后请勿断电、关闭窗口或让电脑休眠。",
                 ForeColor = Color.FromArgb(180, 35, 24),
                 AutoSize = true,
                 Location = new Point(22, 812),
@@ -625,6 +626,7 @@ namespace D31FlashTool
             flashAfterPreflight = continueToFlash;
             if (!continueToFlash) { flashAfterBackup = false; eraseCheck.Checked = false; }
             recoveryTriggered = false;
+            partitionWriteMayHaveStarted = false;
             progress.Value = 0;
             currentOperation = continueToFlash ? "刷前自动检查" : "只读检查";
             SetStatus("正在检查root、构建、网络、分区尺寸、Recovery入口和空间。", Color.FromArgb(23, 92, 211));
@@ -660,9 +662,8 @@ namespace D31FlashTool
                 "目标设备：" + device.Model + " / " + device.Serial + "\r\n\r\n" +
                 (createBackup
                     ? "已选择备份：工具会先把原系统保存到电脑硬盘的D31备份目录，完成后自动继续刷机。\r\n\r\n"
-                    : "已取消备份：刷机失败时将没有本机急救包可供恢复。\r\n\r\n") +
-                "工具会先自动检查设备，通过后按上述选择备份，再上传并校验签名ZIP，最后重启到原厂Recovery。\r\n" +
-                "Recovery会覆盖system及开机图片logo分区并清空userdata，保留boot。\r\n\r\n" +
+                    : "已取消原系统备份：刷机失败时将没有完整本机急救包可供恢复。\r\n\r\n") +
+                FlashPartitionNotice(BuildConstants.OfficialPackageName) + "\r\n\r\n" +
                 "确认目标D31并立即开始吗？",
                 "确认开始D31 Recovery刷机",
                 MessageBoxButtons.YesNo,
@@ -671,6 +672,20 @@ namespace D31FlashTool
             if (answer != DialogResult.Yes) { return; }
 
             StartConfirmedFlash();
+        }
+
+        internal static string FlashPartitionNotice(string approvedPackageName)
+        {
+            if (String.Equals(approvedPackageName, "D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip", StringComparison.Ordinal))
+            {
+                return "工具会先自动检查设备，按上述选择备份，再上传并校验签名ZIP。\r\n" +
+                    "固件1.4.6将覆盖boot、Recovery、system及开机图片logo分区，并清空userdata。\r\n" +
+                    "重启前会先在电脑保存原始boot/Recovery最小备份，将Recovery更新为批准镜像并回读校验，再交接Recovery完成刷机。\r\n" +
+                    "取消原系统备份也不会跳过boot/Recovery最小备份；最小备份不能替代完整急救包。\r\n" +
+                    "分区写入开始后请勿断电、关闭窗口或重复刷写。";
+            }
+            return "工具会先自动检查设备，通过后按上述选择备份，再上传并校验签名ZIP，最后重启到原厂Recovery。\r\n" +
+                "Recovery会覆盖system及开机图片logo分区并清空userdata，保留boot及现有Recovery。";
         }
 
         private void StartConfirmedFlash()
@@ -698,6 +713,7 @@ namespace D31FlashTool
             if (!maintenanceClear) { UpdateControls(); return; }
             progress.Value = 0;
             recoveryTriggered = false;
+            partitionWriteMayHaveStarted = false;
             currentOperation = "完整Recovery刷机";
             SetStatus("刷机已开始；Recovery触发前会先完成设备端ZIP校验。", Color.FromArgb(180, 35, 24));
             AppendLog(String.IsNullOrWhiteSpace(rescueDirectory)
@@ -824,7 +840,7 @@ namespace D31FlashTool
                 {
                     CancelFlashSequence();
                     AppendLog("后端已经退出，但日志读取不完整；不会自动继续下一步。");
-                    if (currentOperation == "完整Recovery刷机") { recoveryTriggered = true; }
+                    if (currentOperation == "完整Recovery刷机") { partitionWriteMayHaveStarted = true; }
                 }
                 ProcessFinished(completed, logsComplete ? exitCode : -1);
             });
@@ -833,9 +849,19 @@ namespace D31FlashTool
         private void ReceiveLine(string line)
         {
             if (String.IsNullOrWhiteSpace(line)) { return; }
+            // 写前标记先更新跨线程保护状态，不能等待界面消息队列或第7步进度。
+            if (currentOperation == "完整Recovery刷机" &&
+                String.Equals(line, "D31_PARTITION_WRITE_BEGIN_V1 recovery", StringComparison.Ordinal))
+            {
+                partitionWriteMayHaveStarted = true;
+            }
             BeginInvoke((MethodInvoker)delegate
             {
                 AppendLog(line);
+                if (partitionWriteMayHaveStarted && currentOperation == "完整Recovery刷机")
+                {
+                    SetStatus("分区写入已开始，分区可能已修改；请勿断电、关闭窗口或重复刷写。", Color.FromArgb(180, 35, 24));
+                }
                 Match step = Regex.Match(line, @"\[(\d+)/(\d+)\]");
                 if (step.Success)
                 {
@@ -948,21 +974,37 @@ namespace D31FlashTool
             {
                 preflightPassed = false;
                 eraseCheck.Checked = false;
-                SetStatus(completedOperation == "完整Recovery刷机" && !recoveryTriggered
-                    ? "刷机准备失败，尚未触发Recovery或写入分区。请保留日志。"
+                SetStatus(completedOperation == "完整Recovery刷机"
+                    ? FlashFailureStatus()
                     : completedOperation + "失败，请保留窗口、设备现场和备份目录。", Color.FromArgb(180, 35, 24));
                 AppendLog(completedOperation + "退出码：" + exitCode);
-                if (completedOperation == "完整Recovery刷机" && recoveryTriggered)
+                if (completedOperation == "完整Recovery刷机" && (recoveryTriggered || partitionWriteMayHaveStarted))
                 {
                     MessageBox.Show(
-                        "失败发生在Recovery命令写入或触发以后。不要盲目断电或重复刷写；先查看D31屏幕、运行日志和D31备份目录。",
+                        FlashSafetyWarning(),
                         "D31刷机未完成",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
                 }
             }
             recoveryTriggered = false;
+            partitionWriteMayHaveStarted = false;
             UpdateControls();
+        }
+
+        private string FlashFailureStatus()
+        {
+            return partitionWriteMayHaveStarted || recoveryTriggered
+                ? "刷机未完成，分区可能已修改或Recovery已交接；请保留设备现场、日志及备份目录。"
+                : "刷机未完成，未收到分区写入或Recovery交接标记；请保留日志核对设备现场。";
+        }
+
+        private string FlashSafetyWarning()
+        {
+            return (partitionWriteMayHaveStarted
+                ? "分区写入已开始或日志不完整，分区可能已修改。"
+                : "Recovery已进入交接阶段。") +
+                "不要断电或重复刷写；先查看D31屏幕、运行日志、migration-state.json及D31备份目录。";
         }
 
         private void OpenBackups()
@@ -1012,6 +1054,7 @@ namespace D31FlashTool
             rescueDirectory = null;
             flashAfterBackup = false;
             recoveryTriggered = false;
+            partitionWriteMayHaveStarted = false;
             eraseCheck.Checked = false;
             deviceValue.Text = "未检测";
             buildValue.Text = "-";
@@ -1061,7 +1104,9 @@ namespace D31FlashTool
             if (!IsBusy()) { return; }
             eventArgs.Cancel = true;
             MessageBox.Show(
-                recoveryTriggered ? "Recovery已经触发，禁止关闭窗口或中断供电。" : "当前校验、下载、检查或传输尚未结束，请等待完成。",
+                partitionWriteMayHaveStarted || recoveryTriggered
+                    ? FlashSafetyWarning() + "当前操作未结束，禁止关闭窗口。"
+                    : "当前校验、下载、检查或传输尚未结束，请等待完成。",
                 "操作进行中",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);

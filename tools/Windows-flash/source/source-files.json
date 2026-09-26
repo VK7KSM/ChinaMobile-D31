@@ -30,6 +30,18 @@
     "SHA256": "61E1195BCAFC39EF37B78695B49E0429508E424329499A38018EA87D0B324A37"
   },
   {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "build-v1.6.10.ps1",
+    "字节数": 22818,
+    "SHA256": "E125220FE63123148D48A9D451BCD207ACB07B2B1EED4824F4253B42FB38DB22"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "build-v1.6.11.ps1",
+    "字节数": 23021,
+    "SHA256": "2E6F2CF22A7D4AE027E16A0B16BA142F4FE16D4D1292432FF3451C88E6FC2077"
+  },
+  {
     "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
     "路径": "build-v1.6.7.ps1",
     "字节数": 22028,
@@ -42,10 +54,16 @@
     "SHA256": "61E1195BCAFC39EF37B78695B49E0429508E424329499A38018EA87D0B324A37"
   },
   {
-    "来源": "research/d31_flash_tool/build.ps1",
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "build-v1.6.9.ps1",
+    "字节数": 22667,
+    "SHA256": "F3044C5C661E6F89AFB5D0255F8B797C344111FEBAD2EFDDA16A66F22ABA0A28"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
     "路径": "build.ps1",
-    "字节数": 778,
-    "SHA256": "236D1948E4FD96F2A39081F96678A97298D5DC2F09E7BBAFF143C28F310C34CC"
+    "字节数": 779,
+    "SHA256": "FC71FE16A55F7EB5EB1CD77D25834276FB8CE108EDD887ED6508C05A29B3D66E"
   },
   {
     "来源": "research/d31_flash_tool/obj-v1.6.8/runtime/approved-package.json",
@@ -54,10 +72,28 @@
     "SHA256": "D3EC0960435F16F68D5B03F0ADB4B411E855DCF531B48FD4A4992C8702E1A61A"
   },
   {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "inputs/approved-package-v1.4.6.json",
+    "字节数": 1161,
+    "SHA256": "748158E26D72E4C371B1DD9784862E5F8954FC7149141DEA70EC183CBC4D0EF3"
+  },
+  {
     "来源": "research/d31_flash_tool/obj-v1.6.8/runtime/installed-files.json",
     "路径": "inputs/installed-files-v1.4.5.json",
     "字节数": 9979,
     "SHA256": "566DF4C608147834D93B1531362DBF1EC6C254BE667C19687653851FC490E19D"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "inputs/installed-files-v1.4.6.json",
+    "字节数": 9979,
+    "SHA256": "566DF4C608147834D93B1531362DBF1EC6C254BE667C19687653851FC490E19D"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "release-v1.6.10.json",
+    "字节数": 553,
+    "SHA256": "902A76CDF6E9F376AE9A08A859C54BEDE54FB57F0B87ABC519E09E3E7E469612"
   },
   {
     "来源": "本轮按最终构建结果与逐文件来源生成公开摘要",
@@ -66,10 +102,28 @@
     "SHA256": "E888FFE03558E3FCCB57FDB35C1BCDEBDAEE8B42C4C8763C1475116445A23320"
   },
   {
-    "来源": "research/d31_flash_tool/scripts/create_d31_rescue.ps1",
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "release-v1.6.9.json",
+    "字节数": 521,
+    "SHA256": "B7FBB10E4A3DAF2FBDD92C7919167FDE77A697205DD78916A090D112A76AAEC9"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
     "路径": "scripts/create_d31_rescue.ps1",
-    "字节数": 15392,
-    "SHA256": "E3699FF9FBDC139FC619F288D046D42A828F2E75BAF7754812F1D3D8D539B44B"
+    "字节数": 21791,
+    "SHA256": "9AEA40D69F97FDC3B2075F0DEFA6BF9BCD319C1A73EC9EEADE8B035DA72D1317"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "sources-v1.6.10.json",
+    "字节数": 11682,
+    "SHA256": "ACBC9FF84BEB411D681D99A83C87B5A1781236EB095067A27C824E82B3C918A6"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "sources-v1.6.11.json",
+    "字节数": 4364,
+    "SHA256": "4434C85EBBEAAEFF9359B58F96F534BF5CDA37332287E02CAB954DFFEA6322B0"
   },
   {
     "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
@@ -84,10 +138,16 @@
     "SHA256": "F24C74F6AD5ED570D0780BD589308AE57BB49D05A8891D5C3EAB29D2A9E1CF36"
   },
   {
-    "来源": "research/d31_flash_tool/obj-v1.6.8/BuildConstants.g.cs",
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "sources-v1.6.9.json",
+    "字节数": 10109,
+    "SHA256": "7BE8EDEB91E8985CC828BAB254580A16009AFB2D653E54C46AABF1F63E2D4F70"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
     "路径": "src/BuildConstants.g.cs",
-    "字节数": 3414,
-    "SHA256": "F02DC90E0014E4AFDFF408F052B26FCDAB5B85BAAD85DB0F0F4EF89F5AD6B59F"
+    "字节数": 3415,
+    "SHA256": "F1783C271AF638C29D785862A8FECE8AE23DFE079895FAFF835ACC2EB3673CA1"
   },
   {
     "来源": "research/d31_flash_tool/src/FirmwareManager.cs",
@@ -96,10 +156,10 @@
     "SHA256": "BD68874087CDFFB7213EA93BA9F002EAAA9605585B6ECFD75ECA4C563E405D7A"
   },
   {
-    "来源": "research/d31_flash_tool/src/MainForm.cs",
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
     "路径": "src/MainForm.cs",
-    "字节数": 46014,
-    "SHA256": "FE84DD263059E8ACC427D19B2C58A9EFBB33BB22E1EDBA1449620CD63E8A5CCC"
+    "字节数": 52397,
+    "SHA256": "744B94AE7C9456B4F918B389B2F0D6C409AE3F56E9300DADB93D0E866A2A99C2"
   },
   {
     "来源": "research/d31_flash_tool/src/MaintenanceGuard.cs",
@@ -108,10 +168,10 @@
     "SHA256": "8C354C347CA78F8ABB0C79DA907230D16AE357F820B4479B9B20AC38328DE33C"
   },
   {
-    "来源": "research/d31_flash_tool/src/Program.cs",
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
     "路径": "src/Program.cs",
-    "字节数": 22200,
-    "SHA256": "9DFFDDB7136E338E4F3178A8973838A85277067B4F4E5662434688166F642322"
+    "字节数": 22612,
+    "SHA256": "0AED4B9BB9ECA96C2C6AABFADA5BEC0D8DA74534687DE1F55B241CC63FCC4A60"
   },
   {
     "来源": "research/d31_flash_tool/src/RescueClient.cs",
@@ -132,6 +192,12 @@
     "SHA256": "913F3D67CDE02A1A8490006E44F851EDF02B12895BBD353ADBC3E9EB8A8F1536"
   },
   {
+    "来源": "research/d31_flash_tool/tests/adb_port_fixture.sh",
+    "路径": "tests/adb_port_fixture.sh",
+    "字节数": 1413,
+    "SHA256": "8544268CC59E414BB1788B7E32C92457063EC35EFC040FAF4C3A06A64FCB72C1"
+  },
+  {
     "来源": "research/d31_flash_tool/tests/AdbPortTests.cs",
     "路径": "tests/AdbPortTests.cs",
     "字节数": 11552,
@@ -144,10 +210,16 @@
     "SHA256": "B4390971330F2720E94ADF90F44F33F1247F561E90CFD19F2E0683206B16043E"
   },
   {
-    "来源": "research/d31_flash_tool/tests/BackendFakeAdb.cs",
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
     "路径": "tests/BackendFakeAdb.cs",
-    "字节数": 15193,
-    "SHA256": "8EF6E3B75A240EC5672C24DB78FD6E760A94E67D5FFDFBEBECDDC3A1171427FB"
+    "字节数": 22457,
+    "SHA256": "FEBE897D43D3BD6DDD52DAA6BCE9E03CA0E6C163455F5C1B85216C0FE25E104D"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "tests/BackendShellFixture.sh",
+    "字节数": 1484,
+    "SHA256": "C69985F8801B9D7E87A114A32CB313069B1A0248D68ADBAB7DFF401155095F36"
   },
   {
     "来源": "research/d31_flash_tool/tests/BasicProbeExeTests.cs",
@@ -156,10 +228,10 @@
     "SHA256": "67925ED3353AE2F22563D5741385FE9BFB1FEE7CA79BF64567C0770373F835FD"
   },
   {
-    "来源": "research/d31_flash_tool/tests/BasicProbeIntegratedTests.ps1",
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
     "路径": "tests/BasicProbeIntegratedTests.ps1",
-    "字节数": 2501,
-    "SHA256": "9995B8DCFFFF84193411D39EBBF495F0DDF07570F78B28BFEE043A21637778A5"
+    "字节数": 2527,
+    "SHA256": "94ACFC0F0A5C7E6CFC629B7F0CC33259E7C13F257B91CE6C90DF8B13758ABFBE"
   },
   {
     "来源": "research/d31_flash_tool/tests/BasicProbeMaintenanceFixture.sh",
@@ -186,10 +258,58 @@
     "SHA256": "E1E3AC3C5B5CE0791A188D285CECA0ED959D9E69E120992586EE12B2BD19D8B0"
   },
   {
+    "来源": "research/d31_flash_tool/tests/check_rescue_readonly.ps1",
+    "路径": "tests/check_rescue_readonly.ps1",
+    "字节数": 484,
+    "SHA256": "733B48E3DE82467B3290B9DF097B4AB3555BA36C32FC42B782EB74F879F691A3"
+  },
+  {
+    "来源": "research/d31_flash_tool/tests/check_uptool_readonly.ps1",
+    "路径": "tests/check_uptool_readonly.ps1",
+    "字节数": 764,
+    "SHA256": "E274048A62341D1FD17867DE22CCD4C351D6C2A3C352F7436791B314A6EBBC8D"
+  },
+  {
     "来源": "research/d31_flash_tool/tests/DownloadRegression.cs",
     "路径": "tests/DownloadRegression.cs",
     "字节数": 4021,
     "SHA256": "8512287EFB080B9CA97F29EBE6BE8A3B3A0EDC38C6CA8C8AF56583B18C321893"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "tests/FlashWorkflowFixture.ps1",
+    "字节数": 2044,
+    "SHA256": "B973829BF300479CA3FFE0F26DDBC66B55FA009558B830D7C23826F21CE3D107"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "tests/FlashWorkflowTests.cs",
+    "字节数": 14243,
+    "SHA256": "BB8B503BE9827F874DB7FDE4C942C743BC0CE0DC032F60DF788DF97E45215272"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "tests/PartitionLayoutFixture.sh",
+    "字节数": 2798,
+    "SHA256": "78B492412AB763093DAAF9C1E149768774C6041F9E684DAEC643B28493F6AC56"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "tests/PartitionLayoutLegacyCommand.sh",
+    "字节数": 177,
+    "SHA256": "16E47AFDA6293BD2B030EF158B7DE4FEC5EF71CF8293258D8D34A8BB5841FE11"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "tests/PartitionLayoutNativeBridge.cs",
+    "字节数": 3230,
+    "SHA256": "A7D36213DDD314AE3575FC748CF007C4D782F48BA2BEF6E69E3D965D870AC71F"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "tests/PlatformCompatibilityTests.cs",
+    "字节数": 2556,
+    "SHA256": "5C7C555C4E4FFD3F4C18F39B4A0858248A15E85F18B60F96132E9DB42B9AD020"
   },
   {
     "来源": "research/d31_flash_tool/tests/ReleasedArtifactAudit.cs",
@@ -204,10 +324,22 @@
     "SHA256": "124045168FA5982643B5EE76299FCDE21090909B41CBF6CDBB892B7C62758C90"
   },
   {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "tests/RescueMigrationFakeAdb.cs",
+    "字节数": 4862,
+    "SHA256": "37C09EE9E2EF78DE1A7266C3F965225351E6A57861EC56555DE21FEDB8BA9799"
+  },
+  {
     "来源": "research/d31_flash_tool/tests/RescueTests.cs",
     "路径": "tests/RescueTests.cs",
     "字节数": 3417,
     "SHA256": "26DAC61C06F40EB4211D54C492B9C8644D254A2244810EC344F21AFF739C1C39"
+  },
+  {
+    "来源": "research/d31_flash_tool/tests/serve_download_fixture.py",
+    "路径": "tests/serve_download_fixture.py",
+    "字节数": 2206,
+    "SHA256": "B7BB52F474E21B30A0706B29561322F98D65649DA8D9FF486A66EF5E7A09F0E6"
   },
   {
     "来源": "research/d31_flash_tool/tests/Test-D31RescueOffline.ps1",
@@ -216,22 +348,40 @@
     "SHA256": "5CDCEA649689DB69DB75FDC73BF3EDDEED7E85119E9F6ED0FD0001E981B031BB"
   },
   {
-    "来源": "research/d31_flash_tool/tests/TestBackend.ps1",
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
     "路径": "tests/TestBackend.ps1",
-    "字节数": 8809,
-    "SHA256": "7AF19C833CE26FF8C381A66F1EFFA707D967201C1FBBC05F4FBCE4E2458D879B"
+    "字节数": 11043,
+    "SHA256": "5130019D336F4D7B3F3AFC01CD751C0A125429D26DB5AD3FEDB44486D1B44000"
   },
   {
-    "来源": "research/d31_flash_tool/tests/TestBackendFixture.ps1",
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
     "路径": "tests/TestBackendFixture.ps1",
-    "字节数": 1707,
-    "SHA256": "1C294ABC4A29AF1674E8D7BED3EBF906EF0007A6C0C4E0E5F8B907634D6F6ADC"
+    "字节数": 2802,
+    "SHA256": "51154401A9D79A477DB9915B814CDD0837DE247D4A84EC7C0A60811B565CE326"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "tests/TestBackendShellQuoting.ps1",
+    "字节数": 4319,
+    "SHA256": "CC4DAE4F73ED6FA2A6532FFD15C348B5D78746ADDBB4D31C3FDCB2074D2E13F5"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "tests/TestBootRecoveryMigration.ps1",
+    "字节数": 11853,
+    "SHA256": "EF2216C2CA6CAE04915D100453CF349E37689636CBF6277E9EFF70644DB517CC"
   },
   {
     "来源": "research/d31_flash_tool/tests/TestCandidateReport.ps1",
     "路径": "tests/TestCandidateReport.ps1",
     "字节数": 9735,
     "SHA256": "FAA393283DD12FF5ACA86ACC29A6DF90E04EF64428C59A8EBAB3BA28B10E1EB6"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "tests/TestFirmware1611Contract.ps1",
+    "字节数": 6585,
+    "SHA256": "0EC0C16487F553FDE3CCC29A78F6C0BC92DE9637EA967733A427B982E790F370"
   },
   {
     "来源": "research/d31_flash_tool/tests/TestFirmware168Contract.ps1",
@@ -252,10 +402,16 @@
     "SHA256": "539ECC897B40881C57181811D9C885F1A5B5CA95169CE342583F4A81919DC656"
   },
   {
-    "来源": "research/d31_flash_tool/tests/TestFlashMaintenance.ps1",
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
     "路径": "tests/TestFlashMaintenance.ps1",
-    "字节数": 3891,
-    "SHA256": "585B8F362965E59AB79C5BDECF80E58533D9B1BD8C8B15D3975077934FF1E7CC"
+    "字节数": 4187,
+    "SHA256": "DE4E6B2040A5912696618398F11D02E1C78C8A14CC04C8F0BEDA76420AA2782E"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "tests/TestFlashWorkflow.ps1",
+    "字节数": 1351,
+    "SHA256": "B59FDA86DB755FFDB64D44BD35F0D7C12BAB3BC34BDE3801E7BD2E76C22BA426"
   },
   {
     "来源": "research/d31_flash_tool/tests/TestMaintenanceShell.ps1",
@@ -264,40 +420,34 @@
     "SHA256": "1611C55972B625794A0B133408A6CD94EAA2BFBF4ADE108828CE575DC3251EF9"
   },
   {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "tests/TestPartitionLayout.ps1",
+    "字节数": 10824,
+    "SHA256": "28720DAAF95E8103E620B5FC68B7F8A783E9CA03A9EF723FD97BD37E3B330637"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "tests/TestPlatformCompatibility.ps1",
+    "字节数": 10080,
+    "SHA256": "8D93E6636E44D6AE059A7101A7A03D9C87537C80D63E6B8546958C4AD871358E"
+  },
+  {
     "来源": "research/d31_flash_tool/tests/TestPostBoot.ps1",
     "路径": "tests/TestPostBoot.ps1",
     "字节数": 3223,
     "SHA256": "95DCD36094603B74F82B56775AA15F20C580EE0037528C665F50AADBB7BEB0C8"
   },
   {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "tests/TestRescueMigration.ps1",
+    "字节数": 5458,
+    "SHA256": "1701F43802F58FA9193F4EB8D723DD6EE95C098923647450A451821C1AED8CEE"
+  },
+  {
     "来源": "research/d31_flash_tool/tests/TestSystemFirmware.ps1",
     "路径": "tests/TestSystemFirmware.ps1",
     "字节数": 8624,
     "SHA256": "DA3A28470632C65D52D9B0D23B61BB9D0C76F029DEB9B3D7D867D571D6164879"
-  },
-  {
-    "来源": "research/d31_flash_tool/tests/adb_port_fixture.sh",
-    "路径": "tests/adb_port_fixture.sh",
-    "字节数": 1413,
-    "SHA256": "8544268CC59E414BB1788B7E32C92457063EC35EFC040FAF4C3A06A64FCB72C1"
-  },
-  {
-    "来源": "research/d31_flash_tool/tests/check_rescue_readonly.ps1",
-    "路径": "tests/check_rescue_readonly.ps1",
-    "字节数": 484,
-    "SHA256": "733B48E3DE82467B3290B9DF097B4AB3555BA36C32FC42B782EB74F879F691A3"
-  },
-  {
-    "来源": "research/d31_flash_tool/tests/check_uptool_readonly.ps1",
-    "路径": "tests/check_uptool_readonly.ps1",
-    "字节数": 764,
-    "SHA256": "E274048A62341D1FD17867DE22CCD4C351D6C2A3C352F7436791B314A6EBBC8D"
-  },
-  {
-    "来源": "research/d31_flash_tool/tests/serve_download_fixture.py",
-    "路径": "tests/serve_download_fixture.py",
-    "字节数": 2206,
-    "SHA256": "B7BB52F474E21B30A0706B29561322F98D65649DA8D9FF486A66EF5E7A09F0E6"
   },
   {
     "来源": "research/d31_flash_tool/tests/verify_rescue_roundtrip.ps1",
@@ -324,10 +474,10 @@
     "SHA256": "342640AE93A8E65718EFE6BE45CB6591DDC42130CF17D41F3AC378B80F715218"
   },
   {
-    "来源": "research/d31_flash_tool/tools/FirmwareContract.psm1",
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
     "路径": "tools/FirmwareContract.psm1",
-    "字节数": 3513,
-    "SHA256": "E9BCCEC58B60D5F8CEB9AC45C6A866249A65583BBB02B091AFA9949C02B3D0C8"
+    "字节数": 4170,
+    "SHA256": "0D695B2E0E35FE4BD11079FE421C0A4AC0A2828E8AFD29D90624600B54737299"
   },
   {
     "来源": "research/d31_flash_tool/tools/Get-BasicProbeMigrationPlan.ps1",

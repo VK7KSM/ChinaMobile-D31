@@ -1,0 +1,120 @@
+{
+  "工具": "1.6.11",
+  "固件": "1.4.6",
+  "文件": [
+    {
+      "path": "src/MainForm.cs",
+      "bytes": 52397,
+      "sha256": "744B94AE7C9456B4F918B389B2F0D6C409AE3F56E9300DADB93D0E866A2A99C2"
+    },
+    {
+      "path": "tools/FirmwareContract.psm1",
+      "bytes": 4170,
+      "sha256": "0D695B2E0E35FE4BD11079FE421C0A4AC0A2828E8AFD29D90624600B54737299"
+    },
+    {
+      "path": "scripts/create_d31_rescue.ps1",
+      "bytes": 21791,
+      "sha256": "9AEA40D69F97FDC3B2075F0DEFA6BF9BCD319C1A73EC9EEADE8B035DA72D1317"
+    },
+    {
+      "path": "build-v1.6.11.ps1",
+      "bytes": 23021,
+      "sha256": "2E6F2CF22A7D4AE027E16A0B16BA142F4FE16D4D1292432FF3451C88E6FC2077"
+    },
+    {
+      "path": "tests/BasicProbeIntegratedTests.ps1",
+      "bytes": 2527,
+      "sha256": "94ACFC0F0A5C7E6CFC629B7F0CC33259E7C13F257B91CE6C90DF8B13758ABFBE"
+    },
+    {
+      "path": "tests/TestPlatformCompatibility.ps1",
+      "bytes": 10080,
+      "sha256": "8D93E6636E44D6AE059A7101A7A03D9C87537C80D63E6B8546958C4AD871358E"
+    },
+    {
+      "path": "tests/FlashWorkflowTests.cs",
+      "bytes": 14243,
+      "sha256": "BB8B503BE9827F874DB7FDE4C942C743BC0CE0DC032F60DF788DF97E45215272"
+    },
+    {
+      "path": "tests/FlashWorkflowFixture.ps1",
+      "bytes": 2044,
+      "sha256": "B973829BF300479CA3FFE0F26DDBC66B55FA009558B830D7C23826F21CE3D107"
+    },
+    {
+      "path": "tests/TestFirmware1611Contract.ps1",
+      "bytes": 6585,
+      "sha256": "0EC0C16487F553FDE3CCC29A78F6C0BC92DE9637EA967733A427B982E790F370"
+    },
+    {
+      "path": "tests/BackendFakeAdb.cs",
+      "bytes": 22457,
+      "sha256": "FEBE897D43D3BD6DDD52DAA6BCE9E03CA0E6C163455F5C1B85216C0FE25E104D"
+    },
+    {
+      "path": "tests/TestBackend.ps1",
+      "bytes": 11043,
+      "sha256": "5130019D336F4D7B3F3AFC01CD751C0A125429D26DB5AD3FEDB44486D1B44000"
+    },
+    {
+      "path": "tests/TestBackendFixture.ps1",
+      "bytes": 2802,
+      "sha256": "51154401A9D79A477DB9915B814CDD0837DE247D4A84EC7C0A60811B565CE326"
+    },
+    {
+      "path": "tests/TestBootRecoveryMigration.ps1",
+      "bytes": 11853,
+      "sha256": "EF2216C2CA6CAE04915D100453CF349E37689636CBF6277E9EFF70644DB517CC"
+    },
+    {
+      "path": "tests/BackendShellFixture.sh",
+      "bytes": 1484,
+      "sha256": "C69985F8801B9D7E87A114A32CB313069B1A0248D68ADBAB7DFF401155095F36"
+    },
+    {
+      "path": "tests/RescueMigrationFakeAdb.cs",
+      "bytes": 4862,
+      "sha256": "37C09EE9E2EF78DE1A7266C3F965225351E6A57861EC56555DE21FEDB8BA9799"
+    },
+    {
+      "path": "tests/TestBackendShellQuoting.ps1",
+      "bytes": 4319,
+      "sha256": "CC4DAE4F73ED6FA2A6532FFD15C348B5D78746ADDBB4D31C3FDCB2074D2E13F5"
+    },
+    {
+      "path": "tests/TestFlashMaintenance.ps1",
+      "bytes": 4187,
+      "sha256": "DE4E6B2040A5912696618398F11D02E1C78C8A14CC04C8F0BEDA76420AA2782E"
+    },
+    {
+      "path": "tests/TestPartitionLayout.ps1",
+      "bytes": 10824,
+      "sha256": "28720DAAF95E8103E620B5FC68B7F8A783E9CA03A9EF723FD97BD37E3B330637"
+    },
+    {
+      "path": "tests/TestRescueMigration.ps1",
+      "bytes": 5458,
+      "sha256": "1701F43802F58FA9193F4EB8D723DD6EE95C098923647450A451821C1AED8CEE"
+    }
+  ],
+  "制品": [
+    {
+      "path": "C:\\Dev\\H13_D22\\research\\d31_flash_tool\\dist-v1.6.11\\D31-Flash-Tool-v1.6.11.exe",
+      "fileName": "D31-Flash-Tool-v1.6.11.exe",
+      "bytes": 16162304,
+      "sha256": "AF119B060139BAC3E4BDF4DA352BF63ECCBD6335C800569E67E96C378C4BC8CC",
+      "githubUrl": "https://github.com/VK7KSM/ChinaMobile-D31/releases/download/tool-v1.6.11/D31-Flash-Tool-v1.6.11.exe",
+      "cloudflareUrl": "https://cdn.elfradio.net/d31/D31-Flash-Tool-v1.6.11.exe"
+    },
+    {
+      "path": "C:\\Dev\\H13_D22\\research\\d31\\dist\\factory-flash-v1.4.6\\D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip",
+      "fileName": "D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip",
+      "bytes": 1725719086,
+      "sha256": "1BF50A5D00CE1571340EA3C1ADEAECA0067D502E7AD8E4E7A1C4DB4C7B7CD92B",
+      "githubUrl": "https://github.com/VK7KSM/ChinaMobile-D31/releases/download/v1.4.6/D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip",
+      "cloudflareUrl": "https://cdn.elfradio.net/d31/D31_SVP3390_Factory_Flash_v1.4.6_testkey.zip"
+    }
+  ],
+  "实刷验收": "未执行"
+}

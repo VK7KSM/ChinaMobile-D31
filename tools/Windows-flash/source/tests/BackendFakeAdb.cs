@@ -8,6 +8,11 @@ using System.Security.Cryptography;
 // 只返回固定测试数据，不启动任何外部进程或网络连接。
 class BackendFakeAdb
 {
+    static string Sha(string path) {
+        using(var sha=SHA256.Create()) using(var stream=File.OpenRead(path))
+            return BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "");
+    }
+
     static int Main(string[] args)
     {
         string command = String.Join(" ", args);
@@ -20,13 +25,66 @@ class BackendFakeAdb
         var metadata = json.Deserialize<Dictionary<string, object>>(File.ReadAllText(Path.Combine(root, "approved-package.json")));
         string bytes = metadata["bytes"].ToString();
         string hash = metadata["sha256"].ToString();
+        bool migration = metadata.ContainsKey("replaceBootRecovery") && metadata["replaceBootRecovery"] is bool && (bool)metadata["replaceBootRecovery"];
+        string imageRoot = statePath + ".images";
+        if (migration) {
+            Directory.CreateDirectory(imageRoot);
+            foreach(string name in new[]{"boot","recovery"}) {
+                string image=Path.Combine(imageRoot,name+".img");
+                if(!File.Exists(image)) {
+                    var raw=new byte[16777216];
+                    System.Text.Encoding.ASCII.GetBytes("ANDROID!").CopyTo(raw,0);
+                    raw[8]=(byte)(name=="boot" ? 1 : 2);
+                    File.WriteAllBytes(image,raw);
+                }
+            }
+        }
         string remote = "/data/local/tmp/D31-factory-v" + metadata["version"] + ".zip";
         var files = json.Deserialize<Dictionary<string, object>[]>(File.ReadAllText(Path.Combine(root, "installed-files.json")));
         bool postSystem = metadata.ContainsKey("elfRemote") && (state.ContainsKey("rebooted") || mode.StartsWith("system-"));
         var system = metadata.ContainsKey("elfRemote") ? (Dictionary<string,object>)metadata["elfRemote"] : null;
         int systemVersion = system == null ? 0 : Convert.ToInt32(system["versionCode"]);
         string result;
-        if (command.Contains(" connect ")) result = "connected to " + args[args.Length - 1];
+        if (migration && command.Contains("d31-migration-")) {
+            if (command.Contains("busybox dd ")) {
+                var io=Regex.Match(command,@"busybox dd if='([^']+)' of='([^']+)'");
+                if(!io.Success) throw new Exception("迁移dd格式不符");
+                string source=io.Groups[1].Value, destination=io.Groups[2].Value;
+                bool write=destination.Contains("/by-name/");
+                if(write) {
+                    if(!command.Contains("test $(id -u) = 0") || !command.Contains("; sync") ||
+                        !command.Contains("blockdev --getsize64") || destination.EndsWith("/boot")) throw new Exception("分区写入边界不符");
+                    File.Copy(Path.Combine(imageRoot,"target-recovery.img"),Path.Combine(imageRoot,"recovery.img"),true);
+                    state["recoveryWritten"]="true";
+                    File.WriteAllText(statePath,json.Serialize(state));
+                    if(mode=="migration-timeout") { System.Threading.Thread.Sleep(10000); return 75; }
+                    if(mode=="migration-write-failed") return 76;
+                } else {
+                    string name=Path.GetFileName(source);
+                    File.Copy(Path.Combine(imageRoot,name+".img"),Path.Combine(imageRoot,Path.GetFileName(destination)),false);
+                }
+                result="";
+            } else if(command.Contains(" pull ")) {
+                if(mode!="migration-backup-missing") {
+                    File.Copy(Path.Combine(imageRoot,Path.GetFileName(args[args.Length-2])),args[args.Length-1],false);
+                    if(mode=="migration-backup-corrupt") using(var f=File.OpenWrite(args[args.Length-1])) f.WriteByte(0);
+                    if(mode=="migration-backup-disappeared" && args[args.Length-1].EndsWith("original-recovery.img"))
+                        File.Delete(Path.Combine(Path.GetDirectoryName(args[args.Length-1]),"original-boot.img"));
+                }
+                result="";
+            } else if(command.Contains(" push ")) {
+                File.Copy(args[args.Length-2],Path.Combine(imageRoot,Path.GetFileName(args[args.Length-1])),false);
+                result="";
+            } else if(command.Contains("busybox sha256sum ")) {
+                string path=command.Substring(command.IndexOf("busybox sha256sum ")+18);
+                result=(mode=="migration-upload-corrupt" && path.EndsWith("target-recovery.img") ? new string('0',64) : Sha(Path.Combine(imageRoot,Path.GetFileName(path))))+"  "+path;
+            } else if(command.Contains("stat -c %s ")) {
+                string path=command.Substring(command.IndexOf("stat -c %s ")+11);
+                result=new FileInfo(Path.Combine(imageRoot,Path.GetFileName(path))).Length.ToString();
+            } else if(command.Contains("mkdir '")) result="";
+            else { Console.Error.WriteLine("未覆盖的迁移命令："+command); return 98; }
+        }
+        else if (command.Contains(" connect ")) result = "connected to " + args[args.Length - 1];
         else if (postSystem && command.Contains("D31_SYSTEM_RUNTIME_PRESENT_V1")) result = mode == "system-missing-health" ? "" : "D31_SYSTEM_RUNTIME_PRESENT_V1";
         else if (postSystem && command.Contains("runtime/updates/supervisor.json")) {
             result = json.Serialize(new {uid=0,pid=mode == "system-supervisor-pid" ? 999 : 202,time_ms=1789286400000L,version_code=systemVersion,maintenance_protocol=1});
@@ -68,7 +126,7 @@ class BackendFakeAdb
         }
         else if (command.Contains("D31_LEGACY_DEPLOYMENT_ABSENT_V1")) {
             if (mode == "legacy-evidence-unreadable") return 72;
-            result = mode == "full170-no-health" || mode == "full170-old-health" || mode == "legacy-active-present" || mode == "stock-active-present" ?
+            result = mode == "full170-no-health" || mode == "full170-old-health" || mode == "legacy-active-present" || mode == "stock-active-present" || mode == "basic193-modern" ?
                 "D31_MODERN_DEPLOYMENT_PRESENT_V1" : "D31_LEGACY_DEPLOYMENT_ABSENT_V1";
         }
         else if (command.Contains("pm list packages")) {
@@ -76,13 +134,15 @@ class BackendFakeAdb
                 "package:android\npackage:net.elfradio.d31bootstrap" : "package:android\npackage:com.android.settings";
         }
         else if (command.Contains("dumpsys package net.elfradio.d31bootstrap")) {
-            result = postSystem ? "  versionCode="+(mode == "system-pm-version" ? systemVersion - 1 : systemVersion)+" targetSdk=23\n  versionName="+system["versionName"] : mode == "legacy-pm-unknown" ? "" : "  versionCode=" +
+            result = mode.StartsWith("basic193-") ? "  versionCode="+(mode=="basic193-wrong-code" ? "195" : "193")+" targetSdk=27\n  versionName="+
+                (mode=="basic193-wrong-name" ? "1.34.18-candidate-full" : "1.34.18-candidate-basic") :
+                postSystem ? "  versionCode="+(mode == "system-pm-version" ? systemVersion - 1 : systemVersion)+" targetSdk=23\n  versionName="+system["versionName"] : mode == "legacy-pm-unknown" ? "" : "  versionCode=" +
                 (mode == "full170-pm-no-health" ? "170" : mode == "legacy-version-mismatch" ? "94" : "95") + " targetSdk=23";
         }
         else if (command.Contains("runtime/state/health.json")) {
-            result = mode == "health-invalid" ? "invalid-json" : mode == "legacy95" ? "{\"version_code\":95}" :
+            result = mode == "basic193-health" ? "{\"version_code\":193}" : mode == "health-invalid" ? "invalid-json" : mode == "legacy95" ? "{\"version_code\":95}" :
                 mode == "full170-old-health" || mode == "legacy-version-mismatch" ? "{\"version_code\":95}" :
-                mode.StartsWith("full96-") ? json.Serialize(new {version_code=96, maintenance_protocol=mode == "full96-no-protocol" ? 0 : 1}) : "{}";
+                mode.StartsWith("full96-") || mode.StartsWith("migration-") ? json.Serialize(new {version_code=96, maintenance_protocol=mode == "full96-no-protocol" ? 0 : 1}) : "{}";
         }
         else if (command.Contains("runtime/active.json")) {
             result = json.Serialize(new {path=mode == "full96-bad-path" ? "/data/local/tmp/not-approved.apk" :
@@ -90,7 +150,7 @@ class BackendFakeAdb
                 "/data/local/d31-remote/releases/" + new string('a',64) + "/remote.apk"});
         }
         else if (command.Contains("RemoteWindowsMaintenance reserve ")) {
-            if (mode == "full96-reserve-failed") return 73;
+            if (mode == "full96-reserve-failed" || mode == "migration-maintenance-denied") return 73;
             result = mode == "full96-reserve-unknown" ? "UNKNOWN" : "D31_WINDOWS_RESERVED_V1";
         }
         else if (command.Contains("RemoteWindowsMaintenance release ")) result = "D31_WINDOWS_RELEASED_V1";
@@ -118,10 +178,15 @@ class BackendFakeAdb
             var sizes = new Dictionary<string,string>{{"system","1610612736"},{"boot","16777216"},{"recovery","16777216"},{"userdata","13517717504"},{"logo","8388608"}};
             result = mode == "bad-" + partition + "-size" || (mode == "bad-logo" && partition == "logo") ? "1" : sizes[partition];
         }
+        else if (command.Contains("busybox sha256sum '/data/app/net.elfradio.d31bootstrap-1/base.apk'")) {
+            result=(mode=="basic193-bad-hash" ? new string('0',64) : "C7E7665937B2895905CAF3B7A71DA6F65FA311DF601BEB771E767C34924D20A3")+"  /data/app/net.elfradio.d31bootstrap-1/base.apk";
+        }
         else if (command.Contains("busybox sha256sum")) {
             string path = command.Substring(command.IndexOf("busybox sha256sum ") + 18);
-            if (path.EndsWith("/recovery")) result = (mode == "bad-recovery" ? new string('0',64) : "173CB00459E4CDFC2B4BF04D7BED4A130947795F8ACB3B557BBEF2C218B2E7D5") + "  " + path;
-            else if (path.EndsWith("/boot")) result = (mode == "bad-boot" ? new string('0',64) : metadata["bootSha256"].ToString()) + "  " + path;
+            if (path.EndsWith("/recovery")) result = (mode == "migration-invalid-hash" ? "invalid" :
+                mode == "migration-readback-wrong" && state.ContainsKey("recoveryWritten") ? new string('0',64) :
+                mode == "bad-recovery" ? new string('0',64) : migration ? Sha(Path.Combine(imageRoot,"recovery.img")) : "173CB00459E4CDFC2B4BF04D7BED4A130947795F8ACB3B557BBEF2C218B2E7D5") + "  " + path;
+            else if (path.EndsWith("/boot")) result = (mode == "bad-boot" ? new string('0',64) : migration && !state.ContainsKey("rebooted") ? Sha(Path.Combine(imageRoot,"boot.img")) : metadata["bootSha256"].ToString()) + "  " + path;
             else if (path == remote) {
                 int count = state.ContainsKey("hashCount") ? Int32.Parse(state["hashCount"]) : 0;
                 state["hashCount"] = (count + 1).ToString();
@@ -132,7 +197,7 @@ class BackendFakeAdb
             else {
                 var item = Array.Find(files, f => f["path"].ToString() == path);
                 if (item == null) throw new Exception("未覆盖的哈希路径：" + path);
-                result = (mode == "bad-installed" ? new string('0',64) : item["sha256"].ToString()) + "  " + path;
+                result = (mode == "bad-installed" || mode == "migration-post-payload" ? new string('0',64) : item["sha256"].ToString()) + "  " + path;
             }
         }
         else if (command.Contains("then echo YES; else echo NO")) result = mode == "missing-partition" ? "NO" : "YES";
@@ -158,10 +223,14 @@ class BackendFakeAdb
         else if (command.Contains("shell rm -f " + remote) || command.Contains("shell mv " + remote + ".partial")) result = "";
         else if (command.EndsWith("shell getprop")) result = "[sys.boot_completed]: [1]";
         else if (command.Contains("shell ls -l")) result = "测试分区映射";
+        else if (command.Contains("D31_OLD_RECOVERY_")) result = "D31_OLD_RECOVERY_command\n旧命令离线样本";
         else if (command.Contains("mkdir -p /cache/recovery")) result = mode == "full96-command-mismatch" ? "UNKNOWN" : "--update_package=" + remote;
-        else if (command.EndsWith("reboot recovery")) {
+        else if (command.Contains("reboot recovery")) {
             if (mode == "full96-reboot-failed") return 74;
             state["rebooted"] = "true";
+            if(mode=="migration-reboot-disconnect") {
+                File.WriteAllText(statePath,json.Serialize(state));return 74;
+            }
             result = "";
         }
         else if (command.EndsWith("getprop sys.boot_completed")) result = "1";
@@ -172,7 +241,7 @@ class BackendFakeAdb
         }
         else if (command.Contains("for p in /system/vendor/3rd-app")) result = "";
         else if (command.Contains("/d31-startup-handover/runs/")) result = mode == "bad-handover" ? "HANDOVER_EXIT=1" : "52.933 HANDOVER_COMPLETE\nHANDOVER_EXIT=0";
-        else if (command.Contains("FactoryInit --verify")) result = mode == "bad-initialization" ? "Permission mismatch" :
+        else if (command.Contains("FactoryInit --verify")) result = mode == "bad-initialization" || mode == "migration-post-init" ? "Permission mismatch" :
             (mode == "system-old-init" ? "1.4.3" : metadata["version"].ToString())+"\n"+(mode == "system-forged-init" ? "NOT_FACTORY_STATE_VERIFIED" : "FACTORY_STATE_VERIFIED");
         else if (command.Contains("test -S /dev/socket/d31-system-actions")) result = mode == "bad-storage-support" ? "" : "net.elfradio.d31system\n/data/local/d31-system-support/guard";
         else if (command.Contains("factory-runtime-complete")) result = mode == "bad-tcp-default" ? "" : metadata["version"].ToString()+"\nTCP_DEFAULT_OK";
@@ -184,13 +253,16 @@ class BackendFakeAdb
             }
             result=json.Serialize(new {tabs=new object[]{new {},new {items=apps}}});
         }
-        else if (command.Contains("cat /cache/recovery/last_log")) result = "刷机完成：所有软件均为未配置状态";
+        else if (command.Contains("cat /cache/recovery/last_log")) result = mode=="migration-post-log" ? "安装结果缺失" : "刷机完成：所有软件均为未配置状态";
         else { Console.Error.WriteLine("测试未覆盖此命令：" + command); return 98; }
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         File.WriteAllText(statePath, json.Serialize(state));
         Console.WriteLine(result);
         Match exitMarker = Regex.Match(command, @"D31_RECOVERY_EXIT_[a-f0-9]{32}_");
         if (exitMarker.Success) {
+            if(mode=="basic193-missing-receipt" && command.Contains("busybox sha256sum '/data/app/")) return 0;
+            if (mode == "migration-write-marker-missing" && command.Contains(" of='/dev/block/")) return 0;
+            if (mode == "migration-write-marker-duplicate" && command.Contains(" of='/dev/block/")) Console.WriteLine(exitMarker.Value+"0");
             if (mode == "full96-command-marker-missing" && command.Contains("mkdir -p /cache/recovery")) return 0;
             int remoteExit = mode == "full96-command-remote-failed" && command.Contains("mkdir -p /cache/recovery") ? 7 : 0;
             if (mode == "system-init-exit" && command.Contains("FactoryInit --verify")) remoteExit=9;

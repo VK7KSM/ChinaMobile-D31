@@ -21,5 +21,16 @@ if ($DevicePreflightOnly) {
     if (-not $PackagePath -or ($SkipBackup -eq [bool]$RescueDirectory)) { throw '刷机参数错误' }
     if ($RescueDirectory -and -not (Test-Path -LiteralPath $RescueDirectory -PathType Container)) { throw '备份目录不存在' }
     [IO.File]::AppendAllText($trace, $(if ($SkipBackup) { "刷机无备份`n" } else { "刷机有备份`n" }))
+    if ($mode -eq 'flash-prepare-fail') { exit 1 }
+    if ($mode -eq 'partition-write') {
+        Write-Output '[6/8] 模拟重启前写入准备'
+        Write-Output 'D31_PARTITION_WRITE_BEGIN_V1 recovery'
+        [Console]::Out.Flush()
+        $timer=[Diagnostics.Stopwatch]::StartNew()
+        while (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'ui-guard-ready.txt'))) {
+            if ($timer.ElapsedMilliseconds -gt 10000) { throw '界面未及时设置写入保护' }
+            Start-Sleep -Milliseconds 20
+        }
+    }
     Write-Output '离线刷机替身完成；没有连接设备'
 }

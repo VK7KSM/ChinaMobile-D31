@@ -18,10 +18,16 @@
     "SHA256": "D3EC0960435F16F68D5B03F0ADB4B411E855DCF531B48FD4A4992C8702E1A61A"
   },
   {
-    "来源": "research/d31/dist/factory-flash-v1.4.5/approved-package-v1.4.5.json",
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "approved-package-v1.4.6.json",
+    "字节数": 1161,
+    "SHA256": "748158E26D72E4C371B1DD9784862E5F8954FC7149141DEA70EC183CBC4D0EF3"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
     "路径": "approved-package.json",
-    "字节数": 1130,
-    "SHA256": "D3EC0960435F16F68D5B03F0ADB4B411E855DCF531B48FD4A4992C8702E1A61A"
+    "字节数": 1161,
+    "SHA256": "748158E26D72E4C371B1DD9784862E5F8954FC7149141DEA70EC183CBC4D0EF3"
   },
   {
     "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/audit_deliverable.py",
@@ -48,10 +54,16 @@
     "SHA256": "D49F83EB05AC8CAC91234E86D0722331312D3B3546B9A1E60C2FE326AC703488"
   },
   {
-    "来源": "research/d31/factory_package/flash_d31_recovery.ps1（2026-09-22 可移植性修订）",
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "build_v146.py",
+    "字节数": 9318,
+    "SHA256": "C6AF897FE54C8F1412E9A4017E40EACD06B968E08310E8F188D2A0088562B372"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
     "路径": "flash_d31_recovery.ps1",
-    "字节数": 44645,
-    "SHA256": "4C79CCBCA70F77D95243B937395B8D508381F9DBD20523D5B22DA6173CB021FD"
+    "字节数": 60942,
+    "SHA256": "DF09B9865EB161E4A965E8B1CEE88F6254B026739B289CAFA994127E307D9C6B"
   },
   {
     "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
@@ -62,6 +74,12 @@
   {
     "来源": "research/d31/dist/factory-flash-v1.4.5/installed-files-v1.4.5.json",
     "路径": "installed-files-v1.4.5.json",
+    "字节数": 9979,
+    "SHA256": "566DF4C608147834D93B1531362DBF1EC6C254BE667C19687653851FC490E19D"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "installed-files-v1.4.6.json",
     "字节数": 9979,
     "SHA256": "566DF4C608147834D93B1531362DBF1EC6C254BE667C19687653851FC490E19D"
   },
@@ -84,6 +102,12 @@
     "SHA256": "7E6110A52E98B00765E39113EDC362A281B53EFB00B226FBA96B0CFEB091273D"
   },
   {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "manifest-v1.4.6.json",
+    "字节数": 9623,
+    "SHA256": "CA7244A98251BFF7EA7B1D7D5EAC096B6DBDDD80F67098EAD4320CC2FEEC4D69"
+  },
+  {
     "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
     "路径": "master_target_state.json",
     "字节数": 3727,
@@ -96,16 +120,28 @@
     "SHA256": "B7AB5558BE65C4930BC26AA796C7505E2A86E8A1F30C3E4B45E482EBE98A8EFF"
   },
   {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "native/run_native_146.sh",
+    "字节数": 1415,
+    "SHA256": "7ABB5CFB3443EF8F0E138DC1E25A9DE8ED371F6D4637930AADA3BAF682DA0D96"
+  },
+  {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "native/test_native_146.c",
+    "字节数": 28179,
+    "SHA256": "C8D5A8CD365D5D6E92F196D8A1DC105EAE073853E784DEE416AF8231D9B0E52D"
+  },
+  {
     "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
     "路径": "native/tls_align.S",
     "字节数": 242,
     "SHA256": "67AE9A9F277010FC8B434EA8D4A3DCC0A4C1E3E853CB5BEE20089DBD92D76D23"
   },
   {
-    "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/native/update_binary.c",
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
     "路径": "native/update_binary.c",
-    "字节数": 29066,
-    "SHA256": "62132B82B063CD04954BB013C78F73D29F09BC4548BBB6967BA02CE334B2B635"
+    "字节数": 41617,
+    "SHA256": "DA3840AF31B21343D8A50F4B3C3C7C3C55E4359CDBCCA7AECA74B68F7A5C18CA"
   },
   {
     "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
@@ -150,10 +186,22 @@
     "SHA256": "38FAC223283CCCEFBB92BBBE635AA870D27C4FB1BC5A04B00B7AFCC4BAEDC6CC"
   },
   {
+    "来源": "2026-09-26完整刷机1.4.6与工具1.6.11受验源码",
+    "路径": "sources-v1.4.6.json",
+    "字节数": 6914,
+    "SHA256": "38FAC223283CCCEFBB92BBBE635AA870D27C4FB1BC5A04B00B7AFCC4BAEDC6CC"
+  },
+  {
     "来源": "research/d31/staging/b25-factory-v145-20260914-125000/factory-snapshot/stage_v143.py",
     "路径": "stage_v143.py",
     "字节数": 3697,
     "SHA256": "FB88A3E0253F877C85A1A43CB0EB12C503F8192DDE4F9E3587FE9B372CB44057"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "startup-handover/build.ps1",
+    "字节数": 1933,
+    "SHA256": "55E0D60030B3D35B6B67B13DF925F56B350CA3F32C451DAA7743494D2269476D"
   },
   {
     "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
@@ -187,21 +235,15 @@
   },
   {
     "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
-    "路径": "startup-handover/StartupHandover.java",
-    "字节数": 1119,
-    "SHA256": "AE3578D6E3843D11373B107195298802BD3C0AB205BAE44AD0ADFEE6503CA8CB"
-  },
-  {
-    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
-    "路径": "startup-handover/build.ps1",
-    "字节数": 1933,
-    "SHA256": "55E0D60030B3D35B6B67B13DF925F56B350CA3F32C451DAA7743494D2269476D"
-  },
-  {
-    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
     "路径": "startup-handover/start.sh",
     "字节数": 1895,
     "SHA256": "DC7D25CF472317A74D62A49771FE45326434E1BB5DBBB51E745B798092ED1481"
+  },
+  {
+    "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
+    "路径": "startup-handover/StartupHandover.java",
+    "字节数": 1119,
+    "SHA256": "AE3578D6E3843D11373B107195298802BD3C0AB205BAE44AD0ADFEE6503CA8CB"
   },
   {
     "来源": "main 4b9c6fa795d3ad931591236f362015a8170f2361既有公开文件",
